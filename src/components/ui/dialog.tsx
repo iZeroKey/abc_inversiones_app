@@ -1,13 +1,13 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { XIcon } from "lucide-react";
 import type React from "react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const DialogCreateHandle: typeof DialogPrimitive.createHandle =
   DialogPrimitive.createHandle;
@@ -52,7 +52,7 @@ export function DialogViewport({
   return (
     <DialogPrimitive.Viewport
       className={cn(
-        "fixed inset-0 z-50 grid grid-rows-[1fr_auto_3fr] justify-items-center p-4",
+        "fixed inset-0 z-50 grid grid-rows-[1fr_auto_1fr] justify-items-center p-4",
         className,
       )}
       data-slot="dialog-viewport"
@@ -214,7 +214,6 @@ export function DialogPanel({
 }
 
 export {
-  DialogPrimitive,
-  DialogBackdrop as DialogOverlay,
-  DialogPopup as DialogContent,
+  DialogPopup as DialogContent, DialogBackdrop as DialogOverlay, DialogPrimitive
 };
+

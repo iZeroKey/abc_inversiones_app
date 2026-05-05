@@ -1,0 +1,207 @@
+import { useAuth } from "@/contexts/auth-context"
+import { useEffect, useState } from "react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { UsersIcon, FileTextIcon, TrendingUpIcon, PieChartIcon, ReceiptIcon, WalletIcon } from "lucide-react"
+import { formatCurrency, formatCurrencyPrecise } from "@/lib/formatters"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { useNavigate } from "react-router-dom"
+
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
+
+type AdminDashboardData = {
+  users?: {
+    total?: number
+  }
+  loans?: {
+    total?: number
+    active?: number
+    paid?: number
+    defaulted?: number
+  }
+  payments?: {
+    total?: number
+    thisMonth?: string
+  }
+  vouchers?: {
+    pendingReview?: number
+  }
+}
+
+type ApiResponse<T> = {
+  success: boolean
+  data?: T
+}
+
+export default function AdminDashboard() {
+  const { user, session, fetchWithAuth } = useAuth()
+  const [data, setData] = useState<AdminDashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/reports/dashboard`)
+        const json = (await res.json()) as ApiResponse<AdminDashboardData>
+        if (json.success && json.data) {
+          setData(json.data)
+        }
+      } catch (error) {
+        console.error("Failed to fetch admin dashboard", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (session?.access_token) {
+      fetchData()
+    }
+  }, [fetchWithAuth, session?.access_token])
+
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto animate-in fade-in duration-500">
+        <Skeleton className="h-24 w-full rounded-xl" />
+        <div className="grid grid-cols-3 gap-3 md:gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-40 w-full rounded-xl" />
+      </div>
+    )
+  }
+
+  const usersCount = data?.users?.total || 0
+  const loansCount = data?.loans?.total || 0
+  const capital = data?.payments?.thisMonth || 0
+  const cobrado = data?.payments?.total || 0
+  const avance = data?.loans?.total
+    ? Math.round(((data.loans.paid ?? 0) / data.loans.total) * 100)
+    : 0
+  const vouchersCount = data?.vouchers?.pendingReview || 0
+
+  const loansActive = data?.loans?.active || 0
+  const loansMora = data?.loans?.defaulted || 0
+  const loansPaid = data?.loans?.paid || 0
+
+  return (
+    <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border">
+        <div className="flex items-center gap-5">
+          <Avatar className="size-16 md:size-20 border-2 border-background shadow-md">
+            <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
+              {user?.firstName?.[0] || "A"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{user?.firstName} {user?.lastName}</h2>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Badge variant="default" className="font-semibold">Administrador</Badge>
+              {user?.isOwner && <Badge variant="secondary" className="font-semibold">Dueño</Badge>}
+            </div>
+          </div>
+        </div>
+        
+        {vouchersCount > 0 && (
+          <Button 
+            size="lg"
+            variant="default"
+            className="w-full md:w-auto shadow-md"
+            onClick={() => navigate("/requests")}
+          >
+            <ReceiptIcon className="size-4 mr-2" />
+            Revisar Vouchers ({vouchersCount})
+            <span className="ml-2 flex size-2 rounded-full bg-destructive animate-pulse" />
+          </Button>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="font-bold text-xl tracking-tight flex items-center gap-2">
+          <PieChartIcon className="size-5 text-primary" />
+          Visión General del Capital
+        </h3>
+        <Card className="bg-primary text-primary-foreground border-none shadow-lg rounded-3xl overflow-hidden">
+          <CardContent className="p-8 space-y-8">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Total Prestado Este Mes</p>
+              <div className="text-4xl md:text-5xl font-black tracking-tight">
+                S/ {formatCurrencyPrecise(capital)}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold">
+                <span className="opacity-70">Retorno de Capital</span>
+                <span>{avance}%</span>
+              </div>
+              <div className="w-full bg-white/20 h-3 rounded-full overflow-hidden">
+                 <div className="bg-white h-full rounded-full transition-all duration-1000" style={{ width: `${avance}%` }} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
+              <div className="bg-white/10 p-4 rounded-2xl">
+                <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Activos</div>
+                <div className="text-2xl font-bold">{loansActive}</div>
+              </div>
+              <div className="bg-white/10 p-4 rounded-2xl">
+                <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Mora</div>
+                <div className="text-2xl font-bold">{loansMora}</div>
+              </div>
+              <div className="bg-white/10 p-4 rounded-2xl">
+                <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Pagados</div>
+                <div className="text-2xl font-bold">{loansPaid}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="font-bold text-xl tracking-tight">Métricas Operativas</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MetricCard 
+            icon={<UsersIcon className="size-5 md:size-6 text-primary" />} 
+            value={usersCount} 
+            label="Usuarios" 
+          />
+          <MetricCard 
+            icon={<FileTextIcon className="size-5 md:size-6 text-primary" />} 
+            value={loansCount} 
+            label="Préstamos" 
+          />
+          <MetricCard 
+            icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />} 
+            value={formatCurrency(cobrado)} 
+            label="Cobrado" 
+          />
+          <MetricCard 
+            icon={<WalletIcon className="size-5 md:size-6 text-primary" />} 
+            value={`${avance}%`} 
+            label="Eficiencia" 
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: string | number, label: string }) {
+  return (
+    <Card className="border-border shadow-sm overflow-hidden">
+      <CardContent className="p-5 flex flex-col space-y-4">
+        <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          {icon}
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">{label}</div>
+          <div className="font-bold text-xl md:text-2xl leading-none tracking-tight">{value}</div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
