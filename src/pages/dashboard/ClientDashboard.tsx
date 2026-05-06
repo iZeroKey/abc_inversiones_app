@@ -11,6 +11,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
 type Loan = {
   id: string
+  publicCode?: string | null
   totalDebt?: string
   totalPaid?: string
   status?: string
@@ -200,9 +201,10 @@ function MainLoanCard({ loan }: { loan: Loan }) {
   const frecuencia = normalizedFrequency
     ? frequencyMap[normalizedFrequency] || loan.frequency || "N/A"
     : "N/A"
+  const publicCode = loan.publicCode
 
   return (
-    <Link to={`/loans/${loan.id}`} className="block">
+    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} className="block">
       <Card className="bg-primary text-primary-foreground shadow-lg border-none rounded-3xl overflow-hidden hover:opacity-95 transition-opacity">
         <CardContent className="p-8 space-y-8">
           <div className="flex justify-between items-start">
@@ -263,9 +265,10 @@ function OtherLoanCard({ loan }: { loan: Loan }) {
   const frequency = normalizedFrequency
     ? frequencyMap[normalizedFrequency] || loan.frequency || "Mensual"
     : "Mensual"
+  const publicCode = loan.publicCode
 
   return (
-    <Link to={`/loans/${loan.id}`} className="block group">
+    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} className="block group">
       <Card className="border-border shadow-sm hover:shadow-md transition-shadow rounded-2xl overflow-hidden">
         <CardContent className="p-4 md:p-5 flex items-center justify-between">
           <div className="flex items-center gap-4">

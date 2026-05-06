@@ -13,20 +13,25 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
 type AdminDashboardData = {
   users?: {
-    total?: number
+    totalUsers?: number
+    clients?: number
+    investors?: number
+    admins?: number
   }
   loans?: {
-    total?: number
-    active?: number
-    paid?: number
-    defaulted?: number
+    totalLoans?: number
+    activeLoans?: number
+    pendingLoans?: number
+    totalPortfolio?: string
+    totalDebt?: string
   }
-  payments?: {
-    total?: number
-    thisMonth?: string
+  overdue?: {
+    overdueCount?: number
+    overdueAmount?: string
   }
   vouchers?: {
-    pendingReview?: number
+    pendingInvestor?: number
+    pendingAdmin?: number
   }
 }
 
@@ -74,18 +79,19 @@ export default function AdminDashboard() {
     )
   }
 
-  const usersCount = data?.users?.total || 0
-  const loansCount = data?.loans?.total || 0
-  const capital = data?.payments?.thisMonth || 0
-  const cobrado = data?.payments?.total || 0
-  const avance = data?.loans?.total
-    ? Math.round(((data.loans.paid ?? 0) / data.loans.total) * 100)
+  const usersCount = data?.users?.totalUsers || 0
+  const loansCount = data?.loans?.totalLoans || 0
+  const capital = data?.loans?.totalPortfolio || 0
+  const totalDebt = data?.loans?.totalDebt || 0
+  const totalDebtAmount = parseFloat(String(totalDebt))
+  const avance = totalDebtAmount > 0
+    ? Math.round((parseFloat(String(capital)) / totalDebtAmount) * 100)
     : 0
-  const vouchersCount = data?.vouchers?.pendingReview || 0
+  const vouchersCount = (data?.vouchers?.pendingInvestor || 0) + (data?.vouchers?.pendingAdmin || 0)
 
-  const loansActive = data?.loans?.active || 0
-  const loansMora = data?.loans?.defaulted || 0
-  const loansPaid = data?.loans?.paid || 0
+  const loansActive = data?.loans?.activeLoans || 0
+  const loansMora = data?.overdue?.overdueCount || 0
+  const pendingLoans = data?.loans?.pendingLoans || 0
 
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
@@ -110,7 +116,7 @@ export default function AdminDashboard() {
             size="lg"
             variant="default"
             className="w-full md:w-auto shadow-md"
-            onClick={() => navigate("/requests")}
+            onClick={() => navigate("/users")}
           >
             <ReceiptIcon className="size-4 mr-2" />
             Revisar Vouchers ({vouchersCount})
@@ -127,7 +133,7 @@ export default function AdminDashboard() {
         <Card className="bg-primary text-primary-foreground border-none shadow-lg rounded-3xl overflow-hidden">
           <CardContent className="p-8 space-y-8">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Total Prestado Este Mes</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Capital activo prestado</p>
               <div className="text-4xl md:text-5xl font-black tracking-tight">
                 S/ {formatCurrencyPrecise(capital)}
               </div>
@@ -135,7 +141,7 @@ export default function AdminDashboard() {
             
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-bold">
-                <span className="opacity-70">Retorno de Capital</span>
+                <span className="opacity-70">Capital vs deuda activa</span>
                 <span>{avance}%</span>
               </div>
               <div className="w-full bg-white/20 h-3 rounded-full overflow-hidden">
@@ -153,8 +159,8 @@ export default function AdminDashboard() {
                 <div className="text-2xl font-bold">{loansMora}</div>
               </div>
               <div className="bg-white/10 p-4 rounded-2xl">
-                <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Pagados</div>
-                <div className="text-2xl font-bold">{loansPaid}</div>
+                <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Pendientes</div>
+                <div className="text-2xl font-bold">{pendingLoans}</div>
               </div>
             </div>
           </CardContent>
@@ -176,8 +182,8 @@ export default function AdminDashboard() {
           />
           <MetricCard 
             icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />} 
-            value={formatCurrency(cobrado)} 
-            label="Cobrado" 
+            value={formatCurrency(totalDebt)} 
+            label="Deuda activa" 
           />
           <MetricCard 
             icon={<WalletIcon className="size-5 md:size-6 text-primary" />} 

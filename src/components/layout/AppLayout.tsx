@@ -4,7 +4,6 @@ import {
   HomeIcon,
   UserIcon,
   UsersIcon,
-  FolderOpenIcon,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import React from "react"
@@ -78,7 +77,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         { title: "Inicio", href: "/home", icon: HomeIcon, activeColorClass: "text-blue-500", activeBgClass: "bg-blue-500/15" },
         { title: "Préstamos", href: "/loans", icon: FileTextIcon, activeColorClass: "text-emerald-500", activeBgClass: "bg-emerald-500/15" },
         { title: "Usuarios", href: "/users", icon: UsersIcon, activeColorClass: "text-purple-500", activeBgClass: "bg-purple-500/15" },
-        { title: "Solicitudes", href: "/requests", icon: FolderOpenIcon, activeColorClass: "text-amber-500", activeBgClass: "bg-amber-500/15" },
         { title: "Perfil", href: "/profile", icon: UserIcon, activeColorClass: "text-slate-500", activeBgClass: "bg-slate-500/15" },
       ]
     }

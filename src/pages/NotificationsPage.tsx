@@ -13,7 +13,6 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
   Empty,
   EmptyContent,
@@ -494,31 +493,27 @@ export default function NotificationsPage() {
         </TabsList>
       </Tabs>
 
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          {loading ? (
-            <LoadingList />
-          ) : error ? (
-            <ErrorState
-              message={error}
-              onRetry={() => void fetchNotifications({ keepContent: true })}
+      {loading ? (
+        <LoadingList />
+      ) : error ? (
+        <ErrorState
+          message={error}
+          onRetry={() => void fetchNotifications({ keepContent: true })}
+        />
+      ) : notifications.length === 0 ? (
+        <EmptyState filter={filter} />
+      ) : (
+        <div className="divide-y rounded-lg border">
+          {notifications.map((notification) => (
+            <NotificationRow
+              key={notification.id}
+              notification={notification}
+              isMarking={markingIds.has(notification.id)}
+              onMarkAsRead={handleMarkAsRead}
             />
-          ) : notifications.length === 0 ? (
-            <EmptyState filter={filter} />
-          ) : (
-            <div className="divide-y">
-              {notifications.map((notification) => (
-                <NotificationRow
-                  key={notification.id}
-                  notification={notification}
-                  isMarking={markingIds.has(notification.id)}
-                  onMarkAsRead={handleMarkAsRead}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      )}
 
       {!loading && !error && totalPages > 1 && (
         <Pagination>
