@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   CheckIcon,
   CircleAlertIcon,
+  EyeIcon,
   MailIcon,
   PhoneIcon,
   PlusIcon,
@@ -13,7 +14,14 @@ import {
   UsersIcon,
   XIcon,
 } from "lucide-react"
+import type { ColumnDef } from "@tanstack/react-table"
 
+import {
+  DataTableCard,
+  DataTableColumnHeader,
+  DataTableSkeleton,
+  DataTableStaticHeader,
+} from "@/components/data-table-card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -46,10 +54,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetPanel,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
@@ -64,6 +79,8 @@ type UsersTab = "users" | "requests"
 type RoleFilter = "all" | UserRole
 type StatusFilter = "all" | "active" | "inactive"
 type RequestStatus = "pending" | "in_review" | "approved" | "rejected" | string
+type RequestRoleFilter = "all" | "client" | "investor"
+type RequestStatusFilter = "all" | "pending" | "in_review" | "approved" | "rejected"
 
 type ManagedUser = {
   id: string
@@ -133,6 +150,20 @@ const statusItems: { label: string; value: StatusFilter }[] = [
   { label: "Todos", value: "all" },
   { label: "Activos", value: "active" },
   { label: "Inactivos", value: "inactive" },
+]
+
+const requestRoleItems: { label: string; value: RequestRoleFilter }[] = [
+  { label: "Todos los roles", value: "all" },
+  { label: "Clientes", value: "client" },
+  { label: "Inversionistas", value: "investor" },
+]
+
+const requestStatusItems: { label: string; value: RequestStatusFilter }[] = [
+  { label: "Todos", value: "all" },
+  { label: "Pendientes", value: "pending" },
+  { label: "En revisión", value: "in_review" },
+  { label: "Aprobadas", value: "approved" },
+  { label: "Rechazadas", value: "rejected" },
 ]
 
 const defaultUserForm: UserFormState = {
@@ -255,6 +286,9 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   const [searchQuery, setSearchQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+  const [requestSearchQuery, setRequestSearchQuery] = useState("")
+  const [requestRoleFilter, setRequestRoleFilter] = useState<RequestRoleFilter>("all")
+  const [requestStatusFilter, setRequestStatusFilter] = useState<RequestStatusFilter>("all")
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [refreshingUsers, setRefreshingUsers] = useState(false)
   const [loadingRequests, setLoadingRequests] = useState(true)
@@ -265,6 +299,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   const [userForm, setUserForm] = useState<UserFormState>(defaultUserForm)
   const [savingUser, setSavingUser] = useState(false)
   const [reviewingRequest, setReviewingRequest] = useState<AccessRequest | null>(null)
+  const [selectedRequest, setSelectedRequest] = useState<AccessRequest | null>(null)
   const [requestAction, setRequestAction] = useState<"approved" | "rejected" | null>(null)
   const [requestObservation, setRequestObservation] = useState("")
   const [submittingRequest, setSubmittingRequest] = useState(false)
@@ -301,6 +336,33 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
   const totalUserPages = Math.max(Math.ceil(filteredUsers.length / USERS_PAGE_SIZE), 1)
   const currentUserPage = Math.min(page, totalUserPages)
+
+  const filteredRequests = useMemo(() => {
+    const query = normalizeSearch(requestSearchQuery)
+
+    return requests.filter((request) => {
+      const matchesSearch =
+        !query ||
+        normalizeSearch(
+          [
+            request.firstName,
+            request.lastName,
+            request.email,
+            request.phone,
+            request.id,
+            request.observation,
+          ]
+            .filter(Boolean)
+            .join(" "),
+        ).includes(query)
+      const normalizedRole = normalizeRole(request.roleRequested)
+      const matchesRole = requestRoleFilter === "all" || normalizedRole === requestRoleFilter
+      const normalizedStatus = normalizeRequestStatus(request.status)
+      const matchesStatus = requestStatusFilter === "all" || normalizedStatus === requestStatusFilter
+
+      return matchesSearch && matchesRole && matchesStatus
+    })
+  }, [requestRoleFilter, requestSearchQuery, requestStatusFilter, requests])
 
   const pagedUsers = useMemo(() => {
     const start = (currentUserPage - 1) * USERS_PAGE_SIZE
@@ -502,7 +564,11 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             <h1 className="text-2xl font-semibold tracking-normal md:text-3xl">
               Usuarios
             </h1>
-            <Badge variant="secondary">{stats.total} registros</Badge>
+            {loadingUsers ? (
+              <Skeleton className="h-5 w-24 rounded-full" />
+            ) : (
+              <Badge variant="secondary">{stats.total} registros</Badge>
+            )}
           </div>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Administra perfiles, roles, estado de acceso y solicitudes pendientes.
@@ -529,11 +595,11 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       </header>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricTile label="Total" value={stats.total} />
-        <MetricTile label="Clientes" value={stats.clients} />
-        <MetricTile label="Inversionistas" value={stats.investors} />
-        <MetricTile label="Administradores" value={stats.admins} />
-        <MetricTile label="Solicitudes pendientes" value={stats.pendingRequests} emphasis />
+        <MetricTile label="Total" value={stats.total} loading={loadingUsers} />
+        <MetricTile label="Clientes" value={stats.clients} loading={loadingUsers} />
+        <MetricTile label="Inversionistas" value={stats.investors} loading={loadingUsers} />
+        <MetricTile label="Administradores" value={stats.admins} loading={loadingUsers} />
+        <MetricTile label="Solicitudes pendientes" value={stats.pendingRequests} loading={loadingRequests} emphasis />
       </section>
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as UsersTab)} className="gap-5">
@@ -572,9 +638,17 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         <TabsContent value="requests">
           <RequestsWorkspace
             requests={requests}
+            filteredRequests={filteredRequests}
+            searchQuery={requestSearchQuery}
+            roleFilter={requestRoleFilter}
+            statusFilter={requestStatusFilter}
             loading={loadingRequests}
             error={requestsError}
             onRetry={() => void loadRequests()}
+            onSearchQueryChange={setRequestSearchQuery}
+            onRoleFilterChange={(value) => setRequestRoleFilter(value ?? "all")}
+            onStatusFilterChange={(value) => setRequestStatusFilter(value ?? "all")}
+            onInspect={setSelectedRequest}
             onReview={(request, action) => {
               setReviewingRequest(request)
               setRequestAction(action)
@@ -611,6 +685,19 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
           }
         }}
         onConfirm={() => void handleReviewRequest()}
+      />
+
+      <RequestDetailSheet
+        request={selectedRequest}
+        open={Boolean(selectedRequest)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedRequest(null)
+        }}
+        onReview={(request, action) => {
+          setReviewingRequest(request)
+          setRequestAction(action)
+          setRequestObservation(request.observation ?? "")
+        }}
       />
     </main>
   )
@@ -649,54 +736,163 @@ function UsersWorkspace({
   onSearchQueryChange: (query: string) => void
   onStatusFilterChange: (value: StatusFilter | null) => void
 }) {
+  const userColumns = useMemo<ColumnDef<ManagedUser>[]>(
+    () => [
+      {
+        id: "user",
+        accessorFn: (item) => `${displayPersonName(item)} ${item.publicCode ?? item.id}`,
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Usuario"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => <UserIdentity user={row.original} />,
+        meta: {
+          headerClassName: "w-[260px]",
+          cellClassName: "min-w-0",
+        },
+      },
+      {
+        id: "contact",
+        accessorFn: (item) => `${item.email ?? ""} ${item.phone ?? ""}`,
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Contacto"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => (
+          <ContactStack email={row.original.email} phone={row.original.phone} />
+        ),
+        meta: {
+          headerClassName: "w-[270px]",
+          cellClassName: "min-w-0",
+        },
+      },
+      {
+        id: "role",
+        accessorFn: (item) => getRoleLabel(normalizeRole(item.role)),
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Rol"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => (
+          <RoleBadge role={row.original.role} isOwner={row.original.isOwner} />
+        ),
+        meta: {
+          headerClassName: "w-[150px]",
+        },
+      },
+      {
+        id: "status",
+        accessorFn: (item) => (item.active === false ? "Inactivo" : "Activo"),
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Estado"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => <StatusBadge active={row.original.active !== false} />,
+        meta: {
+          headerClassName: "w-[100px]",
+        },
+      },
+      {
+        id: "createdAt",
+        accessorFn: (item) => item.createdAt ?? "",
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Registro"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {formatDate(row.original.createdAt)}
+          </span>
+        ),
+        meta: {
+          headerClassName: "w-[120px]",
+        },
+      },
+      {
+        id: "action",
+        enableSorting: false,
+        header: () => <DataTableStaticHeader title="Acción" align="right" />,
+        cell: ({ row }) => (
+          <div className="text-right">
+            <Button variant="outline" size="sm" onClick={() => onEditUser(row.original)}>
+              <UserCogIcon data-icon="inline-start" />
+              Editar
+            </Button>
+          </div>
+        ),
+        meta: {
+          headerClassName: "w-[110px] text-right",
+          cellClassName: "text-right",
+        },
+      },
+    ],
+    [onEditUser],
+  )
+
   return (
     <section className="flex min-w-0 flex-col gap-4">
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center">
-            <InputGroup className="flex-1">
-              <InputGroupAddon align="inline-start">
-                <SearchIcon />
-              </InputGroupAddon>
-              <InputGroupInput
-                value={searchQuery}
-                placeholder="Buscar por nombre, correo o teléfono"
-                onChange={(event) => onSearchQueryChange(event.target.value)}
-              />
-            </InputGroup>
-            <div className="grid gap-2 sm:grid-cols-2 lg:w-[360px]">
-              <Select items={roleItems} value={roleFilter} onValueChange={onRoleFilterChange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {roleItems.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <Select items={statusItems} value={statusFilter} onValueChange={onStatusFilterChange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {statusItems.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center">
+        <InputGroup className="flex-1">
+          <InputGroupAddon align="inline-start">
+            <SearchIcon />
+          </InputGroupAddon>
+          <InputGroupInput
+            value={searchQuery}
+            placeholder="Buscar por nombre, correo o teléfono"
+            onChange={(event) => onSearchQueryChange(event.target.value)}
+          />
+        </InputGroup>
+        <div className="grid gap-2 sm:grid-cols-2 lg:w-[400px]">
+          <Select items={roleItems} value={roleFilter} onValueChange={onRoleFilterChange}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {roleItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Select items={statusItems} value={statusFilter} onValueChange={onStatusFilterChange}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {statusItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {error ? (
         <ErrorState message={error} onRetry={onRetry} />
@@ -715,55 +911,21 @@ function UsersWorkspace({
           </EmptyHeader>
         </Empty>
       ) : (
-        <>
-          <div className="min-w-0 overflow-hidden rounded-lg border bg-card">
-            <Table className="min-w-[760px] table-fixed">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[260px]">Usuario</TableHead>
-                  <TableHead className="w-[270px]">Contacto</TableHead>
-                  <TableHead className="w-[150px]">Rol</TableHead>
-                  <TableHead className="w-[100px]">Estado</TableHead>
-                  <TableHead className="w-[120px]">Registro</TableHead>
-                  <TableHead className="w-[110px] text-right">Acción</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody className={cn(refreshing && "opacity-70")}>
-                {users.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="min-w-0">
-                      <UserIdentity user={item} />
-                    </TableCell>
-                    <TableCell className="min-w-0">
-                      <ContactStack email={item.email} phone={item.phone} />
-                    </TableCell>
-                    <TableCell>
-                      <RoleBadge role={item.role} isOwner={item.isOwner} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge active={item.active !== false} />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(item.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="outline" size="sm" onClick={() => onEditUser(item)}>
-                        <UserCogIcon data-icon="inline-start" />
-                        Editar
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <PaginationFooter
-            page={page}
-            totalPages={pagination.totalPages ?? 1}
-            total={pagination.total}
-            onPageChange={onPageChange}
-          />
-        </>
+        <DataTableCard
+          columns={userColumns}
+          data={users}
+          getRowId={(item) => item.id}
+          tableClassName="min-w-[760px] table-fixed"
+          bodyClassName={cn(refreshing && "opacity-70")}
+          initialSorting={[{ id: "createdAt", desc: true }]}
+          pagination={{
+            page,
+            totalPages: pagination.totalPages ?? 1,
+            total: pagination.total,
+            itemLabel: "usuarios",
+            onPageChange,
+          }}
+        />
       )}
     </section>
   )
@@ -771,110 +933,281 @@ function UsersWorkspace({
 
 function RequestsWorkspace({
   requests,
+  filteredRequests,
+  searchQuery,
+  roleFilter,
+  statusFilter,
   loading,
   error,
   onRetry,
+  onSearchQueryChange,
+  onRoleFilterChange,
+  onStatusFilterChange,
+  onInspect,
   onReview,
 }: {
   requests: AccessRequest[]
+  filteredRequests: AccessRequest[]
+  searchQuery: string
+  roleFilter: RequestRoleFilter
+  statusFilter: RequestStatusFilter
   loading: boolean
   error: string | null
   onRetry: () => void
+  onSearchQueryChange: (query: string) => void
+  onRoleFilterChange: (value: RequestRoleFilter | null) => void
+  onStatusFilterChange: (value: RequestStatusFilter | null) => void
+  onInspect: (request: AccessRequest) => void
   onReview: (request: AccessRequest, action: "approved" | "rejected") => void
 }) {
-  if (error) {
-    return <ErrorState message={error} onRetry={onRetry} />
-  }
+  const requestColumns = useMemo<ColumnDef<AccessRequest>[]>(
+    () => [
+      {
+        id: "applicant",
+        accessorFn: (request) => `${displayPersonName(request)} ${request.id}`,
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Solicitante"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            <p className="truncate font-medium">{displayPersonName(row.original)}</p>
+            <p className="truncate font-mono text-xs text-muted-foreground">{row.original.id}</p>
+          </div>
+        ),
+        meta: {
+          headerClassName: "w-[260px]",
+          cellClassName: "min-w-0",
+        },
+      },
+      {
+        id: "contact",
+        accessorFn: (request) => `${request.email ?? ""} ${request.phone ?? ""}`,
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Contacto"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => (
+          <ContactStack email={row.original.email} phone={row.original.phone} />
+        ),
+        meta: {
+          headerClassName: "w-[260px]",
+          cellClassName: "min-w-0",
+        },
+      },
+      {
+        id: "roleRequested",
+        accessorFn: (request) => getRoleLabel(request.roleRequested),
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Rol solicitado"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => getRoleLabel(row.original.roleRequested),
+        meta: {
+          headerClassName: "w-[150px]",
+        },
+      },
+      {
+        id: "status",
+        accessorFn: (request) => request.status ?? "pending",
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Estado"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => <RequestStatusBadge status={row.original.status} />,
+        meta: {
+          headerClassName: "w-[120px]",
+        },
+      },
+      {
+        id: "createdAt",
+        accessorFn: (request) => request.createdAt ?? "",
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Creada"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {formatDate(row.original.createdAt)}
+          </span>
+        ),
+        meta: {
+          headerClassName: "w-[120px]",
+        },
+      },
+      {
+        id: "observation",
+        accessorFn: (request) => request.observation ?? "",
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Observación"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="block truncate text-muted-foreground">
+            {row.original.observation || "-"}
+          </span>
+        ),
+        meta: {
+          headerClassName: "w-[210px]",
+          cellClassName: "min-w-0",
+        },
+      },
+      {
+        id: "actions",
+        enableSorting: false,
+        header: () => <DataTableStaticHeader title="Acción" align="right" />,
+        cell: ({ row }) => {
+          const pending = isPendingRequest(row.original.status)
 
-  if (loading) {
-    return (
-      <div className="flex min-w-0 flex-col gap-3">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton key={index} className="h-16 rounded-lg" />
-        ))}
-      </div>
-    )
-  }
-
-  if (requests.length === 0) {
-    return (
-      <Empty className="min-h-[360px] rounded-lg border bg-card">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <UserIcon />
-          </EmptyMedia>
-          <EmptyTitle>No hay solicitudes</EmptyTitle>
-          <EmptyDescription>
-            Cuando alguien solicite acceso, aparecerá en esta bandeja de revisión.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    )
-  }
+          return (
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onInspect(row.original)}
+              >
+                <EyeIcon data-icon="inline-start" />
+                Ver
+              </Button>
+              {pending && (
+                <Button
+                  size="sm"
+                  onClick={() => onReview(row.original, "approved")}
+                >
+                  <CheckIcon data-icon="inline-start" />
+                  Aprobar
+                </Button>
+              )}
+            </div>
+          )
+        },
+        meta: {
+          headerClassName: "w-[170px] text-right",
+          cellClassName: "text-right",
+        },
+      },
+    ],
+    [onInspect, onReview],
+  )
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-lg border bg-card">
-      <Table className="min-w-[900px] table-fixed">
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[260px]">Solicitante</TableHead>
-            <TableHead className="w-[260px]">Contacto</TableHead>
-            <TableHead className="w-[150px]">Rol solicitado</TableHead>
-            <TableHead className="w-[120px]">Estado</TableHead>
-            <TableHead className="w-[120px]">Creada</TableHead>
-            <TableHead className="w-[210px]">Observación</TableHead>
-            <TableHead className="w-[190px] text-right">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {requests.map((request) => {
-            const pending = isPendingRequest(request.status)
+    <section className="flex min-w-0 flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center">
+        <InputGroup className="flex-1">
+          <InputGroupAddon align="inline-start">
+            <SearchIcon />
+          </InputGroupAddon>
+          <InputGroupInput
+            value={searchQuery}
+            placeholder="Buscar por nombre, correo, teléfono u observación"
+            onChange={(event) => onSearchQueryChange(event.target.value)}
+          />
+        </InputGroup>
+        <div className="grid gap-2 sm:grid-cols-2 lg:w-[400px]">
+          <Select items={requestRoleItems} value={roleFilter} onValueChange={onRoleFilterChange}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {requestRoleItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Select items={requestStatusItems} value={statusFilter} onValueChange={onStatusFilterChange}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {requestStatusItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-            return (
-              <TableRow key={request.id}>
-                <TableCell className="min-w-0">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{displayPersonName(request)}</p>
-                    <p className="truncate font-mono text-xs text-muted-foreground">{request.id}</p>
-                  </div>
-                </TableCell>
-                <TableCell className="min-w-0">
-                  <ContactStack email={request.email} phone={request.phone} />
-                </TableCell>
-                <TableCell>{getRoleLabel(request.roleRequested)}</TableCell>
-                <TableCell>
-                  <RequestStatusBadge status={request.status} />
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDate(request.createdAt)}
-                </TableCell>
-                <TableCell className="min-w-0">
-                  <span className="block truncate text-muted-foreground">
-                    {request.observation || "-"}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={!pending}
-                      onClick={() => onReview(request, "rejected")}
-                    >
-                      <XIcon data-icon="inline-start" />
-                      Rechazar
-                    </Button>
-                    <Button size="sm" disabled={!pending} onClick={() => onReview(request, "approved")}>
-                      <CheckIcon data-icon="inline-start" />
-                      Aprobar
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
+      {error ? (
+        <ErrorState message={error} onRetry={onRetry} />
+      ) : loading ? (
+        <DataTableSkeleton
+          rows={6}
+          tableClassName="min-w-[900px] table-fixed"
+          columns={[
+            { className: "w-[260px]", headerWidth: "w-28", cellWidth: "w-44" },
+            { className: "w-[260px]", headerWidth: "w-24", cellWidth: "w-52" },
+            { className: "w-[150px]", headerWidth: "w-28", cellWidth: "w-24" },
+            { className: "w-[120px]", headerWidth: "w-16", cellWidth: "w-20" },
+            { className: "w-[120px]", headerWidth: "w-16", cellWidth: "w-24" },
+            { className: "w-[210px]", headerWidth: "w-24", cellWidth: "w-36" },
+            { className: "w-[170px] text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-32" },
+          ]}
+        />
+      ) : requests.length === 0 ? (
+        <Empty className="min-h-[360px] rounded-lg border bg-card">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <UserIcon />
+            </EmptyMedia>
+            <EmptyTitle>No hay solicitudes</EmptyTitle>
+            <EmptyDescription>
+              Cuando alguien solicite acceso, aparecerá en esta bandeja de revisión.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : filteredRequests.length === 0 ? (
+        <Empty className="min-h-[360px] rounded-lg border bg-card">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <SearchIcon />
+            </EmptyMedia>
+            <EmptyTitle>No hay solicitudes para mostrar</EmptyTitle>
+            <EmptyDescription>
+              Ajusta los filtros para ver otras solicitudes.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <DataTableCard
+          columns={requestColumns}
+          data={filteredRequests}
+          getRowId={(request) => request.id}
+          tableClassName="min-w-[900px] table-fixed"
+          initialSorting={[{ id: "createdAt", desc: true }]}
+        />
+      )}
     </section>
   )
 }
@@ -1086,6 +1419,98 @@ function UserDialog({
   )
 }
 
+function RequestDetailSheet({
+  request,
+  open,
+  onOpenChange,
+  onReview,
+}: {
+  request: AccessRequest | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onReview: (request: AccessRequest, action: "approved" | "rejected") => void
+}) {
+  const pending = Boolean(request && isPendingRequest(request.status))
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="max-w-xl" showCloseButton>
+        <SheetHeader>
+          <SheetTitle>Detalle de solicitud</SheetTitle>
+          <SheetDescription>
+            {request
+              ? `${displayPersonName(request)} solicitó acceso como ${getRoleLabel(request.roleRequested).toLowerCase()}.`
+              : "Selecciona una solicitud para revisar su información."}
+          </SheetDescription>
+        </SheetHeader>
+        <SheetPanel className="p-4 sm:p-6">
+          {request && (
+            <div className="flex flex-col gap-5">
+              <div className="flex items-start justify-between gap-3 border-b pb-4">
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-semibold tracking-normal">
+                    {displayPersonName(request)}
+                  </p>
+                  <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                    {request.id}
+                  </p>
+                </div>
+                <RequestStatusBadge status={request.status} />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <RequestDetailItem label="Rol solicitado" value={getRoleLabel(request.roleRequested)} />
+                <RequestDetailItem label="Estado" value={getRequestStatusLabel(request.status)} />
+                <RequestDetailItem label="Creada" value={formatDate(request.createdAt)} />
+                <RequestDetailItem label="Actualizada" value={formatDate(request.updatedAt)} />
+              </div>
+
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <p className="text-xs font-medium uppercase text-muted-foreground">Contacto</p>
+                <div className="mt-3">
+                  <ContactStack email={request.email} phone={request.phone} />
+                </div>
+              </div>
+
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <p className="text-xs font-medium uppercase text-muted-foreground">Observación</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+                  {request.observation || "Sin observación registrada."}
+                </p>
+              </div>
+
+              {pending && (
+                <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => onReview(request, "rejected")}
+                  >
+                    <XIcon data-icon="inline-start" />
+                    Rechazar
+                  </Button>
+                  <Button onClick={() => onReview(request, "approved")}>
+                    <CheckIcon data-icon="inline-start" />
+                    Aprobar
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </SheetPanel>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function RequestDetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border bg-muted/20 p-4">
+      <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
+      <p className="mt-2 break-words text-sm font-medium">{value}</p>
+    </div>
+  )
+}
+
 function ReviewRequestDialog({
   request,
   action,
@@ -1154,11 +1579,25 @@ function ReviewRequestDialog({
   )
 }
 
-function MetricTile({ label, value, emphasis = false }: { label: string; value: number; emphasis?: boolean }) {
+function MetricTile({
+  label,
+  value,
+  emphasis = false,
+  loading = false,
+}: {
+  label: string
+  value: number
+  emphasis?: boolean
+  loading?: boolean
+}) {
   return (
     <Card className={cn(emphasis && "border-primary/30 bg-primary/[0.03]")}>
       <CardContent className="p-4">
-        <p className="text-2xl font-semibold tracking-normal">{value}</p>
+        {loading ? (
+          <Skeleton className="h-8 w-16" />
+        ) : (
+          <p className="text-2xl font-semibold tracking-normal">{value}</p>
+        )}
         <p className="mt-1 text-sm text-muted-foreground">{label}</p>
       </CardContent>
     </Card>
@@ -1167,11 +1606,18 @@ function MetricTile({ label, value, emphasis = false }: { label: string; value: 
 
 function UsersSkeleton() {
   return (
-    <div className="flex flex-col gap-3">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <Skeleton key={index} className="h-16 rounded-lg" />
-      ))}
-    </div>
+    <DataTableSkeleton
+      rows={8}
+      tableClassName="min-w-[760px] table-fixed"
+      columns={[
+        { className: "w-[260px]", headerWidth: "w-20", cellWidth: "w-44" },
+        { className: "w-[270px]", headerWidth: "w-24", cellWidth: "w-52" },
+        { className: "w-[150px]", headerWidth: "w-12", cellWidth: "w-24" },
+        { className: "w-[100px]", headerWidth: "w-16", cellWidth: "w-16" },
+        { className: "w-[120px]", headerWidth: "w-20", cellWidth: "w-24" },
+        { className: "w-[110px] text-right", headerWidth: "ml-auto w-16", cellWidth: "ml-auto w-20" },
+      ]}
+    />
   )
 }
 
@@ -1192,47 +1638,6 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
         </Button>
       </EmptyContent>
     </Empty>
-  )
-}
-
-function PaginationFooter({
-  page,
-  totalPages,
-  total,
-  onPageChange,
-}: {
-  page: number
-  totalPages: number
-  total?: number
-  onPageChange: (page: number) => void
-}) {
-  const normalizedTotalPages = Math.max(totalPages, 1)
-
-  return (
-    <div className="flex flex-col gap-3 rounded-lg border bg-card px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-      <span className="text-muted-foreground">
-        Página {page} de {normalizedTotalPages}
-        {typeof total === "number" ? ` · ${total} usuarios` : ""}
-      </span>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={page <= 1}
-          onClick={() => onPageChange(Math.max(page - 1, 1))}
-        >
-          Anterior
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={page >= normalizedTotalPages}
-          onClick={() => onPageChange(Math.min(page + 1, normalizedTotalPages))}
-        >
-          Siguiente
-        </Button>
-      </div>
-    </div>
   )
 }
 
@@ -1300,12 +1705,29 @@ function StatusBadge({ active }: { active: boolean }) {
 }
 
 function RequestStatusBadge({ status }: { status?: RequestStatus }) {
-  const normalized = status ?? "pending"
+  const normalized = normalizeRequestStatus(status)
 
   if (normalized === "approved") return <Badge>Aprobada</Badge>
   if (normalized === "rejected") return <Badge variant="destructive">Rechazada</Badge>
   if (normalized === "in_review") return <Badge variant="secondary">En revisión</Badge>
   return <Badge variant="outline">Pendiente</Badge>
+}
+
+function normalizeRequestStatus(status?: RequestStatus | null): RequestStatusFilter {
+  if (status === "approved" || status === "rejected" || status === "in_review") return status
+  return "pending"
+}
+
+function getRequestStatusLabel(status?: RequestStatus | null) {
+  const labels: Record<RequestStatusFilter, string> = {
+    all: "Todos",
+    approved: "Aprobada",
+    in_review: "En revisión",
+    pending: "Pendiente",
+    rejected: "Rechazada",
+  }
+
+  return labels[normalizeRequestStatus(status)]
 }
 
 function normalizeRole(role?: string | null) {
