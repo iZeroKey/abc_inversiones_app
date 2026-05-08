@@ -1,7 +1,13 @@
 import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { FileSpreadsheetIcon, RefreshCwIcon } from "lucide-react"
+import type { ColumnDef } from "@tanstack/react-table"
 
+import {
+  DataTableCard,
+  DataTableColumnHeader,
+  DataTableSkeleton,
+} from "@/components/data-table-card"
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,9 +18,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import { frequencyLabels } from "@/features/loans/loan-constants"
@@ -69,6 +73,134 @@ export function AdminLoansSummaryPanel({
       debt: rows.reduce((total, row) => total + toNumber(row.remainingDebt), 0),
     }),
     [rows],
+  )
+
+  const summaryColumns = useMemo<ColumnDef<AdminLoanSummaryRow>[]>(
+    () => [
+      {
+        id: "publicCode",
+        accessorFn: (row) => row.publicCode ?? "",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Código préstamo" />
+        ),
+        cell: ({ row }) => <SummaryLoanLink row={row.original} basePath={basePath} />,
+      },
+      {
+        id: "clientCode",
+        accessorFn: (row) => row.clientCode ?? "",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Cod. cliente" />
+        ),
+        cell: ({ row }) => (
+          <span className="font-mono text-xs">{row.original.clientCode ?? "-"}</span>
+        ),
+      },
+      {
+        id: "clientName",
+        accessorFn: (row) => row.clientName ?? "",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Cliente" />
+        ),
+        cell: ({ row }) => (
+          <span className="block max-w-48 truncate">
+            {row.original.clientName ?? "Sin cliente"}
+          </span>
+        ),
+      },
+      {
+        id: "date",
+        accessorFn: (row) => row.creditDate ?? row.createdAt ?? "",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Fecha" />
+        ),
+        cell: ({ row }) => formatDate(row.original.creditDate ?? row.original.createdAt),
+      },
+      {
+        id: "principal",
+        accessorFn: (row) => toNumber(row.principal),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Crédito" align="right" />
+        ),
+        cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.principal),
+        meta: {
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
+      },
+      {
+        id: "frequency",
+        accessorFn: (row) => frequencyLabels[String(row.frequency)] ?? row.frequency ?? "",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Modalidad" />
+        ),
+        cell: ({ row }) => frequencyLabels[String(row.original.frequency)] ?? row.original.frequency ?? "-",
+      },
+      {
+        id: "rate",
+        accessorFn: (row) => toNumber(row.interestRate),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Tasa" />
+        ),
+        cell: ({ row }) => `${row.original.interestRate ?? 0}%`,
+      },
+      {
+        id: "paid",
+        accessorFn: (row) => toNumber(row.paidAmount),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Pagado" align="right" />
+        ),
+        cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.paidAmount),
+        meta: {
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
+      },
+      {
+        id: "gain",
+        accessorFn: (row) => toNumber(row.totalInterest),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Ganancia" align="right" />
+        ),
+        cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.totalInterest),
+        meta: {
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
+      },
+      {
+        id: "debt",
+        accessorFn: (row) => toNumber(row.remainingDebt),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Deuda" align="right" />
+        ),
+        cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.remainingDebt),
+        meta: {
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
+      },
+      {
+        id: "remainingInstallments",
+        accessorFn: (row) => row.remainingInstallments ?? 0,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Restantes" align="right" />
+        ),
+        cell: ({ row }) => row.original.remainingInstallments ?? 0,
+        meta: {
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
+      },
+      {
+        id: "status",
+        accessorFn: (row) => row.status ?? "pending",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Estado" />
+        ),
+        cell: ({ row }) => <LoanStatusBadge status={row.original.status ?? "pending"} />,
+      },
+    ],
+    [basePath],
   )
 
   if (error) {
@@ -148,50 +280,13 @@ export function AdminLoansSummaryPanel({
               ))}
             </div>
           ) : (
-            <ScrollArea className="h-[min(620px,70vh)] w-full rounded-lg border" scrollbarGutter>
-              <div className="min-w-[1120px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Código préstamo</TableHead>
-                      <TableHead>Cod. cliente</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead className="text-right">Crédito</TableHead>
-                      <TableHead>Modalidad</TableHead>
-                      <TableHead>Tasa</TableHead>
-                      <TableHead className="text-right">Pagado</TableHead>
-                      <TableHead className="text-right">Ganancia</TableHead>
-                      <TableHead className="text-right">Deuda</TableHead>
-                      <TableHead className="text-right">Restantes</TableHead>
-                      <TableHead>Estado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell>
-                          <SummaryLoanLink row={row} basePath={basePath} />
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{row.clientCode ?? "-"}</TableCell>
-                        <TableCell className="max-w-48 truncate">{row.clientName ?? "Sin cliente"}</TableCell>
-                        <TableCell>{formatDate(row.creditDate ?? row.createdAt)}</TableCell>
-                        <TableCell className="text-right">{formatPreciseCurrencyWithSymbol(row.principal)}</TableCell>
-                        <TableCell>{frequencyLabels[String(row.frequency)] ?? row.frequency ?? "-"}</TableCell>
-                        <TableCell>{row.interestRate ?? 0}%</TableCell>
-                        <TableCell className="text-right">{formatPreciseCurrencyWithSymbol(row.paidAmount)}</TableCell>
-                        <TableCell className="text-right">{formatPreciseCurrencyWithSymbol(row.totalInterest)}</TableCell>
-                        <TableCell className="text-right">{formatPreciseCurrencyWithSymbol(row.remainingDebt)}</TableCell>
-                        <TableCell className="text-right">{row.remainingInstallments ?? 0}</TableCell>
-                        <TableCell>
-                          <LoanStatusBadge status={row.status ?? "pending"} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </ScrollArea>
+            <DataTableCard
+              columns={summaryColumns}
+              data={filteredRows}
+              getRowId={(row) => row.id}
+              tableClassName="min-w-[1120px]"
+              className="max-h-[min(620px,70vh)] overflow-auto"
+            />
           )}
         </>
       )}
@@ -273,10 +368,23 @@ function MobileMetric({ label, value }: { label: string; value: string }) {
 
 function SummarySkeleton() {
   return (
-    <div className="flex flex-col gap-3">
-      {Array.from({ length: 6 }, (_, index) => (
-        <Skeleton key={index} className="h-16 w-full rounded-lg" />
-      ))}
-    </div>
+    <DataTableSkeleton
+      rows={6}
+      tableClassName="min-w-[1120px]"
+      columns={[
+        { headerWidth: "w-28", cellWidth: "w-28" },
+        { headerWidth: "w-24", cellWidth: "w-24" },
+        { headerWidth: "w-20", cellWidth: "w-36" },
+        { headerWidth: "w-16", cellWidth: "w-24" },
+        { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
+        { headerWidth: "w-20", cellWidth: "w-20" },
+        { headerWidth: "w-12", cellWidth: "w-12" },
+        { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
+        { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
+        { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
+        { className: "text-right", headerWidth: "ml-auto w-16", cellWidth: "ml-auto w-12" },
+        { headerWidth: "w-16", cellWidth: "w-20" },
+      ]}
+    />
   )
 }

@@ -6,7 +6,9 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react"
+import type { ColumnDef } from "@tanstack/react-table"
 
+import { DataTableCard, DataTableColumnHeader } from "@/components/data-table-card"
 import {
   Autocomplete,
   AutocompleteEmpty,
@@ -41,7 +43,6 @@ import {
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -75,6 +76,33 @@ type SchedulePreviewRow = {
   dueDate: Date
   amount: number
 }
+
+const schedulePreviewColumns: ColumnDef<SchedulePreviewRow>[] = [
+  {
+    id: "installmentNumber",
+    accessorFn: (row) => row.installmentNumber,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Cuota" />,
+    cell: ({ row }) => row.original.installmentNumber,
+  },
+  {
+    id: "dueDate",
+    accessorFn: (row) => row.dueDate.getTime(),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Vencimiento" />,
+    cell: ({ row }) => formatScheduleDate(row.original.dueDate),
+  },
+  {
+    id: "amount",
+    accessorFn: (row) => row.amount,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Importe" align="right" />
+    ),
+    cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.amount),
+    meta: {
+      headerClassName: "text-right",
+      cellClassName: "text-right font-medium",
+    },
+  },
+]
 
 export function CreateLoanDialog({
   open,
@@ -290,26 +318,13 @@ function SchedulePreview({
         <PreviewMetric label="Cuota" value={formatPreciseCurrencyWithSymbol(preview.amountPerInstallment)} />
         <PreviewMetric label="Vencimientos" value={`${preview.rows.length} cuotas`} />
       </div>
-      <div className="h-72 overflow-auto rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cuota</TableHead>
-              <TableHead>Vencimiento</TableHead>
-              <TableHead className="text-right">Importe</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {preview.rows.map((row) => (
-              <TableRow key={row.installmentNumber}>
-                <TableCell>{row.installmentNumber}</TableCell>
-                <TableCell>{formatScheduleDate(row.dueDate)}</TableCell>
-                <TableCell className="text-right font-medium">{formatPreciseCurrencyWithSymbol(row.amount)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTableCard
+        columns={schedulePreviewColumns}
+        data={preview.rows}
+        getRowId={(row) => String(row.installmentNumber)}
+        tableClassName="min-w-[420px]"
+        className="max-h-72 overflow-auto"
+      />
     </div>
   )
 }

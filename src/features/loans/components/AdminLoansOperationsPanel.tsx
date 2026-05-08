@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import {
   CalendarIcon,
   ChevronDownIcon,
@@ -9,8 +9,9 @@ import {
   ReceiptTextIcon,
   Settings2Icon,
 } from "lucide-react"
+import type { ColumnDef } from "@tanstack/react-table"
 
-import { Badge } from "@/components/ui/badge"
+import { DataTableCard, DataTableColumnHeader } from "@/components/data-table-card"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -32,14 +33,7 @@ import {
   SheetPanel,
   SheetTitle,
 } from "@/components/ui/sheet"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
 import { ErrorState, LoanListSkeleton } from "@/features/loans/components/LoanPageStates"
@@ -61,7 +55,6 @@ import type { Loan, LoanStatus, PaginationMeta } from "@/types/loans"
 
 type OperationsFocus = "all" | "review" | "active" | "risk" | "company"
 type OperationsView = "table" | "cards"
-type SortDirection = "asc" | "desc"
 
 type ColumnKey =
   | "publicCode"
@@ -77,11 +70,6 @@ type ColumnKey =
   | "progress"
   | "installments"
   | "rate"
-
-type SortState = {
-  key: ColumnKey
-  direction: SortDirection
-}
 
 type ColumnDefinition = {
   key: ColumnKey
@@ -299,7 +287,6 @@ export function AdminLoansOperationsPanel({
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [detailOpen, setDetailOpen] = useState(false)
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<ColumnKey[]>(defaultVisibleColumns)
-  const [sort, setSort] = useState<SortState>({ key: "publicCode", direction: "asc" })
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
 
@@ -308,8 +295,9 @@ export function AdminLoansOperationsPanel({
     [visibleColumnKeys],
   )
 
-  const operationRows = useMemo(() => {
-    const filteredRows = loans.filter((loan) => {
+  const operationRows = useMemo(
+    () =>
+      loans.filter((loan) => {
       const status = normalizeStatus(loan)
       const dateValue = getLoanDateValue(loan)
       const fromValue = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null
@@ -323,22 +311,9 @@ export function AdminLoansOperationsPanel({
       if (toValue !== null && dateValue > toValue) return false
 
       return true
-    })
-
-    const sortColumn = columns.find((column) => column.key === sort.key)
-    if (!sortColumn) return filteredRows
-
-    return [...filteredRows].sort((first, second) => {
-      const firstValue = sortColumn.sortValue(first)
-      const secondValue = sortColumn.sortValue(second)
-      const result =
-        typeof firstValue === "number" && typeof secondValue === "number"
-          ? firstValue - secondValue
-          : String(firstValue).localeCompare(String(secondValue), "es")
-
-      return sort.direction === "asc" ? result : -result
-    })
-  }, [dateFrom, dateTo, focus, loans, sort])
+      }),
+    [dateFrom, dateTo, focus, loans],
+  )
 
   const selectedRows = useMemo(
     () => operationRows.filter((loan) => selectedIds.includes(loan.id)),
@@ -361,13 +336,6 @@ export function AdminLoansOperationsPanel({
   const totalPages = Math.max(pagination.totalPages ?? 1, 1)
   const allVisibleSelected = operationRows.length > 0 && selectedRows.length === operationRows.length
 
-  const handleSort = (key: ColumnKey) => {
-    setSort((current) => ({
-      key,
-      direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
-    }))
-  }
-
   const handleToggleColumn = (key: ColumnKey, checked: boolean) => {
     setVisibleColumnKeys((current) => {
       if (checked) return [...new Set([...current, key])]
@@ -376,30 +344,89 @@ export function AdminLoansOperationsPanel({
     })
   }
 
-  const handleToggleRow = (loanId: string, checked: boolean) => {
+  const handleToggleRow = useCallback((loanId: string, checked: boolean) => {
     setSelectedIds((current) =>
       checked ? [...new Set([...current, loanId])] : current.filter((id) => id !== loanId),
     )
-  }
+  }, [])
 
-  const handleToggleVisibleRows = (checked: boolean) => {
+  const handleToggleVisibleRows = useCallback((checked: boolean) => {
     setSelectedIds(checked ? operationRows.map((loan) => loan.id) : [])
-  }
+  }, [operationRows])
 
-  const handleInspectLoan = (loan: Loan) => {
+  const handleInspectLoan = useCallback((loan: Loan) => {
     onSelectLoan(loan)
     setDetailOpen(true)
-  }
+  }, [onSelectLoan])
+
+  const operationColumns = useMemo<ColumnDef<Loan>[]>(
+    () => [
+      {
+        id: "select",
+        enableSorting: false,
+        header: () => (
+          <Checkbox
+            checked={allVisibleSelected}
+            onCheckedChange={(checked) => handleToggleVisibleRows(Boolean(checked))}
+            aria-label="Seleccionar préstamos visibles"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={selectedIds.includes(row.original.id)}
+            onCheckedChange={(nextChecked) =>
+              handleToggleRow(row.original.id, Boolean(nextChecked))
+            }
+            aria-label={`Seleccionar ${loanPublicCode(row.original)}`}
+          />
+        ),
+        meta: {
+          headerClassName: "w-10",
+        },
+      },
+      ...visibleColumns.map<ColumnDef<Loan>>((column) => ({
+        id: column.key,
+        accessorFn: (loan) => column.sortValue(loan),
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title={column.label}
+            align={column.align}
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) =>
+          column.key === "publicCode" ? (
+            <LoanCodeCell loan={row.original} onInspect={handleInspectLoan} />
+          ) : (
+            column.render(row.original)
+          ),
+        meta: {
+          headerClassName: cn(column.align === "right" && "text-right"),
+          cellClassName: cn(column.align === "right" && "text-right"),
+        },
+      })),
+    ],
+    [
+      allVisibleSelected,
+      handleInspectLoan,
+      handleToggleRow,
+      handleToggleVisibleRows,
+      selectedIds,
+      visibleColumns,
+    ],
+  )
 
   const exportRows = selectedRows
 
   return (
     <section className="flex flex-col gap-5">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <OperationKpi label="Cartera filtrada" value={formatPreciseCurrencyWithSymbol(totals.portfolio)} />
-        <OperationKpi label="Saldo pendiente" value={formatPreciseCurrencyWithSymbol(totals.pending)} />
-        <OperationKpi label="Por revisar" value={totals.review} />
-        <OperationKpi label="En riesgo" value={totals.risk} />
+        <OperationKpi label="Cartera filtrada" value={formatPreciseCurrencyWithSymbol(totals.portfolio)} loading={loadingList} />
+        <OperationKpi label="Saldo pendiente" value={formatPreciseCurrencyWithSymbol(totals.pending)} loading={loadingList} />
+        <OperationKpi label="Por revisar" value={totals.review} loading={loadingList} />
+        <OperationKpi label="En riesgo" value={totals.risk} loading={loadingList} />
       </div>
 
       <div className="flex flex-col gap-4 border-b pb-4">
@@ -511,7 +538,7 @@ export function AdminLoansOperationsPanel({
       </div>
 
       {loadingList ? (
-        <LoanListSkeleton />
+        <LoanListSkeleton variant={view === "table" ? "table" : "cards"} />
       ) : listError ? (
         <ErrorState message={listError} onRetry={onRetryList} />
       ) : operationRows.length === 0 ? (
@@ -533,47 +560,30 @@ export function AdminLoansOperationsPanel({
           ))}
         </div>
       ) : (
-        <div className="-mx-3 overflow-x-auto px-3 md:mx-0 md:px-0">
-          <div className="min-w-[1180px] rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={allVisibleSelected}
-                      onCheckedChange={(checked) => handleToggleVisibleRows(Boolean(checked))}
-                      aria-label="Seleccionar préstamos visibles"
-                    />
-                  </TableHead>
-                  {visibleColumns.map((column) => (
-                    <SortableHead
-                      key={column.key}
-                      column={column}
-                      sort={sort}
-                      onSort={handleSort}
-                    />
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {operationRows.map((loan) => (
-                  <OperationTableRow
-                    key={loan.id}
-                    loan={loan}
-                    checked={selectedIds.includes(loan.id)}
-                    active={detailOpen && selectedLoan?.id === loan.id}
-                    visibleColumns={visibleColumns}
-                    onCheckedChange={(checked) => handleToggleRow(loan.id, checked)}
-                    onInspect={handleInspectLoan}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+        <DataTableCard
+          columns={operationColumns}
+          data={operationRows}
+          getRowId={(loan) => loan.id}
+          getRowClassName={(loan) =>
+            cn(detailOpen && selectedLoan?.id === loan.id && "bg-accent/40")
+          }
+          tableClassName="min-w-[1180px]"
+          initialSorting={[{ id: "publicCode", desc: true }]}
+          pagination={
+            totalPages > 1
+              ? {
+                  page,
+                  totalPages,
+                  total: pagination.total,
+                  itemLabel: "préstamos",
+                  onPageChange,
+                }
+              : undefined
+          }
+        />
       )}
 
-      {totalPages > 1 && (
+      {view === "cards" && totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
           <Button
             variant="ghost"
@@ -582,9 +592,9 @@ export function AdminLoansOperationsPanel({
           >
             Anterior
           </Button>
-          <Badge variant="outline">
+          <span className="rounded-lg border px-3 py-1 text-sm text-muted-foreground">
             {page} de {totalPages}
-          </Badge>
+          </span>
           <Button
             variant="ghost"
             disabled={page >= totalPages}
@@ -746,91 +756,24 @@ function SelectionSummary({
   )
 }
 
-function OperationKpi({ label, value }: { label: string; value: string | number }) {
+function OperationKpi({
+  label,
+  value,
+  loading = false,
+}: {
+  label: string
+  value: string | number
+  loading?: boolean
+}) {
   return (
     <div className="min-w-0 rounded-xl border bg-muted/20 p-3 sm:p-4">
       <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
-      <p className="mt-2 break-words text-xl font-semibold tracking-normal tabular-nums lg:text-2xl">{value}</p>
+      {loading ? (
+        <Skeleton className="mt-2 h-8 w-28 max-w-full" />
+      ) : (
+        <p className="mt-2 break-words text-xl font-semibold tracking-normal tabular-nums lg:text-2xl">{value}</p>
+      )}
     </div>
-  )
-}
-
-function SortableHead({
-  column,
-  sort,
-  onSort,
-}: {
-  column: ColumnDefinition
-  sort: SortState
-  onSort: (key: ColumnKey) => void
-}) {
-  const active = sort.key === column.key
-
-  return (
-    <TableHead className={cn(column.align === "right" && "text-right")}>
-      <button
-        type="button"
-        className={cn(
-          "inline-flex items-center gap-1 text-xs font-medium",
-          column.align === "right" && "ml-auto",
-        )}
-        onClick={() => onSort(column.key)}
-      >
-        {column.label}
-        <span
-          className={cn(
-            "text-[10px] leading-none opacity-35",
-            active && "opacity-100",
-          )}
-        >
-          <span
-            className={cn(
-              "inline-block transition-transform duration-200",
-              active && sort.direction === "desc" && "rotate-180",
-            )}
-          >
-            {active ? "↑" : "↕"}
-          </span>
-        </span>
-      </button>
-    </TableHead>
-  )
-}
-
-function OperationTableRow({
-  loan,
-  checked,
-  active,
-  visibleColumns,
-  onCheckedChange,
-  onInspect,
-}: {
-  loan: Loan
-  checked: boolean
-  active: boolean
-  visibleColumns: ColumnDefinition[]
-  onCheckedChange: (checked: boolean) => void
-  onInspect: (loan: Loan) => void
-}) {
-  return (
-    <TableRow className={cn(active && "bg-accent/40")}>
-      <TableCell>
-        <Checkbox
-          checked={checked}
-          onCheckedChange={(nextChecked) => onCheckedChange(Boolean(nextChecked))}
-          aria-label={`Seleccionar ${loanPublicCode(loan)}`}
-        />
-      </TableCell>
-      {visibleColumns.map((column) => (
-        <TableCell key={column.key} className={cn(column.align === "right" && "text-right")}>
-          {column.key === "publicCode" ? (
-            <LoanCodeCell loan={loan} onInspect={onInspect} />
-          ) : (
-            column.render(loan)
-          )}
-        </TableCell>
-      ))}
-    </TableRow>
   )
 }
 

@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { DataTableSkeleton } from "@/components/data-table-card"
 import {
   Empty,
   EmptyContent,
@@ -20,20 +21,52 @@ import {
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export function LoanListSkeleton() {
+export function LoanListSkeleton({
+  variant = "cards",
+}: {
+  variant?: "cards" | "table"
+}) {
+  if (variant === "table") {
+    return (
+      <DataTableSkeleton
+        rows={7}
+        tableClassName="min-w-[1180px]"
+        columns={[
+          { className: "w-10", headerWidth: "w-4", cellWidth: "w-4" },
+          { headerWidth: "w-24", cellWidth: "w-28" },
+          { headerWidth: "w-20", cellWidth: "w-36" },
+          { headerWidth: "w-28", cellWidth: "w-36" },
+          { headerWidth: "w-16", cellWidth: "w-20" },
+          { headerWidth: "w-24", cellWidth: "w-24" },
+          { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
+          { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
+          { className: "text-right", headerWidth: "ml-auto w-16", cellWidth: "ml-auto w-16" },
+        ]}
+      />
+    )
+  }
+
   return (
-    <div className="flex flex-col gap-0">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="flex flex-col gap-3 border-t px-4 py-4 first:border-t-0">
-          <div className="flex justify-between gap-3">
-            <div className="flex flex-1 flex-col gap-2">
-              <Skeleton className="h-4 w-2/3" />
-              <Skeleton className="h-3 w-1/3" />
+    <div className="grid gap-3 xl:grid-cols-2">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="rounded-2xl border bg-card px-4 py-4 shadow-sm md:px-5">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Skeleton className="size-11 shrink-0 rounded-2xl sm:size-12" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+              <Skeleton className="mt-2 h-3 w-48" />
+              <Skeleton className="mt-2 h-3 w-36" />
             </div>
-            <Skeleton className="h-8 w-20" />
+            <div className="hidden shrink-0 grid-cols-3 gap-4 md:grid">
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-8 w-12" />
+            </div>
+            <Skeleton className="h-5 w-5 shrink-0 rounded-full" />
           </div>
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-2 w-full" />
         </div>
       ))}
     </div>
@@ -43,13 +76,36 @@ export function LoanListSkeleton() {
 export function DetailSkeleton() {
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex items-start gap-3 border-b pb-4">
+        <Skeleton className="size-8 rounded-lg" />
+        <div className="min-w-0 flex-1">
+          <Skeleton className="h-6 w-64 max-w-full" />
+          <Skeleton className="mt-2 h-4 w-32" />
+        </div>
+      </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <Skeleton className="h-20 rounded-xl" />
         <Skeleton className="h-20 rounded-xl" />
         <Skeleton className="h-20 rounded-xl" />
       </div>
       <Skeleton className="h-24 rounded-xl" />
-      <Skeleton className="h-52 rounded-xl" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Skeleton className="h-14 rounded-lg" />
+        <Skeleton className="h-14 rounded-lg" />
+        <Skeleton className="h-14 rounded-lg" />
+        <Skeleton className="h-14 rounded-lg" />
+      </div>
+      <DataTableSkeleton
+        rows={4}
+        tableClassName="min-w-[620px]"
+        columns={[
+          { headerWidth: "w-12", cellWidth: "w-12" },
+          { headerWidth: "w-16", cellWidth: "w-20" },
+          { headerWidth: "w-16", cellWidth: "w-24" },
+          { headerWidth: "w-16", cellWidth: "w-24" },
+          { headerWidth: "w-16", cellWidth: "w-20" },
+        ]}
+      />
     </div>
   )
 }

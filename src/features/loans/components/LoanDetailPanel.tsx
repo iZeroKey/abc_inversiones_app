@@ -7,12 +7,17 @@ import {
   TrendingUpIcon,
   UserRoundIcon,
 } from "lucide-react"
+import type { ColumnDef } from "@tanstack/react-table"
 
+import {
+  DataTableCard,
+  DataTableColumnHeader,
+  DataTableStaticHeader,
+} from "@/components/data-table-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatCurrency } from "@/lib/formatters"
 import { InstallmentBadge, LoanStatusBadge, VoucherStatusBadge } from "@/features/loans/components/LoanBadges"
 import { AmountBlock, InfoRow } from "@/features/loans/components/LoanMetricBits"
@@ -45,6 +50,114 @@ export type RelatedData = {
   payments: Payment[]
   vouchers: PaymentVoucher[]
 }
+
+const scheduleColumns: ColumnDef<Installment>[] = [
+  {
+    id: "number",
+    accessorFn: (installment) => installment.installmentNumber ?? installment.number ?? 0,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Cuota" />,
+    cell: ({ row }) => `#${row.original.installmentNumber ?? row.original.number ?? "-"}`,
+  },
+  {
+    id: "dueDate",
+    accessorFn: (installment) => installment.dueDate ?? "",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Vence" />,
+    cell: ({ row }) => formatDate(row.original.dueDate),
+  },
+  {
+    id: "amount",
+    accessorFn: (installment) => Number(installment.amount ?? 0),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Monto" />,
+    cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.amount),
+  },
+  {
+    id: "paid",
+    accessorFn: (installment) => Number(installment.paidAmount ?? 0),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Pagado" />,
+    cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.paidAmount),
+  },
+  {
+    id: "status",
+    accessorFn: (installment) => installment.status ?? "pending",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Estado" />,
+    cell: ({ row }) => <InstallmentBadge status={row.original.status ?? "pending"} />,
+  },
+]
+
+const paymentColumns: ColumnDef<Payment>[] = [
+  {
+    id: "date",
+    accessorFn: (payment) => payment.paymentDate ?? payment.createdAt ?? "",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Fecha" />,
+    cell: ({ row }) => formatDate(row.original.paymentDate ?? row.original.createdAt),
+  },
+  {
+    id: "amount",
+    accessorFn: (payment) => Number(payment.amount ?? 0),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Monto" />,
+    cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.amount)}</span>,
+  },
+  {
+    id: "method",
+    accessorFn: (payment) => payment.method ?? "",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Método" />,
+    cell: ({ row }) => <Badge variant="outline">{row.original.method ?? "Sin método"}</Badge>,
+  },
+  {
+    id: "reference",
+    accessorFn: (payment) => payment.reference ?? "",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Referencia" />,
+    cell: ({ row }) => (
+      <span className="block max-w-32 truncate font-mono text-xs">
+        {row.original.reference ?? "-"}
+      </span>
+    ),
+  },
+]
+
+const voucherColumns: ColumnDef<PaymentVoucher>[] = [
+  {
+    id: "date",
+    accessorFn: (voucher) => voucher.createdAt ?? "",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Fecha" />,
+    cell: ({ row }) => formatDate(row.original.createdAt),
+  },
+  {
+    id: "amount",
+    accessorFn: (voucher) => Number(voucher.amount ?? 0),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Monto" />,
+    cell: ({ row }) => formatCurrency(row.original.amount),
+  },
+  {
+    id: "status",
+    accessorFn: (voucher) => voucher.status ?? "",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Estado" />,
+    cell: ({ row }) => <VoucherStatusBadge status={row.original.status} />,
+  },
+  {
+    id: "file",
+    enableSorting: false,
+    header: () => <DataTableStaticHeader title="Archivo" />,
+    cell: ({ row }) =>
+      row.original.evidenceUrl || row.original.fileUrl ? (
+        <Button
+          variant="link"
+          size="sm"
+          render={
+            <a
+              href={row.original.evidenceUrl ?? row.original.fileUrl ?? ""}
+              target="_blank"
+              rel="noreferrer"
+            />
+          }
+        >
+          Abrir
+        </Button>
+      ) : (
+        "-"
+      ),
+  },
+]
 
 export function LoanDetailPanel({
   loan,
@@ -221,32 +334,12 @@ function ScheduleTable({ installments }: { installments: Installment[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Cuota</TableHead>
-            <TableHead>Vence</TableHead>
-            <TableHead>Monto</TableHead>
-            <TableHead>Pagado</TableHead>
-            <TableHead>Estado</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {installments.map((installment) => (
-            <TableRow key={installment.id}>
-              <TableCell>#{installment.installmentNumber ?? installment.number ?? "-"}</TableCell>
-              <TableCell>{formatDate(installment.dueDate)}</TableCell>
-              <TableCell>{formatPreciseCurrencyWithSymbol(installment.amount)}</TableCell>
-              <TableCell>{formatPreciseCurrencyWithSymbol(installment.paidAmount)}</TableCell>
-              <TableCell>
-                <InstallmentBadge status={installment.status ?? "pending"} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTableCard
+      columns={scheduleColumns}
+      data={installments}
+      getRowId={(installment) => installment.id}
+      tableClassName="min-w-[620px]"
+    />
   )
 }
 
@@ -262,30 +355,12 @@ function PaymentsTable({ payments }: { payments: Payment[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Monto</TableHead>
-            <TableHead>Método</TableHead>
-            <TableHead>Referencia</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {payments.map((payment) => (
-            <TableRow key={payment.id}>
-              <TableCell>{formatDate(payment.paymentDate ?? payment.createdAt)}</TableCell>
-              <TableCell className="font-medium">{formatCurrency(payment.amount)}</TableCell>
-              <TableCell>
-                <Badge variant="outline">{payment.method ?? "Sin método"}</Badge>
-              </TableCell>
-              <TableCell className="max-w-32 truncate font-mono text-xs">{payment.reference ?? "-"}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTableCard
+      columns={paymentColumns}
+      data={payments}
+      getRowId={(payment) => payment.id}
+      tableClassName="min-w-[560px]"
+    />
   )
 }
 
@@ -301,41 +376,11 @@ function VouchersTable({ vouchers }: { vouchers: PaymentVoucher[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Monto</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Archivo</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {vouchers.map((voucher) => (
-            <TableRow key={voucher.id}>
-              <TableCell>{formatDate(voucher.createdAt)}</TableCell>
-              <TableCell>{formatCurrency(voucher.amount)}</TableCell>
-              <TableCell>
-                <VoucherStatusBadge status={voucher.status} />
-              </TableCell>
-              <TableCell>
-                {voucher.evidenceUrl || voucher.fileUrl ? (
-                  <Button
-                    variant="link"
-                    size="sm"
-                    render={<a href={voucher.evidenceUrl ?? voucher.fileUrl ?? ""} target="_blank" rel="noreferrer" />}
-                  >
-                    Abrir
-                  </Button>
-                ) : (
-                  "-"
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTableCard
+      columns={voucherColumns}
+      data={vouchers}
+      getRowId={(voucher) => voucher.id}
+      tableClassName="min-w-[560px]"
+    />
   )
 }
