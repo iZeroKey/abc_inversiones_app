@@ -1,10 +1,10 @@
-import { useAuth } from "@/contexts/auth-context"
 import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { TrendingUpIcon, WalletIcon, CheckSquareIcon } from "lucide-react"
+import { CheckSquareIcon, TrendingUpIcon, WalletIcon } from "lucide-react"
 import { formatCurrencyPrecise, formatPercent } from "@/lib/formatters"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useAuth } from "@/contexts/auth-context"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
@@ -70,35 +70,21 @@ export default function InvestorDashboard() {
   }, [fetchWithAuth, session?.access_token])
 
   if (loading) {
-    return (
-      <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto animate-in fade-in duration-500">
-        <div>
-          <Skeleton className="h-8 w-48 mb-2" />
-          <Skeleton className="h-5 w-24 rounded-full" />
-        </div>
-        <div className="grid grid-cols-3 gap-3 md:gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
-        </div>
-        <Skeleton className="h-48 w-full rounded-xl" />
-      </div>
-    )
+    return <InvestorDashboardSkeleton />
   }
 
   const summary = data?.summary || {}
   const totalInvested = parseFloat(summary.totalInvested || "0")
   const totalReturn = parseFloat(summary.totalReturn || "0")
   const activeLoans = summary.activeLoans || 0
-  
+
   // Calculate ROI
   const roi = totalInvested > 0 ? ((totalReturn - totalInvested) / totalInvested) * 100 : 0
-  
+
   const progressPercent = totalReturn > 0 ? (collectedAmount / totalReturn) * 100 : 0
 
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
-      {/* Header Hero */}
       <div className="flex flex-col gap-1">
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
           ¡Hola, <span className="text-primary">{user?.firstName}</span>!
@@ -109,7 +95,6 @@ export default function InvestorDashboard() {
         </div>
       </div>
 
-      {/* Resumen de inversiones */}
       <div className="space-y-4">
         <h3 className="font-bold text-xl tracking-tight flex items-center gap-2">
           <TrendingUpIcon className="size-5 text-primary" />
@@ -130,7 +115,7 @@ export default function InvestorDashboard() {
                   </Badge>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
                   <p className="text-[10px] text-primary-foreground/60 font-bold uppercase mb-1">Activos</p>
@@ -149,27 +134,84 @@ export default function InvestorDashboard() {
       <div className="space-y-4">
         <h3 className="font-bold text-xl tracking-tight">Detalles</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-5">
-          <MetricCard 
-            icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />} 
-            label="Retorno Total" 
-            value={`S/ ${formatCurrencyPrecise(totalReturn)}`} 
+          <MetricCard
+            icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />}
+            label="Retorno Total"
+            value={`S/ ${formatCurrencyPrecise(totalReturn)}`}
             subValue={`${formatPercent(roi)} ROI`}
           />
-          <MetricCard 
-            icon={<CheckSquareIcon className="size-5 md:size-6 text-primary" />} 
-            label="Préstamos Activos" 
-            value={activeLoans.toString()} 
+          <MetricCard
+            icon={<CheckSquareIcon className="size-5 md:size-6 text-primary" />}
+            label="Préstamos Activos"
+            value={activeLoans.toString()}
             subValue="En curso"
           />
-          <MetricCard 
-            icon={<WalletIcon className="size-5 md:size-6 text-primary" />} 
-            label="Cobrado" 
-            value={`S/ ${formatCurrencyPrecise(collectedAmount)}`} 
+          <MetricCard
+            icon={<WalletIcon className="size-5 md:size-6 text-primary" />}
+            label="Cobrado"
+            value={`S/ ${formatCurrencyPrecise(collectedAmount)}`}
             subValue={`${progressPercent.toFixed(1)}% del total`}
           />
         </div>
       </div>
     </div>
+  )
+}
+
+function InvestorDashboardSkeleton() {
+  return (
+    <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-10 w-64 max-w-full" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-4 w-44" />
+          <Skeleton className="h-5 w-28 rounded-full" />
+        </div>
+      </div>
+      <div className="space-y-4">
+        <Skeleton className="h-7 w-56" />
+        <Card className="border-none bg-primary/10 shadow-lg rounded-3xl overflow-hidden">
+          <CardContent className="p-8">
+            <div className="grid items-center gap-8 md:grid-cols-2">
+              <div className="space-y-3">
+                <Skeleton className="h-3 w-36" />
+                <Skeleton className="h-12 w-72 max-w-full" />
+                <Skeleton className="h-6 w-24 rounded-full" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Skeleton className="h-20 rounded-2xl" />
+                <Skeleton className="h-20 rounded-2xl" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      <div className="space-y-4">
+        <Skeleton className="h-7 w-24" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <MetricCardSkeleton key={index} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MetricCardSkeleton() {
+  return (
+    <Card className="border-border shadow-sm overflow-hidden">
+      <CardContent className="p-5">
+        <div className="flex flex-col gap-3">
+          <Skeleton className="size-10 rounded-xl" />
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-6 w-28" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

@@ -80,17 +80,49 @@ export default function ClientDashboard() {
 
   if (loading) {
     return (
-      <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto animate-in fade-in duration-500">
-        <div>
-          <Skeleton className="h-8 w-48 mb-2" />
-          <Skeleton className="h-4 w-40" />
+      <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
+        <div className="flex flex-col gap-1">
+          <Skeleton className="h-10 w-64 max-w-full" />
+          <Skeleton className="h-4 w-72 max-w-full" />
         </div>
-        <div className="grid grid-cols-3 gap-3 md:gap-4">
+        <div className="grid grid-cols-3 gap-3 md:gap-5">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
+            <MetricCardSkeleton key={i} />
           ))}
         </div>
-        <Skeleton className="h-48 w-full rounded-xl" />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-7 w-52" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
+          <Card className="border-none bg-primary/10 shadow-lg rounded-3xl overflow-hidden">
+            <CardContent className="p-8 space-y-8">
+              <div className="flex justify-between">
+                <div className="space-y-3">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-12 w-64 max-w-full" />
+                </div>
+                <Skeleton className="size-10 rounded-full" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-3 w-10" />
+                </div>
+                <Skeleton className="h-2.5 w-full rounded-full" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+              <div className="grid grid-cols-3 gap-4 border-t border-border/40 pt-6">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-6 w-12" />
+                    <Skeleton className="h-3 w-14" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     )
   }
@@ -177,6 +209,20 @@ function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: stri
         <div>
           <div className="font-bold text-xl md:text-2xl leading-none tracking-tight">{value}</div>
           <div className="text-[10px] md:text-xs text-muted-foreground font-semibold uppercase tracking-widest mt-1.5">{label}</div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function MetricCardSkeleton() {
+  return (
+    <Card className="border-border shadow-sm overflow-hidden">
+      <CardContent className="p-4 md:p-5 flex flex-col items-center justify-center text-center space-y-3">
+        <Skeleton className="size-12 rounded-2xl md:size-14" />
+        <div className="space-y-2">
+          <Skeleton className="mx-auto h-7 w-16" />
+          <Skeleton className="mx-auto h-3 w-20" />
         </div>
       </CardContent>
     </Card>

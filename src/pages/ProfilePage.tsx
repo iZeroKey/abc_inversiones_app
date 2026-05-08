@@ -227,15 +227,7 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return (
-      <div className="max-w-5xl mx-auto space-y-8 p-4 md:p-8">
-        <Skeleton className="h-[220px] md:h-[240px] w-full rounded-2xl" />
-        <div className="grid md:grid-cols-3 gap-8">
-          <Skeleton className="h-[400px] md:col-span-2 rounded-2xl" />
-          <Skeleton className="h-[200px] rounded-2xl" />
-        </div>
-      </div>
-    )
+    return <ProfileSkeleton />
   }
 
   const roleMap: Record<string, string> = {
@@ -470,5 +462,77 @@ export default function ProfilePage() {
         onClose={() => setIsPasswordDialogOpen(false)} 
       />
     </>
+  )
+}
+
+function ProfileSkeleton() {
+  return (
+    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
+      <Card className="overflow-hidden border-border/60 shadow-sm">
+        <div className="px-6 py-6 md:px-8 md:py-7">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex flex-col items-center gap-5 md:flex-row md:items-center">
+              <Skeleton className="size-32 rounded-full md:size-28" />
+              <div className="flex-1 space-y-3 text-center md:text-left">
+                <div className="flex flex-col items-center gap-2 md:flex-row md:items-center">
+                  <Skeleton className="h-9 w-64 max-w-full" />
+                  <Skeleton className="h-5 w-28 rounded-full" />
+                </div>
+                <div className="flex flex-wrap justify-center gap-3 md:justify-start">
+                  <Skeleton className="h-7 w-36 rounded-full" />
+                  <Skeleton className="h-7 w-56 rounded-full" />
+                </div>
+              </div>
+            </div>
+            <Skeleton className="h-10 w-full rounded-md sm:w-44" />
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid gap-8 md:grid-cols-3">
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-72 max-w-full" />
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ProfileFieldSkeleton />
+              <ProfileFieldSkeleton />
+            </div>
+            <ProfileFieldSkeleton wide />
+            <ProfileFieldSkeleton wide />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
+              <Skeleton className="size-5 rounded-md" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+            </div>
+            <Skeleton className="h-10 w-full rounded-md" />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+function ProfileFieldSkeleton({ wide = false }: { wide?: boolean }) {
+  return (
+    <div className="space-y-2">
+      <Skeleton className="h-4 w-24" />
+      <div className="flex h-10 items-center gap-3 rounded-md border bg-muted/20 px-3">
+        <Skeleton className="size-4 rounded-sm" />
+        <Skeleton className={cn("h-4", wide ? "w-64 max-w-[70%]" : "w-36")} />
+      </div>
+    </div>
   )
 }

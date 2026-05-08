@@ -552,14 +552,22 @@ export default function NotificationsPage() {
 
 function LoadingList() {
   return (
-    <div className="flex flex-col gap-0">
+    <div className="divide-y rounded-lg border bg-card">
       {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="flex gap-4 border-t px-5 py-4 first:border-t-0">
-          <Skeleton className="size-10 rounded-lg" />
-          <div className="flex flex-1 flex-col gap-2">
-            <Skeleton className="h-4 w-2/5" />
-            <Skeleton className="h-3 w-4/5" />
-            <Skeleton className="h-3 w-1/4" />
+        <div key={index} className="flex gap-3 px-4 py-3.5 md:px-5">
+          <Skeleton className="mt-0.5 size-9 shrink-0 rounded-lg" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-2/5 min-w-32" />
+                <Skeleton className="h-4 w-4/5" />
+              </div>
+              <Skeleton className="size-8 shrink-0 rounded-md" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-3 w-28" />
+            </div>
           </div>
         </div>
       ))}

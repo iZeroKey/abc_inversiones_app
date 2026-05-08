@@ -1,13 +1,14 @@
-import { useAuth } from "@/contexts/auth-context"
 import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { FileTextIcon, PieChartIcon, ReceiptIcon, TrendingUpIcon, UsersIcon, WalletIcon } from "lucide-react"
+
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
-import { UsersIcon, FileTextIcon, TrendingUpIcon, PieChartIcon, ReceiptIcon, WalletIcon } from "lucide-react"
-import { formatCurrency, formatCurrencyPrecise } from "@/lib/formatters"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
-import { useNavigate } from "react-router-dom"
+import { Card, CardContent } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useAuth } from "@/contexts/auth-context"
+import { formatCurrency, formatCurrencyPrecise } from "@/lib/formatters"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
@@ -66,17 +67,7 @@ export default function AdminDashboard() {
   }, [fetchWithAuth, session?.access_token])
 
   if (loading) {
-    return (
-      <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto animate-in fade-in duration-500">
-        <Skeleton className="h-24 w-full rounded-xl" />
-        <div className="grid grid-cols-3 gap-3 md:gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
-        </div>
-        <Skeleton className="h-40 w-full rounded-xl" />
-      </div>
-    )
+    return <AdminDashboardSkeleton />
   }
 
   const usersCount = data?.users?.totalUsers || 0
@@ -110,9 +101,9 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-        
+
         {vouchersCount > 0 && (
-          <Button 
+          <Button
             size="lg"
             variant="default"
             className="w-full md:w-auto shadow-md"
@@ -138,14 +129,14 @@ export default function AdminDashboard() {
                 S/ {formatCurrencyPrecise(capital)}
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-bold">
                 <span className="opacity-70">Capital vs deuda activa</span>
                 <span>{avance}%</span>
               </div>
               <div className="w-full bg-white/20 h-3 rounded-full overflow-hidden">
-                 <div className="bg-white h-full rounded-full transition-all duration-1000" style={{ width: `${avance}%` }} />
+                <div className="bg-white h-full rounded-full transition-all duration-1000" style={{ width: `${avance}%` }} />
               </div>
             </div>
 
@@ -170,29 +161,96 @@ export default function AdminDashboard() {
       <div className="space-y-4">
         <h3 className="font-bold text-xl tracking-tight">Métricas Operativas</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <MetricCard 
-            icon={<UsersIcon className="size-5 md:size-6 text-primary" />} 
-            value={usersCount} 
-            label="Usuarios" 
+          <MetricCard
+            icon={<UsersIcon className="size-5 md:size-6 text-primary" />}
+            value={usersCount}
+            label="Usuarios"
           />
-          <MetricCard 
-            icon={<FileTextIcon className="size-5 md:size-6 text-primary" />} 
-            value={loansCount} 
-            label="Préstamos" 
+          <MetricCard
+            icon={<FileTextIcon className="size-5 md:size-6 text-primary" />}
+            value={loansCount}
+            label="Préstamos"
           />
-          <MetricCard 
-            icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />} 
-            value={formatCurrency(totalDebt)} 
-            label="Deuda activa" 
+          <MetricCard
+            icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />}
+            value={formatCurrency(totalDebt)}
+            label="Deuda activa"
           />
-          <MetricCard 
-            icon={<WalletIcon className="size-5 md:size-6 text-primary" />} 
-            value={`${avance}%`} 
-            label="Eficiencia" 
+          <MetricCard
+            icon={<WalletIcon className="size-5 md:size-6 text-primary" />}
+            value={`${avance}%`}
+            label="Eficiencia"
           />
         </div>
       </div>
     </div>
+  )
+}
+
+function AdminDashboardSkeleton() {
+  return (
+    <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+      <div className="flex flex-col gap-6 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
+        <div className="flex items-center gap-5">
+          <Skeleton className="size-16 rounded-full md:size-20" />
+          <div className="space-y-3">
+            <Skeleton className="h-9 w-56 max-w-[60vw]" />
+            <div className="flex gap-2">
+              <Skeleton className="h-5 w-28 rounded-full" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+          </div>
+        </div>
+        <Skeleton className="h-11 w-full rounded-md md:w-48" />
+      </div>
+
+      <div className="space-y-4">
+        <Skeleton className="h-7 w-64" />
+        <Card className="border-none bg-primary/10 shadow-lg rounded-3xl overflow-hidden">
+          <CardContent className="p-8 space-y-8">
+            <div className="space-y-3">
+              <Skeleton className="h-3 w-40" />
+              <Skeleton className="h-12 w-72 max-w-full" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <Skeleton className="h-3 w-36" />
+                <Skeleton className="h-3 w-10" />
+              </div>
+              <Skeleton className="h-3 w-full rounded-full" />
+            </div>
+            <div className="grid grid-cols-3 gap-4 border-t border-border/40 pt-6">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="h-20 rounded-2xl" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-4">
+        <Skeleton className="h-7 w-44" />
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <MetricCardSkeleton key={index} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MetricCardSkeleton() {
+  return (
+    <Card className="border-border shadow-sm overflow-hidden">
+      <CardContent className="p-5 flex flex-col space-y-4">
+        <Skeleton className="size-10 rounded-xl" />
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-7 w-24" />
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
