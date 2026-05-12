@@ -32,6 +32,7 @@ type SortDirection = false | "asc" | "desc"
 
 export type DataTablePagination = {
   page: number
+  pageSize?: number
   totalPages: number
   total?: number
   itemLabel?: string
@@ -43,6 +44,7 @@ type DataTableCardProps<TData, TValue> = {
   data: TData[]
   bodyClassName?: string
   className?: string
+  clientPagination?: boolean
   emptyMessage?: string
   getRowClassName?: (row: TData) => string | undefined
   getRowId?: (row: TData, index: number) => string
@@ -67,6 +69,7 @@ export function DataTableCard<TData, TValue>({
   data,
   bodyClassName,
   className,
+  clientPagination = false,
   emptyMessage = "No hay resultados.",
   getRowClassName,
   getRowId,
@@ -75,6 +78,13 @@ export function DataTableCard<TData, TValue>({
   tableClassName,
 }: DataTableCardProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(() => initialSorting)
+  const handleSortingChange = (updater: SortingState | ((current: SortingState) => SortingState)) => {
+    setSorting(updater)
+    if (clientPagination && pagination && pagination.page !== 1) {
+      pagination.onPageChange(1)
+    }
+  }
+
   // TanStack Table intentionally exposes imperative helpers from its hook.
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -84,17 +94,24 @@ export function DataTableCard<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     getRowId,
     getSortedRowModel: getSortedRowModel(),
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
     state: {
       sorting,
     },
   })
 
-  const visibleRows = table.getRowModel().rows
+  const sortedRows = table.getRowModel().rows
+  const visibleRows =
+    clientPagination && pagination?.pageSize
+      ? sortedRows.slice(
+        (Math.max(pagination.page, 1) - 1) * pagination.pageSize,
+        Math.max(pagination.page, 1) * pagination.pageSize,
+      )
+      : sortedRows
 
   return (
-    <div className="flex min-w-0 flex-col gap-3">
-      <CardFrame className={className}>
+    <div className="flex min-w-0 max-w-full flex-col gap-3">
+      <CardFrame className={cn("min-w-0 max-w-full", className)}>
         <Table variant="card" className={tableClassName}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -113,7 +130,7 @@ export function DataTableCard<TData, TValue>({
                           Object.assign(headerContext, {
                             sortDirection,
                             toggleSorting: () =>
-                              setSorting((current) => {
+                              handleSortingChange((current) => {
                                 const activeSort = current[0]
                                 const isActive = activeSort?.id === header.column.id
                                 const nextDesc = isActive ? !activeSort.desc : false

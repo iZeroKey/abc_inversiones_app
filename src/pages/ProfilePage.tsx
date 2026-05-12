@@ -4,8 +4,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupTextarea } from "@/components/ui/input-group"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { toastManager } from "@/components/ui/toast"
@@ -17,7 +18,7 @@ import {
   validateAvatarFile,
 } from "@/lib/avatar-image"
 import { cn } from "@/lib/utils"
-import { CalendarIcon, CameraIcon, Edit2Icon, MailIcon, PhoneIcon, SaveIcon, ShieldCheckIcon, Trash2Icon, UserIcon, XIcon } from "lucide-react"
+import { BanknoteIcon, CalendarIcon, CameraIcon, Edit2Icon, IdCardIcon, MailIcon, MapPinIcon, PhoneIcon, SaveIcon, ShieldCheckIcon, Trash2Icon, UserIcon, XIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { PhotoProvider, PhotoView } from "react-photo-view"
 
@@ -25,14 +26,28 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
 type ProfileData = {
   id: string
-  email: string
+  authUserId?: string | null
+  publicCode?: string | null
+  email?: string | null
   firstName?: string
   lastName?: string
-  phone?: string
+  phone?: string | null
+  dni?: string | null
+  address?: string | null
+  bank?: string | null
+  bankAccounts?: string[]
+  maritalStatus?: "single" | "married" | "unspecified" | null
   avatarUrl?: string | null
   role?: string
   createdAt?: string
 }
+
+const maritalStatusItems = [
+  { label: "Sin registrar", value: "none" },
+  { label: "Soltero/a", value: "single" },
+  { label: "Casado/a", value: "married" },
+  { label: "No especificado", value: "unspecified" },
+] as const
 
 type ApiResponse<T> = {
   success: boolean
@@ -47,6 +62,33 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
+function parseBankAccounts(value: string) {
+  return value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function serializeBankAccounts(value?: string[] | null) {
+  return (value ?? []).join("\n")
+}
+
+function normalizeMaritalStatus(value: string) {
+  return value === "none" ? null : value
+}
+
+function formatPhoneNumber(value: string) {
+  const digits = value.trim().replace(/\D/g, "")
+  if (!digits) return ""
+  const localDigits = digits.startsWith("51") && digits.length === 11 ? digits.slice(2) : digits
+  if (localDigits.length === 9) {
+    return `+51 ${localDigits.slice(0, 3)} ${localDigits.slice(3, 6)} ${localDigits.slice(6)}`
+  }
+  if (digits.length <= 3) return digits
+  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`
+  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`
+}
+
 export default function ProfilePage() {
   const { user, session, updateProfile, fetchWithAuth } = useAuth()
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
@@ -59,6 +101,11 @@ export default function ProfilePage() {
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
   const [phone, setPhone] = useState("")
+  const [dni, setDni] = useState("")
+  const [address, setAddress] = useState("")
+  const [bank, setBank] = useState("")
+  const [bankAccounts, setBankAccounts] = useState("")
+  const [maritalStatus, setMaritalStatus] = useState("none")
 
   // Image states
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
@@ -77,6 +124,11 @@ export default function ProfilePage() {
           setFirstName(json.data.firstName || "")
           setLastName(json.data.lastName || "")
           setPhone(json.data.phone || "")
+          setDni(json.data.dni || "")
+          setAddress(json.data.address || "")
+          setBank(json.data.bank || "")
+          setBankAccounts(serializeBankAccounts(json.data.bankAccounts))
+          setMaritalStatus(json.data.maritalStatus || "none")
         }
       } catch (error) {
         toastManager.add({
@@ -102,7 +154,16 @@ export default function ProfilePage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ firstName, lastName, phone })
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          phone,
+          dni,
+          address,
+          bank,
+          bankAccounts: parseBankAccounts(bankAccounts),
+          maritalStatus: normalizeMaritalStatus(maritalStatus),
+        })
       })
       const json = (await res.json()) as ApiResponse<ProfileData>
       if (json.success) {
@@ -319,7 +380,7 @@ export default function ProfilePage() {
                       <CalendarIcon className="size-3.5" />
                       Miembro desde {memberSinceYear}
                     </span>
-                    <span className="rounded-full border bg-background/80 px-3 py-1">{profileData?.email}</span>
+                    <span className="rounded-full border bg-background/80 px-3 py-1">{profileData?.email || "Sin correo"}</span>
                   </div>
                 </div>
               </div>
@@ -399,7 +460,7 @@ export default function ProfilePage() {
                       </InputGroupAddon>
                       <InputGroupInput 
                         id="email" 
-                        value={profileData?.email} 
+                        value={profileData?.email || "Sin correo"} 
                         disabled 
                         className="bg-muted/50" 
                       />
@@ -417,10 +478,102 @@ export default function ProfilePage() {
                         id="phone" 
                         value={phone} 
                         onChange={(e) => setPhone(e.target.value)}
+                        onBlur={() => setPhone((current) => formatPhoneNumber(current))}
                         placeholder="+51 999 999 999"
                         disabled={!isEditing}
                       />
                     </InputGroup>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="dni">DNI</Label>
+                      <InputGroup>
+                        <InputGroupAddon align="inline-start">
+                          <IdCardIcon className="size-4" />
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          id="dni"
+                          value={dni}
+                          onChange={(e) => setDni(e.target.value)}
+                          placeholder="12345678"
+                          disabled={!isEditing}
+                        />
+                      </InputGroup>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="maritalStatus">Estado civil</Label>
+                      <Select
+                        items={maritalStatusItems}
+                        value={maritalStatus}
+                        onValueChange={(value) => setMaritalStatus(value ?? "none")}
+                        disabled={!isEditing}
+                      >
+                        <SelectTrigger id="maritalStatus">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {maritalStatusItems.map((item) => (
+                              <SelectItem key={item.value} value={item.value}>
+                                {item.label}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Dirección</Label>
+                    <InputGroup>
+                      <InputGroupAddon align="inline-start">
+                        <MapPinIcon className="size-4" />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        id="address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Av. Principal 123"
+                        disabled={!isEditing}
+                      />
+                    </InputGroup>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bank">Banco</Label>
+                      <InputGroup>
+                        <InputGroupAddon align="inline-start">
+                          <BanknoteIcon className="size-4" />
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          id="bank"
+                          value={bank}
+                          onChange={(e) => setBank(e.target.value)}
+                          placeholder="BCP, Interbank..."
+                          disabled={!isEditing}
+                        />
+                      </InputGroup>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="bankAccounts">Cuentas bancarias</Label>
+                      <InputGroup>
+                        <InputGroupAddon align="inline-start">
+                          <BanknoteIcon className="size-4" />
+                        </InputGroupAddon>
+                        <InputGroupTextarea
+                          id="bankAccounts"
+                          value={bankAccounts}
+                          onChange={(e) => setBankAccounts(e.target.value)}
+                          disabled={!isEditing}
+                        />
+                      </InputGroup>
+                      <p className="text-[10px] text-muted-foreground">Una cuenta por línea o separadas por coma.</p>
+                    </div>
                   </div>
 
                 </form>

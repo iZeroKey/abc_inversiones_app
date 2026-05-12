@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
+  BadgeCheckIcon,
+  BanknoteIcon,
   CheckIcon,
+  ChevronDownIcon,
   CircleAlertIcon,
+  ClipboardIcon,
   EyeIcon,
+  IdCardIcon,
+  KeyRoundIcon,
+  LinkIcon,
   MailIcon,
+  MapPinIcon,
   PhoneIcon,
   PlusIcon,
   RefreshCwIcon,
   SearchIcon,
+  Settings2Icon,
   ShieldIcon,
   UserCogIcon,
   UserIcon,
@@ -27,6 +36,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -36,6 +46,14 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyContent,
@@ -70,7 +88,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
 import { cn } from "@/lib/utils"
-import type { ApiResponse, PaginationMeta, UserRole } from "@/types/loans"
+import type { ApiResponse, MaritalStatus, PaginationMeta, UserRole } from "@/types/loans"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 const USERS_PAGE_SIZE = 10
@@ -78,17 +96,25 @@ const USERS_PAGE_SIZE = 10
 type UsersTab = "users" | "requests"
 type RoleFilter = "all" | UserRole
 type StatusFilter = "all" | "active" | "inactive"
+type UserColumnKey = "user" | "contact" | "dni" | "bank" | "bankAccounts" | "maritalStatus" | "role" | "status" | "createdAt" | "action"
+type UserColumnGroup = "Identidad" | "Operativo" | "Sistema"
 type RequestStatus = "pending" | "in_review" | "approved" | "rejected" | string
 type RequestRoleFilter = "all" | "client" | "investor"
 type RequestStatusFilter = "all" | "pending" | "in_review" | "approved" | "rejected"
 
 type ManagedUser = {
   id: string
+  authUserId?: string | null
   publicCode?: string | null
   firstName?: string
   lastName?: string
-  email?: string
-  phone?: string
+  email?: string | null
+  phone?: string | null
+  dni?: string | null
+  address?: string | null
+  bank?: string | null
+  bankAccounts?: string[]
+  maritalStatus?: MaritalStatus | null
   avatarUrl?: string | null
   avatar?: string | null
   role?: UserRole | string
@@ -117,7 +143,30 @@ type UserFormState = {
   email: string
   phone: string
   role: UserRole
+  dni: string
+  address: string
+  bank: string
+  bankAccounts: string[]
+  maritalStatus: MaritalStatus | "none"
   active: boolean
+  createAuthAccount: boolean
+  password: string
+}
+
+type LinkAuthFormState = {
+  email: string
+  password: string
+}
+
+type CurrentUser = {
+  id?: string
+  role?: string
+  isOwner?: boolean
+} | null | undefined
+
+type UserEditPermissions = {
+  canUpdateAdministrativeFields: boolean
+  canUpdateActive: boolean
 }
 
 type UsersEnvelope = {
@@ -140,16 +189,42 @@ const roleItems: { label: string; value: RoleFilter }[] = [
   { label: "Administradores", value: "admin" },
 ]
 
+const statusItems: { label: string; value: StatusFilter }[] = [
+  { label: "Todos", value: "all" },
+  { label: "Activos", value: "active" },
+  { label: "Inactivos", value: "inactive" },
+]
+
+const userColumnsConfig: Array<{ key: UserColumnKey; label: string; group: UserColumnGroup; defaultVisible: boolean }> = [
+  { key: "user", label: "Usuario", group: "Identidad", defaultVisible: true },
+  { key: "contact", label: "Contacto", group: "Identidad", defaultVisible: true },
+  { key: "dni", label: "DNI", group: "Operativo", defaultVisible: true },
+  { key: "bank", label: "Banco", group: "Operativo", defaultVisible: true },
+  { key: "bankAccounts", label: "Cuentas", group: "Operativo", defaultVisible: false },
+  { key: "maritalStatus", label: "Estado civil", group: "Operativo", defaultVisible: false },
+  { key: "role", label: "Rol", group: "Sistema", defaultVisible: true },
+  { key: "status", label: "Acceso", group: "Sistema", defaultVisible: true },
+  { key: "createdAt", label: "Registro", group: "Sistema", defaultVisible: true },
+  { key: "action", label: "Acción", group: "Sistema", defaultVisible: true },
+]
+
+const defaultVisibleUserColumns = userColumnsConfig
+  .filter((column) => column.defaultVisible)
+  .map((column) => column.key)
+
+const userColumnGroups: UserColumnGroup[] = ["Identidad", "Operativo", "Sistema"]
+
 const editableRoleItems: { label: string; value: UserRole }[] = [
   { label: "Cliente", value: "client" },
   { label: "Inversionista", value: "investor" },
   { label: "Administrador", value: "admin" },
 ]
 
-const statusItems: { label: string; value: StatusFilter }[] = [
-  { label: "Todos", value: "all" },
-  { label: "Activos", value: "active" },
-  { label: "Inactivos", value: "inactive" },
+const maritalStatusItems: { label: string; value: MaritalStatus | "none" }[] = [
+  { label: "Sin registrar", value: "none" },
+  { label: "Soltero/a", value: "single" },
+  { label: "Casado/a", value: "married" },
+  { label: "No especificado", value: "unspecified" },
 ]
 
 const requestRoleItems: { label: string; value: RequestRoleFilter }[] = [
@@ -172,7 +247,19 @@ const defaultUserForm: UserFormState = {
   email: "",
   phone: "",
   role: "client",
+  dni: "",
+  address: "",
+  bank: "",
+  bankAccounts: [""],
+  maritalStatus: "none",
   active: true,
+  createAuthAccount: false,
+  password: "",
+}
+
+const defaultLinkAuthForm: LinkAuthFormState = {
+  email: "",
+  password: "",
 }
 
 function getApiBaseUrl() {
@@ -219,19 +306,72 @@ async function fetchAccessRequests(
   return unwrapRequests(payload.data)
 }
 
+function nullableText(value: string) {
+  const trimmed = value.trim()
+  return trimmed || null
+}
+
+function serializeBankAccounts(value?: string[] | null) {
+  const accounts = value?.length ? value : [""]
+  return accounts
+}
+
+function normalizeMaritalStatus(value: UserFormState["maritalStatus"]) {
+  return value === "none" ? null : value
+}
+
+function formatPhoneNumber(value: string) {
+  const trimmed = value.trim()
+  const digits = trimmed.replace(/\D/g, "")
+  if (!digits) return ""
+
+  const localDigits = digits.startsWith("51") && digits.length === 11 ? digits.slice(2) : digits
+  if (localDigits.length === 9) {
+    return `+51 ${localDigits.slice(0, 3)} ${localDigits.slice(3, 6)} ${localDigits.slice(6)}`
+  }
+
+  if (digits.length <= 3) return digits
+  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`
+  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`
+}
+
+function generateTemporaryPassword() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+  const symbols = "!@#$%&*"
+  const bytes = new Uint32Array(12)
+  window.crypto.getRandomValues(bytes)
+  const core = Array.from(bytes, (value) => alphabet[value % alphabet.length]).join("")
+  return `${core}${symbols[bytes[0] % symbols.length]}${bytes[1] % 10}`
+}
+
+function buildUserPayload(form: UserFormState, options?: UserEditPermissions) {
+  return {
+    firstName: form.firstName.trim(),
+    lastName: form.lastName.trim(),
+    phone: nullableText(form.phone),
+    email: options?.canUpdateAdministrativeFields ? nullableText(form.email) : undefined,
+    dni: nullableText(form.dni),
+    address: nullableText(form.address),
+    bank: nullableText(form.bank),
+    bankAccounts: form.bankAccounts.map((account) => account.trim()).filter(Boolean),
+    maritalStatus: normalizeMaritalStatus(form.maritalStatus),
+    active: options?.canUpdateActive ? form.active : undefined,
+  }
+}
+
 async function createUser(
   fetchWithAuth: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
   form: UserFormState,
 ) {
+  const createAuthAccount = form.role === "admin" || form.createAuthAccount
   const response = await fetchWithAuth(`${getApiBaseUrl()}/api/v1/users`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
-      email: form.email.trim(),
-      phone: form.phone.trim() || undefined,
+      ...buildUserPayload(form, { canUpdateAdministrativeFields: true, canUpdateActive: true }),
       role: form.role,
+      createAuthAccount,
+      password: createAuthAccount ? form.password : undefined,
     }),
   })
 
@@ -242,17 +382,28 @@ async function updateUser(
   fetchWithAuth: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
   userId: string,
   form: UserFormState,
-  options: { canUpdateActive: boolean },
+  options: UserEditPermissions,
 ) {
   const response = await fetchWithAuth(`${getApiBaseUrl()}/api/v1/users/${userId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildUserPayload(form, options)),
+  })
+
+  return readApiPayload<ManagedUser>(response)
+}
+
+async function linkAuthAccount(
+  fetchWithAuth: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
+  userId: string,
+  form: LinkAuthFormState,
+) {
+  const response = await fetchWithAuth(`${getApiBaseUrl()}/api/v1/users/${userId}/auth-account`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
-      phone: form.phone.trim() || undefined,
-      role: form.role,
-      active: options.canUpdateActive ? form.active : undefined,
+      email: form.email.trim(),
+      password: form.password,
     }),
   })
 
@@ -295,9 +446,13 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   const [usersError, setUsersError] = useState<string | null>(null)
   const [requestsError, setRequestsError] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null)
   const [userForm, setUserForm] = useState<UserFormState>(defaultUserForm)
   const [savingUser, setSavingUser] = useState(false)
+  const [linkingUser, setLinkingUser] = useState<ManagedUser | null>(null)
+  const [linkAuthForm, setLinkAuthForm] = useState<LinkAuthFormState>(defaultLinkAuthForm)
+  const [savingLinkAuth, setSavingLinkAuth] = useState(false)
   const [reviewingRequest, setReviewingRequest] = useState<AccessRequest | null>(null)
   const [selectedRequest, setSelectedRequest] = useState<AccessRequest | null>(null)
   const [requestAction, setRequestAction] = useState<"approved" | "rejected" | null>(null)
@@ -318,6 +473,9 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             item.lastName,
             item.email,
             item.phone,
+            item.dni,
+            item.bank,
+            ...(item.bankAccounts ?? []),
             item.publicCode,
             item.id,
           ]
@@ -363,11 +521,6 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       return matchesSearch && matchesRole && matchesStatus
     })
   }, [requestRoleFilter, requestSearchQuery, requestStatusFilter, requests])
-
-  const pagedUsers = useMemo(() => {
-    const start = (currentUserPage - 1) * USERS_PAGE_SIZE
-    return filteredUsers.slice(start, start + USERS_PAGE_SIZE)
-  }, [currentUserPage, filteredUsers])
 
   const usersPagination = useMemo<PaginationMeta>(
     () => ({
@@ -450,27 +603,48 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   }
 
   const openEditDialog = (selectedUser: ManagedUser) => {
+    if (!canManageUser(user, selectedUser)) return
+
     setUserForm({
       firstName: selectedUser.firstName ?? "",
       lastName: selectedUser.lastName ?? "",
       email: selectedUser.email ?? "",
       phone: selectedUser.phone ?? "",
       role: normalizeEditableRole(selectedUser.role),
+      dni: selectedUser.dni ?? "",
+      address: selectedUser.address ?? "",
+      bank: selectedUser.bank ?? "",
+      bankAccounts: serializeBankAccounts(selectedUser.bankAccounts),
+      maritalStatus: selectedUser.maritalStatus ?? "none",
       active: selectedUser.active !== false,
+      createAuthAccount: Boolean(selectedUser.authUserId),
+      password: "",
     })
     setEditingUser(selectedUser)
-    setCreateOpen(true)
+    setEditOpen(true)
+  }
+
+  const openLinkAuthDialog = (selectedUser: ManagedUser) => {
+    if (!canLinkAuthAccount(user, selectedUser)) return
+
+    setLinkingUser(selectedUser)
+    setLinkAuthForm({
+      email: selectedUser.email ?? "",
+      password: generateTemporaryPassword(),
+    })
   }
 
   const handleSubmitUser = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+
+    const permissions = editingUser
+      ? getUserEditPermissions(user, editingUser)
+      : { canUpdateAdministrativeFields: true, canUpdateActive: true }
     setSavingUser(true)
 
     try {
       if (editingUser) {
-        await updateUser(fetchWithAuth, editingUser.id, userForm, {
-          canUpdateActive: !editingUser.isOwner,
-        })
+        await updateUser(fetchWithAuth, editingUser.id, userForm, permissions)
       } else {
         await createUser(fetchWithAuth, userForm)
       }
@@ -481,6 +655,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         description: "La información quedó sincronizada con el servidor.",
       })
       setCreateOpen(false)
+      setEditOpen(false)
       setEditingUser(null)
       await loadUsers({ keepContent: true })
     } catch (error) {
@@ -491,6 +666,32 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       })
     } finally {
       setSavingUser(false)
+    }
+  }
+
+  const handleSubmitLinkAuth = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!linkingUser) return
+
+    setSavingLinkAuth(true)
+    try {
+      await linkAuthAccount(fetchWithAuth, linkingUser.id, linkAuthForm)
+      toastManager.add({
+        type: "success",
+        title: "Cuenta vinculada",
+        description: "El usuario ya puede ingresar con credenciales de acceso.",
+      })
+      setLinkingUser(null)
+      setLinkAuthForm(defaultLinkAuthForm)
+      await loadUsers({ keepContent: true })
+    } catch (error) {
+      toastManager.add({
+        type: "error",
+        title: "No se pudo vincular",
+        description: getErrorMessage(error, "Revisa el correo y la contraseña temporal."),
+      })
+    } finally {
+      setSavingLinkAuth(false)
     }
   }
 
@@ -571,7 +772,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             )}
           </div>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Administra perfiles, roles, estado de acceso y solicitudes pendientes.
+            Administra perfiles, estado de acceso y solicitudes pendientes.
           </p>
         </div>
 
@@ -614,7 +815,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
         <TabsContent value="users">
           <UsersWorkspace
-            users={pagedUsers}
+            users={filteredUsers}
             pagination={usersPagination}
             page={page}
             roleFilter={roleFilter}
@@ -623,7 +824,9 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             loading={loadingUsers}
             refreshing={refreshingUsers}
             error={usersError}
+            currentUser={user}
             onEditUser={openEditDialog}
+            onLinkAuth={openLinkAuthDialog}
             onPageChange={setPage}
             onRetry={() => void loadUsers({ keepContent: true })}
             onRoleFilterChange={handleRoleFilterChange}
@@ -660,7 +863,9 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
       <UserDialog
         open={createOpen}
-        editingUser={editingUser}
+        editingUser={null}
+        currentUser={user}
+        permissions={{ canUpdateAdministrativeFields: true, canUpdateActive: true }}
         form={userForm}
         saving={savingUser}
         onFormChange={setUserForm}
@@ -669,6 +874,32 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
           if (!open) setEditingUser(null)
         }}
         onSubmit={handleSubmitUser}
+      />
+
+      <UserDialog
+        open={editOpen}
+        editingUser={editingUser}
+        currentUser={user}
+        permissions={getUserEditPermissions(user, editingUser)}
+        form={userForm}
+        saving={savingUser}
+        onFormChange={setUserForm}
+        onOpenChange={(open) => {
+          setEditOpen(open)
+        }}
+        onSubmit={handleSubmitUser}
+      />
+
+      <LinkAuthDialog
+        open={Boolean(linkingUser)}
+        user={linkingUser}
+        form={linkAuthForm}
+        saving={savingLinkAuth}
+        onFormChange={setLinkAuthForm}
+        onOpenChange={(open) => {
+          if (!open) setLinkingUser(null)
+        }}
+        onSubmit={handleSubmitLinkAuth}
       />
 
       <ReviewRequestDialog
@@ -713,7 +944,9 @@ function UsersWorkspace({
   loading,
   refreshing,
   error,
+  currentUser,
   onEditUser,
+  onLinkAuth,
   onPageChange,
   onRetry,
   onRoleFilterChange,
@@ -729,13 +962,23 @@ function UsersWorkspace({
   loading: boolean
   refreshing: boolean
   error: string | null
+  currentUser: CurrentUser
   onEditUser: (user: ManagedUser) => void
+  onLinkAuth: (user: ManagedUser) => void
   onPageChange: (page: number) => void
   onRetry: () => void
   onRoleFilterChange: (value: RoleFilter | null) => void
   onSearchQueryChange: (query: string) => void
   onStatusFilterChange: (value: StatusFilter | null) => void
 }) {
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState<UserColumnKey[]>(defaultVisibleUserColumns)
+  const handleToggleColumn = (key: UserColumnKey, checked: boolean) => {
+    setVisibleColumnKeys((current) => {
+      if (checked) return current.includes(key) ? current : [...current, key]
+      if (key === "user" || key === "action") return current
+      return current.filter((columnKey) => columnKey !== key)
+    })
+  }
   const userColumns = useMemo<ColumnDef<ManagedUser>[]>(
     () => [
       {
@@ -757,7 +1000,7 @@ function UsersWorkspace({
       },
       {
         id: "contact",
-        accessorFn: (item) => `${item.email ?? ""} ${item.phone ?? ""}`,
+        accessorFn: (item) => `${item.email ?? ""} ${item.phone ?? ""} ${item.dni ?? ""}`,
         header: (context) => (
           <DataTableColumnHeader
             column={context.column}
@@ -770,7 +1013,84 @@ function UsersWorkspace({
           <ContactStack email={row.original.email} phone={row.original.phone} />
         ),
         meta: {
-          headerClassName: "w-[270px]",
+          headerClassName: "w-[250px]",
+          cellClassName: "min-w-0",
+        },
+      },
+      {
+        id: "dni",
+        accessorFn: (item) => item.dni ?? "",
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="DNI"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) =>
+          row.original.dni ? (
+            <span className="font-mono text-sm">{row.original.dni}</span>
+          ) : (
+            <span className="text-sm text-muted-foreground">Sin documento</span>
+          ),
+        meta: {
+          headerClassName: "w-[120px]",
+          cellClassName: "min-w-0",
+        },
+      },
+      {
+        id: "bank",
+        accessorFn: (item) => item.bank ?? "",
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Banco"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => (
+          <span className={cn("block truncate", !row.original.bank && "text-muted-foreground")}>
+            {row.original.bank || "Sin banco"}
+          </span>
+        ),
+        meta: {
+          headerClassName: "w-[150px]",
+          cellClassName: "min-w-0",
+        },
+      },
+      {
+        id: "bankAccounts",
+        accessorFn: (item) => (item.bankAccounts ?? []).join(" "),
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Cuentas"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => <BankAccountsStack accounts={row.original.bankAccounts} />,
+        meta: {
+          headerClassName: "w-[220px]",
+          cellClassName: "min-w-0",
+        },
+      },
+      {
+        id: "maritalStatus",
+        accessorFn: (item) => getMaritalStatusLabel(item.maritalStatus),
+        header: (context) => (
+          <DataTableColumnHeader
+            column={context.column}
+            title="Estado civil"
+            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
+            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
+          />
+        ),
+        cell: ({ row }) => <span className="text-sm">{getMaritalStatusLabel(row.original.maritalStatus)}</span>,
+        meta: {
+          headerClassName: "w-[150px]",
           cellClassName: "min-w-0",
         },
       },
@@ -794,7 +1114,7 @@ function UsersWorkspace({
       },
       {
         id: "status",
-        accessorFn: (item) => (item.active === false ? "Inactivo" : "Activo"),
+        accessorFn: (item) => `${item.active === false ? "Inactivo" : "Activo"} ${item.authUserId ? "Con acceso" : "Operativo"}`,
         header: (context) => (
           <DataTableColumnHeader
             column={context.column}
@@ -803,9 +1123,14 @@ function UsersWorkspace({
             onSort={(context as { toggleSorting?: () => void }).toggleSorting}
           />
         ),
-        cell: ({ row }) => <StatusBadge active={row.original.active !== false} />,
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-1">
+            <StatusBadge active={row.original.active !== false} />
+            <AccessBadge user={row.original} />
+          </div>
+        ),
         meta: {
-          headerClassName: "w-[100px]",
+          headerClassName: "w-[160px]",
         },
       },
       {
@@ -832,21 +1157,46 @@ function UsersWorkspace({
         id: "action",
         enableSorting: false,
         header: () => <DataTableStaticHeader title="Acción" align="right" />,
-        cell: ({ row }) => (
-          <div className="text-right">
-            <Button variant="outline" size="sm" onClick={() => onEditUser(row.original)}>
-              <UserCogIcon data-icon="inline-start" />
-              Editar
-            </Button>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const editable = canManageUser(currentUser, row.original)
+          const linkable = canLinkAuthAccount(currentUser, row.original)
+
+          return (
+            <div className="flex justify-end gap-2">
+              {linkable && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onLinkAuth(row.original)}
+                >
+                  <LinkIcon data-icon="inline-start" />
+                  Acceso
+                </Button>
+              )}
+              {editable && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onEditUser(row.original)}
+                >
+                  <UserCogIcon data-icon="inline-start" />
+                  Editar
+                </Button>
+              )}
+            </div>
+          )
+        },
         meta: {
-          headerClassName: "w-[110px] text-right",
+          headerClassName: "w-[220px] text-right",
           cellClassName: "text-right",
         },
       },
     ],
-    [onEditUser],
+    [currentUser, onEditUser, onLinkAuth],
+  )
+  const visibleUserColumns = useMemo(
+    () => userColumns.filter((column) => visibleColumnKeys.includes(column.id as UserColumnKey)),
+    [userColumns, visibleColumnKeys],
   )
 
   return (
@@ -858,11 +1208,11 @@ function UsersWorkspace({
           </InputGroupAddon>
           <InputGroupInput
             value={searchQuery}
-            placeholder="Buscar por nombre, correo o teléfono"
+            placeholder="Buscar por código, nombre, DNI, correo, teléfono o banco"
             onChange={(event) => onSearchQueryChange(event.target.value)}
           />
         </InputGroup>
-        <div className="grid gap-2 sm:grid-cols-2 lg:w-[400px]">
+        <div className="grid gap-2 sm:grid-cols-3 lg:w-[560px]">
           <Select items={roleItems} value={roleFilter} onValueChange={onRoleFilterChange}>
             <SelectTrigger>
               <SelectValue />
@@ -891,6 +1241,32 @@ function UsersWorkspace({
               </SelectGroup>
             </SelectContent>
           </Select>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="outline" className="w-full justify-between" />}>
+              <Settings2Icon data-icon="inline-start" />
+              Columnas
+              <ChevronDownIcon data-icon="inline-end" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56">
+              {userColumnGroups.map((group) => (
+                <DropdownMenuGroup key={group}>
+                  <DropdownMenuLabel>{group}</DropdownMenuLabel>
+                  {userColumnsConfig
+                    .filter((column) => column.group === group)
+                    .map((column) => (
+                      <DropdownMenuCheckboxItem
+                        key={column.key}
+                        checked={visibleColumnKeys.includes(column.key)}
+                        disabled={column.key === "user" || column.key === "action"}
+                        onCheckedChange={(checked) => handleToggleColumn(column.key, Boolean(checked))}
+                      >
+                        {column.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                </DropdownMenuGroup>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -906,20 +1282,22 @@ function UsersWorkspace({
             </EmptyMedia>
             <EmptyTitle>No hay usuarios para mostrar</EmptyTitle>
             <EmptyDescription>
-              Ajusta los filtros o registra un nuevo usuario para continuar.
+              Ajusta los filtros o revisa las solicitudes para incorporar nuevos usuarios.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
         <DataTableCard
-          columns={userColumns}
+          columns={visibleUserColumns}
           data={users}
+          clientPagination
           getRowId={(item) => item.id}
-          tableClassName="min-w-[760px] table-fixed"
+          tableClassName="min-w-[1080px] table-fixed"
           bodyClassName={cn(refreshing && "opacity-70")}
           initialSorting={[{ id: "createdAt", desc: true }]}
           pagination={{
-            page,
+            page: pagination.page ?? page,
+            pageSize: pagination.limit ?? USERS_PAGE_SIZE,
             totalPages: pagination.totalPages ?? 1,
             total: pagination.total,
             itemLabel: "usuarios",
@@ -1215,6 +1593,8 @@ function RequestsWorkspace({
 function UserDialog({
   open,
   editingUser,
+  currentUser,
+  permissions,
   form,
   saving,
   onFormChange,
@@ -1223,25 +1603,66 @@ function UserDialog({
 }: {
   open: boolean
   editingUser: ManagedUser | null
+  currentUser: CurrentUser
+  permissions: UserEditPermissions
   form: UserFormState
   saving: boolean
   onFormChange: React.Dispatch<React.SetStateAction<UserFormState>>
   onOpenChange: (open: boolean) => void
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
 }) {
-  const editingOwner = Boolean(editingUser?.isOwner)
-  const showAdminWarning = form.role === "admin"
-  const showInactiveWarning = Boolean(editingUser && !editingOwner && !form.active)
+  const isEditing = Boolean(editingUser)
+  const roleItemsForUser = currentUser?.isOwner
+    ? editableRoleItems
+    : editableRoleItems.filter((item) => item.value !== "admin")
+  const authRequired = !isEditing && (form.role === "admin" || form.createAuthAccount)
+  const showInactiveWarning = Boolean(editingUser && permissions.canUpdateActive && !form.active)
+  const title = isEditing ? "Editar usuario" : "Nuevo usuario"
+  const handleBankAccountChange = (index: number, value: string) => {
+    onFormChange((current) => ({
+      ...current,
+      bankAccounts: current.bankAccounts.map((account, accountIndex) =>
+        accountIndex === index ? value : account,
+      ),
+    }))
+  }
+  const addBankAccount = () => {
+    onFormChange((current) => ({
+      ...current,
+      bankAccounts: [...current.bankAccounts, ""],
+    }))
+  }
+  const removeBankAccount = (index: number) => {
+    onFormChange((current) => {
+      const nextAccounts = current.bankAccounts.filter((_, accountIndex) => accountIndex !== index)
+      return {
+        ...current,
+        bankAccounts: nextAccounts.length ? nextAccounts : [""],
+      }
+    })
+  }
+  const setGeneratedPassword = () => {
+    onFormChange((current) => ({ ...current, password: generateTemporaryPassword() }))
+  }
+  const copyPassword = async () => {
+    if (!form.password) return
+    await navigator.clipboard.writeText(form.password)
+    toastManager.add({
+      type: "success",
+      title: "Contraseña copiada",
+      description: "La contraseña temporal quedó en el portapapeles.",
+    })
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-h-[calc(100vh-2rem)] max-w-3xl overflow-hidden">
         <DialogHeader>
-          <DialogTitle>{editingUser ? "Editar usuario" : "Nuevo usuario"}</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {editingUser
-              ? "Actualiza rol, estado y datos de contacto del perfil."
-              : "Registra un usuario administrativo de forma manual."}
+            {isEditing
+              ? "Actualiza datos operativos y campos administrativos permitidos. El rol no se puede modificar."
+              : "Crea clientes, inversionistas o administradores según las reglas de acceso actuales."}
           </DialogDescription>
         </DialogHeader>
 
@@ -1292,15 +1713,21 @@ function UserDialog({
                   id="email"
                   type="email"
                   value={form.email}
-                  required
-                  disabled={Boolean(editingUser)}
+                  required={authRequired}
+                  disabled={isEditing && !permissions.canUpdateAdministrativeFields}
+                  placeholder="correo@ejemplo.com"
                   onChange={(event) =>
                     onFormChange((current) => ({ ...current, email: event.target.value }))
                   }
                 />
               </InputGroup>
-              {editingUser && (
-                <FieldDescription>El correo no se cambia desde esta pantalla.</FieldDescription>
+              {isEditing && !permissions.canUpdateAdministrativeFields && (
+                <FieldDescription>Tu correo no se cambia desde esta pantalla.</FieldDescription>
+              )}
+              {!isEditing && (
+                <FieldDescription>
+                  Clientes e inversionistas pueden quedar sin correo si no tendrán cuenta de acceso.
+                </FieldDescription>
               )}
             </Field>
 
@@ -1317,29 +1744,85 @@ function UserDialog({
                   onChange={(event) =>
                     onFormChange((current) => ({ ...current, phone: event.target.value }))
                   }
+                  onBlur={() =>
+                    onFormChange((current) => ({ ...current, phone: formatPhoneNumber(current.phone) }))
+                  }
                 />
               </InputGroup>
             </Field>
 
-            <div className={cn("grid gap-4", editingUser ? "sm:grid-cols-[1fr_auto] sm:items-end" : "")}>
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel>Rol</FieldLabel>
+                <FieldLabel htmlFor="dni">DNI</FieldLabel>
+                <InputGroup>
+                  <InputGroupAddon align="inline-start">
+                    <IdCardIcon />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id="dni"
+                    value={form.dni}
+                    placeholder="12345678"
+                    onChange={(event) =>
+                      onFormChange((current) => ({ ...current, dni: event.target.value }))
+                    }
+                  />
+                </InputGroup>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="bank">Banco</FieldLabel>
+                <InputGroup>
+                  <InputGroupAddon align="inline-start">
+                    <BanknoteIcon />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id="bank"
+                    value={form.bank}
+                    placeholder="BCP, Interbank..."
+                    onChange={(event) =>
+                      onFormChange((current) => ({ ...current, bank: event.target.value }))
+                    }
+                  />
+                </InputGroup>
+              </Field>
+            </div>
+
+            <Field>
+              <FieldLabel htmlFor="address">Dirección</FieldLabel>
+              <InputGroup>
+                <InputGroupAddon align="inline-start">
+                  <MapPinIcon />
+                </InputGroupAddon>
+                <InputGroupInput
+                  id="address"
+                  value={form.address}
+                  placeholder="Av. Principal 123"
+                  onChange={(event) =>
+                    onFormChange((current) => ({ ...current, address: event.target.value }))
+                  }
+                />
+              </InputGroup>
+            </Field>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="maritalStatus">Estado civil</FieldLabel>
                 <Select
-                  items={editableRoleItems}
-                  value={form.role}
+                  items={maritalStatusItems}
+                  value={form.maritalStatus}
                   onValueChange={(value) =>
                     onFormChange((current) => ({
                       ...current,
-                      role: normalizeEditableRole(value),
+                      maritalStatus: value ?? "none",
                     }))
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="maritalStatus">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {editableRoleItems.map((item) => (
+                      {maritalStatusItems.map((item) => (
                         <SelectItem key={item.value} value={item.value}>
                           {item.label}
                         </SelectItem>
@@ -1349,57 +1832,145 @@ function UserDialog({
                 </Select>
               </Field>
 
-              {editingUser && (
-                <Field className="rounded-lg border px-3 py-2 sm:min-w-44">
-                  <div className="flex w-full items-center justify-between gap-3">
-                    <div>
-                      <FieldLabel htmlFor="active">Activo</FieldLabel>
-                      <FieldDescription>
-                        {editingOwner ? "Dueño protegido" : "Permite acceso"}
-                      </FieldDescription>
-                    </div>
+              <Field>
+                <div className="flex w-full items-center justify-between gap-3">
+                  <FieldLabel>Cuentas bancarias</FieldLabel>
+                  <Button type="button" variant="outline" size="sm" onClick={addBankAccount}>
+                    <PlusIcon data-icon="inline-start" />
+                    Agregar
+                  </Button>
+                </div>
+                <div className="flex w-full flex-col gap-2">
+                  {form.bankAccounts.map((account, index) => (
+                    <InputGroup key={index}>
+                      <InputGroupAddon align="inline-start">
+                        <BanknoteIcon />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        aria-label={`Cuenta bancaria ${index + 1}`}
+                        value={account}
+                        onChange={(event) => handleBankAccountChange(index, event.target.value)}
+                      />
+                      <InputGroupAddon align="inline-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Eliminar cuenta bancaria ${index + 1}`}
+                          disabled={form.bankAccounts.length === 1 && !account}
+                          onClick={() => removeBankAccount(index)}
+                        >
+                          <XIcon />
+                        </Button>
+                      </InputGroupAddon>
+                    </InputGroup>
+                  ))}
+                </div>
+              </Field>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <RoleAccessPanel
+                authRequired={authRequired}
+                editingUser={editingUser}
+                form={form}
+                isEditing={isEditing}
+                roleItemsForUser={roleItemsForUser}
+                onFormChange={onFormChange}
+              />
+
+              <Field>
+                <div className="flex min-h-9 w-full items-center justify-between gap-3">
+                  <FieldLabel htmlFor="active">Acceso</FieldLabel>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <StatusBadge active={form.active} />
                     <Switch
                       id="active"
                       checked={form.active}
-                      disabled={editingOwner}
+                      disabled={!permissions.canUpdateActive}
                       onCheckedChange={(checked) =>
                         onFormChange((current) => ({ ...current, active: checked }))
                       }
                     />
                   </div>
-                </Field>
-              )}
+                </div>
+              </Field>
             </div>
 
-            {(showAdminWarning || showInactiveWarning || editingOwner) && (
+            {!isEditing && (
+              <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4">
+                <label className="flex items-start gap-3">
+                  <Checkbox
+                    checked={form.role === "admin" || form.createAuthAccount}
+                    disabled={form.role === "admin"}
+                    onCheckedChange={(checked) =>
+                      onFormChange((current) => ({
+                        ...current,
+                        createAuthAccount: current.role === "admin" ? true : Boolean(checked),
+                      }))
+                    }
+                  />
+                  <span className="min-w-0 text-sm">
+                    <span className="block font-medium">Crear cuenta de acceso</span>
+                    <span className="block text-muted-foreground">
+                      Requiere correo y contraseña temporal. Para usuarios operativos puedes dejarlo desactivado.
+                    </span>
+                  </span>
+                </label>
+
+                {authRequired && (
+                  <Field>
+                    <FieldLabel htmlFor="password">Contraseña temporal</FieldLabel>
+                    <InputGroup>
+                      <InputGroupAddon align="inline-start">
+                        <KeyRoundIcon />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        id="password"
+                        type="password"
+                        value={form.password}
+                        required
+                        minLength={6}
+                        placeholder="Mínimo 6 caracteres"
+                        onChange={(event) =>
+                          onFormChange((current) => ({ ...current, password: event.target.value }))
+                        }
+                      />
+                      <InputGroupAddon align="inline-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={setGeneratedPassword}
+                        >
+                          Generar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Copiar contraseña temporal"
+                          disabled={!form.password}
+                          onClick={() => void copyPassword()}
+                        >
+                          <ClipboardIcon />
+                        </Button>
+                      </InputGroupAddon>
+                    </InputGroup>
+                  </Field>
+                )}
+              </div>
+            )}
+
+            {showInactiveWarning && (
               <div className="flex flex-col gap-3">
-                {showAdminWarning && (
-                  <Alert variant="warning">
-                    <CircleAlertIcon />
-                    <AlertTitle>Rol con acceso administrativo</AlertTitle>
-                    <AlertDescription>
-                      Este usuario podrá gestionar préstamos, usuarios y solicitudes.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                {showInactiveWarning && (
-                  <Alert variant="warning">
-                    <CircleAlertIcon />
-                    <AlertTitle>El usuario quedará sin acceso</AlertTitle>
-                    <AlertDescription>
-                      Al desactivarlo no podrá iniciar sesión hasta que vuelva a estar activo.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                {editingOwner && (
-                  <Alert variant="info">
-                    <ShieldIcon />
-                    <AlertTitle>El dueño no se puede desactivar</AlertTitle>
-                    <AlertDescription>
-                      La UI bloquea este cambio y el backend también lo rechaza.
-                    </AlertDescription>
-                  </Alert>
-                )}
+                <Alert variant="warning">
+                  <CircleAlertIcon />
+                  <AlertTitle>El usuario quedará sin acceso</AlertTitle>
+                  <AlertDescription>
+                    Al desactivarlo no podrá iniciar sesión hasta que vuelva a estar activo.
+                  </AlertDescription>
+                </Alert>
               </div>
             )}
           </form>
@@ -1409,13 +1980,192 @@ function UserDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
-          <Button type="submit" form="user-form" disabled={saving}>
-            {saving ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
-            {saving ? "Guardando..." : "Guardar"}
+              <Button type="submit" form="user-form" disabled={saving}>
+                {saving ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
+                {saving ? "Guardando..." : "Guardar"}
+              </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function LinkAuthDialog({
+  open,
+  user,
+  form,
+  saving,
+  onFormChange,
+  onOpenChange,
+  onSubmit,
+}: {
+  open: boolean
+  user: ManagedUser | null
+  form: LinkAuthFormState
+  saving: boolean
+  onFormChange: React.Dispatch<React.SetStateAction<LinkAuthFormState>>
+  onOpenChange: (open: boolean) => void
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
+}) {
+  if (!user) return null
+
+  const setGeneratedPassword = () => {
+    onFormChange((current) => ({ ...current, password: generateTemporaryPassword() }))
+  }
+  const copyPassword = async () => {
+    if (!form.password) return
+    await navigator.clipboard.writeText(form.password)
+    toastManager.add({
+      type: "success",
+      title: "Contraseña copiada",
+      description: "La contraseña temporal quedó en el portapapeles.",
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Vincular cuenta de acceso</DialogTitle>
+          <DialogDescription>
+            {displayPersonName(user)} podrá iniciar sesión con el correo y contraseña temporal.
+          </DialogDescription>
+        </DialogHeader>
+
+        <DialogPanel className="pt-4 max-sm:pt-4">
+          <form id="link-auth-form" className="flex flex-col gap-4" onSubmit={onSubmit}>
+            <Field>
+              <FieldLabel htmlFor="link-email">Correo electrónico</FieldLabel>
+              <InputGroup>
+                <InputGroupAddon align="inline-start">
+                  <MailIcon />
+                </InputGroupAddon>
+                <InputGroupInput
+                  id="link-email"
+                  type="email"
+                  value={form.email}
+                  required
+                  onChange={(event) =>
+                    onFormChange((current) => ({ ...current, email: event.target.value }))
+                  }
+                />
+              </InputGroup>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="link-password">Contraseña temporal</FieldLabel>
+              <InputGroup>
+                <InputGroupAddon align="inline-start">
+                  <KeyRoundIcon />
+                </InputGroupAddon>
+                <InputGroupInput
+                  id="link-password"
+                  type="password"
+                  value={form.password}
+                  required
+                  minLength={6}
+                  onChange={(event) =>
+                    onFormChange((current) => ({ ...current, password: event.target.value }))
+                  }
+                />
+                <InputGroupAddon align="inline-end">
+                  <Button type="button" variant="ghost" size="sm" onClick={setGeneratedPassword}>
+                    Generar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Copiar contraseña temporal"
+                    disabled={!form.password}
+                    onClick={() => void copyPassword()}
+                  >
+                    <ClipboardIcon />
+                  </Button>
+                </InputGroupAddon>
+              </InputGroup>
+            </Field>
+          </form>
+        </DialogPanel>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="link-auth-form" disabled={saving}>
+            {saving ? <Spinner data-icon="inline-start" /> : <LinkIcon data-icon="inline-start" />}
+            {saving ? "Vinculando..." : "Vincular acceso"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function RoleAccessPanel({
+  authRequired,
+  editingUser,
+  form,
+  isEditing,
+  roleItemsForUser,
+  onFormChange,
+}: {
+  authRequired: boolean
+  editingUser: ManagedUser | null
+  form: UserFormState
+  isEditing: boolean
+  roleItemsForUser: { label: string; value: UserRole }[]
+  onFormChange: React.Dispatch<React.SetStateAction<UserFormState>>
+}) {
+  return (
+    <Field>
+      <div className="flex w-full flex-col gap-3 rounded-lg border bg-muted/20 p-3">
+        <div className="flex min-h-9 items-center justify-between gap-3">
+          <FieldLabel>Rol</FieldLabel>
+          {isEditing ? (
+            <RoleBadge role={form.role} isOwner={editingUser?.isOwner} />
+          ) : (
+            <Select
+              items={roleItemsForUser}
+              value={form.role}
+              onValueChange={(value) =>
+                onFormChange((current) => ({
+                  ...current,
+                  role: value ?? "client",
+                  createAuthAccount: value === "admin" ? true : current.createAuthAccount,
+                }))
+              }
+            >
+              <SelectTrigger className="min-w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {roleItemsForUser.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {isEditing && editingUser ? (
+            <AccessBadge user={editingUser} />
+          ) : (
+            <>
+              <AccessBadge user={{ id: "draft", authUserId: authRequired ? "draft" : null }} />
+              <Badge variant={authRequired ? "default" : "outline"}>
+                {authRequired ? "Requiere credenciales" : "Sin credenciales"}
+              </Badge>
+            </>
+          )}
+        </div>
+      </div>
+    </Field>
   )
 }
 
@@ -1430,6 +2180,8 @@ function RequestDetailSheet({
   onOpenChange: (open: boolean) => void
   onReview: (request: AccessRequest, action: "approved" | "rejected") => void
 }) {
+  if (!request) return null
+
   const pending = Boolean(request && isPendingRequest(request.status))
 
   return (
@@ -1528,6 +2280,8 @@ function ReviewRequestDialog({
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
+  if (!request || !action) return null
+
   const approving = action === "approved"
 
   return (
@@ -1608,14 +2362,15 @@ function UsersSkeleton() {
   return (
     <DataTableSkeleton
       rows={8}
-      tableClassName="min-w-[760px] table-fixed"
+      tableClassName="min-w-[1180px] table-fixed"
       columns={[
         { className: "w-[260px]", headerWidth: "w-20", cellWidth: "w-44" },
-        { className: "w-[270px]", headerWidth: "w-24", cellWidth: "w-52" },
+        { className: "w-[250px]", headerWidth: "w-24", cellWidth: "w-52" },
+        { className: "w-[250px]", headerWidth: "w-32", cellWidth: "w-44" },
         { className: "w-[150px]", headerWidth: "w-12", cellWidth: "w-24" },
-        { className: "w-[100px]", headerWidth: "w-16", cellWidth: "w-16" },
+        { className: "w-[160px]", headerWidth: "w-16", cellWidth: "w-28" },
         { className: "w-[120px]", headerWidth: "w-20", cellWidth: "w-24" },
-        { className: "w-[110px] text-right", headerWidth: "ml-auto w-16", cellWidth: "ml-auto w-20" },
+        { className: "w-[220px] text-right", headerWidth: "ml-auto w-16", cellWidth: "ml-auto w-36" },
       ]}
     />
   )
@@ -1658,7 +2413,7 @@ function UserIdentity({ user }: { user: ManagedUser }) {
   )
 }
 
-function ContactStack({ email, phone }: { email?: string; phone?: string }) {
+function ContactStack({ email, phone }: { email?: string | null; phone?: string | null }) {
   return (
     <div className="flex min-w-0 flex-col gap-1 text-sm">
       <span className="flex min-w-0 items-center gap-2">
@@ -1669,6 +2424,23 @@ function ContactStack({ email, phone }: { email?: string; phone?: string }) {
         <PhoneIcon className="size-3.5 shrink-0" />
         <span className="truncate">{phone || "Sin teléfono"}</span>
       </span>
+    </div>
+  )
+}
+
+function BankAccountsStack({ accounts }: { accounts?: string[] }) {
+  const visibleAccounts = (accounts ?? []).filter(Boolean)
+  return (
+    <div className="flex min-w-0 flex-col gap-1 text-sm">
+      {visibleAccounts.length ? (
+        visibleAccounts.map((account, index) => (
+          <span key={`${account}-${index}`} className="truncate font-mono text-xs">
+            {account}
+          </span>
+        ))
+      ) : (
+        <span className="text-muted-foreground">Sin cuentas</span>
+      )}
     </div>
   )
 }
@@ -1700,6 +2472,23 @@ function StatusBadge({ active }: { active: boolean }) {
   return (
     <Badge variant={active ? "default" : "outline"}>
       {active ? "Activo" : "Inactivo"}
+    </Badge>
+  )
+}
+
+function AccessBadge({ user }: { user: ManagedUser }) {
+  if (user.authUserId) {
+    return (
+      <Badge variant="secondary">
+        <BadgeCheckIcon data-icon="inline-start" />
+        Con acceso
+      </Badge>
+    )
+  }
+
+  return (
+    <Badge variant="outline">
+      Operativo
     </Badge>
   )
 }
@@ -1739,6 +2528,43 @@ function normalizeEditableRole(role?: string | null): UserRole {
   return normalizeRole(role) as UserRole
 }
 
+function canManageUser(currentUser: CurrentUser, targetUser: ManagedUser | null) {
+  if (!currentUser || !targetUser) return false
+  if (targetUser.isOwner) return false
+  if (currentUser.isOwner) return true
+  if (currentUser.id === targetUser.id) return true
+
+  return currentUser.role === "admin" && normalizeRole(targetUser.role) !== "admin"
+}
+
+function canUseAdministrativeUpdate(currentUser: CurrentUser, targetUser: ManagedUser | null) {
+  if (!currentUser || !targetUser) return false
+  if (targetUser.isOwner) return false
+  if (currentUser.isOwner) return true
+
+  return (
+    currentUser.role === "admin" &&
+    currentUser.id !== targetUser.id &&
+    normalizeRole(targetUser.role) !== "admin"
+  )
+}
+
+function canLinkAuthAccount(currentUser: CurrentUser, targetUser: ManagedUser | null) {
+  if (!targetUser?.id || targetUser.authUserId) return false
+  const role = normalizeRole(targetUser.role)
+  if (role === "admin") return false
+  return canUseAdministrativeUpdate(currentUser, targetUser)
+}
+
+function getUserEditPermissions(currentUser: CurrentUser, targetUser: ManagedUser | null): UserEditPermissions {
+  const canUpdateAdministrativeFields = canUseAdministrativeUpdate(currentUser, targetUser)
+
+  return {
+    canUpdateAdministrativeFields,
+    canUpdateActive: canUpdateAdministrativeFields,
+  }
+}
+
 function getRoleLabel(role?: string | null) {
   const labels: Record<string, string> = {
     admin: "Administrador",
@@ -1749,9 +2575,19 @@ function getRoleLabel(role?: string | null) {
   return labels[role ?? ""] ?? role ?? "-"
 }
 
-function displayPersonName(person: { firstName?: string; lastName?: string; email?: string }) {
+function displayPersonName(person: { firstName?: string; lastName?: string; email?: string | null }) {
   const name = [person.firstName, person.lastName].filter(Boolean).join(" ").trim()
   return name || person.email || "Usuario sin nombre"
+}
+
+function getMaritalStatusLabel(status?: MaritalStatus | null) {
+  const labels: Record<MaritalStatus, string> = {
+    single: "Soltero/a",
+    married: "Casado/a",
+    unspecified: "No especificado",
+  }
+
+  return status ? labels[status] : "Sin registrar"
 }
 
 function normalizeSearch(value: string) {
@@ -1762,7 +2598,7 @@ function normalizeSearch(value: string) {
     .toLowerCase()
 }
 
-function initials(person: { firstName?: string; lastName?: string; email?: string }) {
+function initials(person: { firstName?: string; lastName?: string; email?: string | null }) {
   const first = person.firstName?.trim()[0]
   const last = person.lastName?.trim()[0]
   const fallback = person.email?.trim()[0] ?? "U"

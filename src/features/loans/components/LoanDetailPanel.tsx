@@ -3,9 +3,11 @@ import {
   AlertCircleIcon,
   ArrowLeftIcon,
   CalendarClockIcon,
+  CheckIcon,
   ReceiptTextIcon,
   TrendingUpIcon,
   UserRoundIcon,
+  XIcon,
 } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
@@ -171,6 +173,7 @@ export function LoanDetailPanel({
   onRetry,
   perspective = "admin",
   sticky = true,
+  hideBackButton = false,
 }: {
   loan: Loan | null
   relatedData: RelatedData
@@ -183,8 +186,9 @@ export function LoanDetailPanel({
   onRetry: () => void
   perspective?: "admin" | "client" | "investor"
   sticky?: boolean
+  hideBackButton?: boolean
 }) {
-  if (!loan && loading) {
+  if (loading) {
     return (
       <section className="min-h-[420px]">
         <DetailSkeleton />
@@ -214,25 +218,29 @@ export function LoanDetailPanel({
         sticky && "lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-auto",
       )}
     >
-      <div className="flex flex-col gap-4 border-b pb-4">
-        <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon-sm" render={<Link to={basePath} />}>
-            <ArrowLeftIcon />
-          </Button>
+      <div className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          {!hideBackButton && (
+            <Button className="shrink-0" variant="ghost" size="icon-sm" render={<Link to={basePath} />}>
+              <ArrowLeftIcon />
+            </Button>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="truncate text-xl font-semibold tracking-normal">{title}</h2>
+              <h2 className="text-xl font-semibold tracking-tight sm:truncate">{title}</h2>
               <LoanStatusBadge status={normalizeStatus(loan, relatedData.installments)} />
             </div>
             <p className="mt-1 font-mono text-sm text-muted-foreground">{loanPublicCode(loan)}</p>
           </div>
         </div>
         {canReview && (
-          <div className="flex flex-wrap gap-2 pl-10">
-            <Button variant="outline" size="sm" onClick={onReject}>
+          <div className="flex shrink-0 items-center gap-2 max-sm:w-full mt-1 sm:mt-0">
+            <Button className="flex-1 sm:flex-none" variant="outline" size="sm" onClick={onReject}>
+              <XIcon className="text-destructive" data-icon="inline-start" />
               Rechazar
             </Button>
-            <Button size="sm" onClick={onApprove}>
+            <Button className="flex-1 sm:flex-none" size="sm" onClick={onApprove}>
+              <CheckIcon data-icon="inline-start" />
               Aprobar
             </Button>
           </div>
@@ -252,8 +260,6 @@ export function LoanDetailPanel({
             </Button>
           </div>
         )}
-
-        {loading && <DetailSkeleton />}
 
         <div className="grid gap-3 sm:grid-cols-3">
           <AmountBlock label="Principal" value={formatCurrency(loan.principal)} />

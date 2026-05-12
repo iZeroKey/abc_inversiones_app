@@ -42,6 +42,12 @@ import type {
   RelatedUser,
 } from "@/types/loans"
 
+const emptyRelatedData: RelatedData = {
+  installments: [],
+  payments: [],
+  vouchers: [],
+}
+
 export default function LoansPage() {
   const { user, session, fetchWithAuth } = useAuth()
   const { loanId } = useParams()
@@ -61,11 +67,8 @@ export default function LoansPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [manualSelectedLoanId, setManualSelectedLoanId] = useState<string | null>(null)
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null)
-  const [relatedData, setRelatedData] = useState<RelatedData>({
-    installments: [],
-    payments: [],
-    vouchers: [],
-  })
+  const [relatedData, setRelatedData] = useState<RelatedData>(emptyRelatedData)
+  const [relatedDataLoanId, setRelatedDataLoanId] = useState<string | null>(null)
   const [loadingList, setLoadingList] = useState(true)
   const [refreshingList, setRefreshingList] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
@@ -79,10 +82,12 @@ export default function LoansPage() {
   const [creatingLoan, setCreatingLoan] = useState(false)
   const [clients, setClients] = useState<RelatedUser[]>([])
   const [investors, setInvestors] = useState<RelatedUser[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
   const [adminView, setAdminView] = useState("simple")
 
   const activeLoanLookup = loanId ?? manualSelectedLoanId
   const activeLoanIdRef = useRef<string | null>(loanId ?? null)
+  const pendingDetailIdRef = useRef<string | null>(null)
   const selectedLoanFromList = useMemo(
     () =>
       loans.find(
@@ -99,6 +104,12 @@ export default function LoansPage() {
       selectedLoan.publicCode === activeLoanLookup)
   const visibleSelectedLoan = selectedLoanMatchesLookup ? selectedLoan : selectedLoanFromList
   const detailLoanId = selectedLoanFromList?.id ?? (activeLoanLookup && isUuid(activeLoanLookup) ? activeLoanLookup : null)
+  const detailDataMatchesLoan = Boolean(detailLoanId && relatedDataLoanId === detailLoanId)
+  const visibleRelatedData = detailDataMatchesLoan ? relatedData : emptyRelatedData
+  const detailLoadingVisible = Boolean(
+    loadingDetail ||
+      (detailLoanId && (!selectedLoanMatchesLookup || !detailDataMatchesLoan)),
+  )
   const isAdminView = role === "admin"
 
   const filteredLoans = useMemo(() => {
@@ -145,11 +156,17 @@ export default function LoansPage() {
   )
 
   const loadDetail = useCallback(
-    async (id: string) => {
+    async (id: string, fallbackLoan?: Loan | null) => {
       if (!session?.access_token) return
 
+      pendingDetailIdRef.current = id
       setLoadingDetail(true)
       setDetailError(null)
+      setRelatedDataLoanId(null)
+      setRelatedData(emptyRelatedData)
+      if (fallbackLoan) {
+        setSelectedLoan(fallbackLoan)
+      }
 
       try {
         const [detailResult, installmentsResult, paymentsResult, vouchersResult] =
@@ -160,10 +177,12 @@ export default function LoansPage() {
             fetchLoanVouchers(fetchWithAuth, id),
           ])
 
+        if (pendingDetailIdRef.current !== id) return
+
         if (detailResult.status === "fulfilled") {
-          setSelectedLoan(detailResult.value ?? selectedLoanFromList)
-        } else if (selectedLoanFromList) {
-          setSelectedLoan(selectedLoanFromList)
+          setSelectedLoan(detailResult.value ?? fallbackLoan ?? null)
+        } else if (fallbackLoan) {
+          setSelectedLoan(fallbackLoan)
         } else {
           throw detailResult.reason
         }
@@ -173,14 +192,19 @@ export default function LoansPage() {
           payments: paymentsResult.status === "fulfilled" ? paymentsResult.value : [],
           vouchers: vouchersResult.status === "fulfilled" ? vouchersResult.value : [],
         })
+        setRelatedDataLoanId(id)
       } catch (error) {
-        setSelectedLoan(selectedLoanFromList)
+        if (pendingDetailIdRef.current !== id) return
+        setSelectedLoan(fallbackLoan ?? null)
+        setRelatedDataLoanId(null)
         setDetailError(getErrorMessage(error, "No se pudo cargar el detalle del préstamo."))
       } finally {
-        setLoadingDetail(false)
+        if (pendingDetailIdRef.current === id) {
+          setLoadingDetail(false)
+        }
       }
     },
-    [fetchWithAuth, selectedLoanFromList, session?.access_token],
+    [fetchWithAuth, session?.access_token],
   )
 
   useEffect(() => {
@@ -198,12 +222,20 @@ export default function LoansPage() {
   useEffect(() => {
     if (!detailLoanId) return
 
+    if (
+      selectedLoan?.id === detailLoanId &&
+      relatedDataLoanId === detailLoanId &&
+      !detailError
+    ) {
+      return
+    }
+
     const timeoutId = window.setTimeout(() => {
-      void loadDetail(detailLoanId)
+      void loadDetail(detailLoanId, selectedLoanFromList)
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
-  }, [detailLoanId, loadDetail])
+  }, [detailError, detailLoanId, loadDetail, relatedDataLoanId, selectedLoan?.id, selectedLoanFromList])
 
   useEffect(() => {
     if (adminView !== "advanced" || isDetailRoute || activeLoanIdRef.current || !loans[0]) return
@@ -215,18 +247,29 @@ export default function LoansPage() {
   useEffect(() => {
     if (!canCreateLoan(user) || !session?.access_token || !createOpen) return
 
-    void Promise.allSettled([
-      fetchUsersByRole(fetchWithAuth, "client"),
-      fetchUsersByRole(fetchWithAuth, "investor"),
-    ]).then(([clientsResult, investorsResult]) => {
-      if (clientsResult.status === "fulfilled") setClients(clientsResult.value)
-      if (investorsResult.status === "fulfilled") setInvestors(investorsResult.value)
-    })
+    const timeoutId = window.setTimeout(() => {
+      setLoadingUsers(true)
+      void Promise.allSettled([
+        fetchUsersByRole(fetchWithAuth, "client"),
+        fetchUsersByRole(fetchWithAuth, "investor"),
+      ]).then(([clientsResult, investorsResult]) => {
+        if (clientsResult.status === "fulfilled") setClients(clientsResult.value)
+        if (investorsResult.status === "fulfilled") setInvestors(investorsResult.value)
+        setLoadingUsers(false)
+      })
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [createOpen, fetchWithAuth, session?.access_token, user])
 
   const handleSelectLoan = (loan: Loan) => {
+    if (activeLoanIdRef.current === loan.id && relatedDataLoanId === loan.id) return
     activeLoanIdRef.current = loan.id
     setManualSelectedLoanId(loan.id)
+    setSelectedLoan(loan)
+    setRelatedData(emptyRelatedData)
+    setRelatedDataLoanId(null)
+    setDetailError(null)
   }
 
   const handleOpenLoanDetail = (loan: Loan) => {
@@ -264,11 +307,20 @@ export default function LoansPage() {
     }
 
     const principal = Number.parseFloat(payload.principal)
-    if (!payload.clientId || !Number.isFinite(principal) || principal <= 0) {
+    const interestRate = Number.parseFloat(payload.interestRate)
+    if (
+      !payload.clientId ||
+      !Number.isFinite(principal) ||
+      principal <= 0 ||
+      !Number.isFinite(interestRate) ||
+      interestRate <= 0 ||
+      !Number.isInteger(payload.installmentsCount) ||
+      payload.installmentsCount <= 0
+    ) {
       toastManager.add({
         type: "warning",
         title: "Revisa el formulario",
-        description: "Cliente y monto principal son obligatorios.",
+        description: "Cliente, monto principal, tasa y plazo son obligatorios.",
       })
       return
     }
@@ -319,7 +371,7 @@ export default function LoansPage() {
       })
       setReviewDialog(null)
       setRejectObservation("")
-      await Promise.all([loadLoans({ keepContent: true }), loadDetail(visibleSelectedLoan.id)])
+      await Promise.all([loadLoans({ keepContent: true }), loadDetail(visibleSelectedLoan.id, visibleSelectedLoan)])
     } catch (error) {
       toastManager.add({
         type: "error",
@@ -362,15 +414,15 @@ export default function LoansPage() {
       {isDetailRoute ? (
         <LoanDetailRoute
           selectedLoan={visibleSelectedLoan}
-          relatedData={relatedData}
-          loadingDetail={loadingDetail || (loadingList && !visibleSelectedLoan)}
+          relatedData={visibleRelatedData}
+          loadingDetail={detailLoadingVisible || (loadingList && !visibleSelectedLoan)}
           detailError={detailError}
           canReview={canReviewLoan(visibleSelectedLoan, user)}
           basePath={basePath}
           perspective={role}
           onApprove={() => setReviewDialog("approve")}
           onReject={() => setReviewDialog("reject")}
-          onRetryDetail={() => detailLoanId && void loadDetail(detailLoanId)}
+          onRetryDetail={() => detailLoanId && void loadDetail(detailLoanId, visibleSelectedLoan)}
         />
       ) : isAdminView ? (
         <Tabs value={adminView} onValueChange={setAdminView} className="gap-5">
@@ -411,8 +463,8 @@ export default function LoansPage() {
               loadingList={loadingList}
               listError={listError}
               emptyMessage={roleCopy.empty}
-              relatedData={relatedData}
-              loadingDetail={loadingDetail}
+              relatedData={visibleRelatedData}
+              loadingDetail={detailLoadingVisible}
               detailError={detailError}
               canReview={canReviewLoan(visibleSelectedLoan, user)}
               basePath={basePath}
@@ -423,7 +475,7 @@ export default function LoansPage() {
               onSearchQueryChange={setSearchQuery}
               onApprove={() => setReviewDialog("approve")}
               onReject={() => setReviewDialog("reject")}
-              onRetryDetail={() => visibleSelectedLoan && void loadDetail(visibleSelectedLoan.id)}
+              onRetryDetail={() => visibleSelectedLoan && void loadDetail(visibleSelectedLoan.id, visibleSelectedLoan)}
             />
           </TabsContent>
         </Tabs>
@@ -452,6 +504,7 @@ export default function LoansPage() {
         clients={clients}
         investors={investors}
         creating={creatingLoan}
+        loadingUsers={loadingUsers}
         onOpenChange={setCreateOpen}
         onFormChange={setLoanForm}
         onSubmit={handleCreateLoan}

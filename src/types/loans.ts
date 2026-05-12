@@ -1,4 +1,5 @@
 export type UserRole = "admin" | "client" | "investor"
+export type MaritalStatus = "single" | "married" | "unspecified"
 
 export type LoanStatus =
   | "pending"
@@ -18,11 +19,17 @@ export type LoanFrequency = "daily" | "weekly" | "biweekly" | "monthly" | string
 
 export type RelatedUser = {
   id: string
+  authUserId?: string | null
   publicCode?: string | null
   firstName?: string
   lastName?: string
-  email?: string
-  phone?: string
+  email?: string | null
+  phone?: string | null
+  dni?: string | null
+  address?: string | null
+  bank?: string | null
+  bankAccounts?: string[]
+  maritalStatus?: MaritalStatus | null
   avatarUrl?: string | null
   avatar?: string | null
   role?: UserRole | string

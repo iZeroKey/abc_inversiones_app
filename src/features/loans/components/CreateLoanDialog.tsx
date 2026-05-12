@@ -1,10 +1,11 @@
 import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react"
 import {
   CalendarIcon,
-  CheckIcon,
   ChevronDownIcon,
+  ClipboardListIcon,
   PlusIcon,
   SearchIcon,
+  UserRoundIcon,
 } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
@@ -25,23 +26,25 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@/components/
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogPanel,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
+import { Empty, EmptyDescription, EmptyMedia } from "@/components/ui/empty"
+import { Field, FieldLabel } from "@/components/ui/field"
 import { Fieldset, FieldsetLegend } from "@/components/ui/fieldset"
 import { Input } from "@/components/ui/input"
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  InputGroupText,
-} from "@/components/ui/input-group"
+  NumberField,
+  NumberFieldDecrement,
+  NumberFieldGroup,
+  NumberFieldIncrement,
+  NumberFieldInput,
+} from "@/components/ui/number-field"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -58,11 +61,11 @@ const frequencyItems = [
   { value: "daily", label: "Diario" },
 ]
 
-const installmentUnitLabels: Record<string, string> = {
-  daily: "días",
-  weekly: "semanas",
-  biweekly: "quincenas",
-  monthly: "meses",
+const installmentPeriodLabels: Record<string, { singular: string; plural: string }> = {
+  daily: { singular: "día", plural: "días" },
+  weekly: { singular: "semana", plural: "semanas" },
+  biweekly: { singular: "quincena", plural: "quincenas" },
+  monthly: { singular: "mes", plural: "meses" },
 }
 
 const roleLabels: Record<string, string> = {
@@ -72,16 +75,19 @@ const roleLabels: Record<string, string> = {
 }
 
 type SchedulePreviewRow = {
+  amortizedPrincipal: number
   installmentNumber: number
+  interestAmount: number
   dueDate: Date
   amount: number
+  remainingPrincipal: number
 }
 
 const schedulePreviewColumns: ColumnDef<SchedulePreviewRow>[] = [
   {
     id: "installmentNumber",
     accessorFn: (row) => row.installmentNumber,
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Cuota" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Número de cuota" />,
     cell: ({ row }) => row.original.installmentNumber,
   },
   {
@@ -94,12 +100,48 @@ const schedulePreviewColumns: ColumnDef<SchedulePreviewRow>[] = [
     id: "amount",
     accessorFn: (row) => row.amount,
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Importe" align="right" />
+      <DataTableColumnHeader column={column} title="Cuota a pagar" align="right" />
     ),
     cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.amount),
     meta: {
       headerClassName: "text-right",
       cellClassName: "text-right font-medium",
+    },
+  },
+  {
+    id: "interestAmount",
+    accessorFn: (row) => row.interestAmount,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Interés" align="right" />
+    ),
+    cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.interestAmount),
+    meta: {
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+    },
+  },
+  {
+    id: "amortizedPrincipal",
+    accessorFn: (row) => row.amortizedPrincipal,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Capital amortizado" align="right" />
+    ),
+    cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.amortizedPrincipal),
+    meta: {
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+    },
+  },
+  {
+    id: "remainingPrincipal",
+    accessorFn: (row) => row.remainingPrincipal,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Capital vivo" align="right" />
+    ),
+    cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.remainingPrincipal),
+    meta: {
+      headerClassName: "text-right",
+      cellClassName: "text-right",
     },
   },
 ]
@@ -110,6 +152,7 @@ export function CreateLoanDialog({
   clients,
   investors,
   creating,
+  loadingUsers = false,
   onOpenChange,
   onFormChange,
   onSubmit,
@@ -119,152 +162,180 @@ export function CreateLoanDialog({
   clients: RelatedUser[]
   investors: RelatedUser[]
   creating: boolean
+  loadingUsers?: boolean
   onOpenChange: (open: boolean) => void
   onFormChange: Dispatch<SetStateAction<LoanFormState>>
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
-  const [previewOpen, setPreviewOpen] = useState(true)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const schedulePreview = useMemo(() => createSchedulePreview(form), [form])
   const update = (key: keyof LoanFormState, value: string) => {
     onFormChange((current) => ({ ...current, [key]: value }))
   }
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) setPreviewOpen(false)
+    onOpenChange(nextOpen)
+  }
+
+  const isFormValid = useMemo(() => {
+    const principal = toNumber(form.principal)
+    const interestRate = toNumber(form.interestRate)
+    const installmentsCount = Number.parseInt(form.installmentsCount, 10)
+    return Boolean(
+      form.clientId &&
+      form.startDate &&
+      Number.isFinite(principal) && principal > 0 &&
+      Number.isFinite(interestRate) && interestRate > 0 &&
+      Number.isInteger(installmentsCount) && installmentsCount > 0
+    )
+  }, [form])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100vh-2rem)] max-w-4xl overflow-hidden">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-h-[calc(100vh-2rem)] max-w-3xl overflow-hidden">
         <DialogHeader>
           <DialogTitle>Nuevo préstamo</DialogTitle>
-          <DialogDescription>
-            Registra las condiciones financieras y deja la solicitud lista para revisión.
-          </DialogDescription>
         </DialogHeader>
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
           <div className="min-h-0 flex-1">
-          <DialogPanel className="flex flex-col gap-5">
-            <Fieldset className="flex flex-col gap-3">
-              <FieldsetLegend>Cliente e inversionista</FieldsetLegend>
-              <div className="grid gap-3 md:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="loan-client">Cliente</FieldLabel>
-                  {clients.length > 0 ? (
-                    <UserSearchSelect
-                      id="loan-client"
-                      placeholder="Selecciona cliente"
-                      users={clients}
-                      value={form.clientId}
-                      onValueChange={(value) => update("clientId", value)}
-                    />
-                  ) : (
-                    <Input id="loan-client" value={form.clientId} onChange={(event) => update("clientId", event.target.value)} placeholder="Selecciona cliente" />
-                  )}
-                  <FieldDescription>Requerido por el contrato del préstamo.</FieldDescription>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="loan-investor">Inversionista</FieldLabel>
-                  {investors.length > 0 ? (
-                    <UserSearchSelect
-                      id="loan-investor"
-                      placeholder="Opcional"
-                      users={investors}
-                      value={form.investorId}
-                      onValueChange={(value) => update("investorId", value)}
-                      allowClear
-                    />
-                  ) : (
-                    <Input id="loan-investor" value={form.investorId} onChange={(event) => update("investorId", event.target.value)} placeholder="Selecciona inversionista" />
-                  )}
-                </Field>
-              </div>
-            </Fieldset>
-
-            <Separator />
-
-            <Fieldset className="flex flex-col gap-3">
-              <FieldsetLegend>Condiciones financieras</FieldsetLegend>
-              <div className="grid gap-3 md:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="loan-principal">Principal</FieldLabel>
-                  <InputGroup>
-                    <InputGroupAddon>
-                      <InputGroupText>S/</InputGroupText>
-                    </InputGroupAddon>
-                    <InputGroupInput id="loan-principal" type="number" min="1" step="0.01" value={form.principal} onChange={(event) => update("principal", event.target.value)} />
-                  </InputGroup>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="loan-rate">Tasa</FieldLabel>
-                  <InputGroup>
-                    <InputGroupInput id="loan-rate" type="number" min="0" step="0.01" value={form.interestRate} onChange={(event) => update("interestRate", event.target.value)} />
-                    <InputGroupAddon align="inline-end">
-                      <InputGroupText>%</InputGroupText>
-                    </InputGroupAddon>
-                  </InputGroup>
-                  <FieldDescription>Se usa una tasa única para calcular la cuota fija.</FieldDescription>
-                </Field>
-              </div>
-            </Fieldset>
-
-            <Fieldset className="flex flex-col gap-3">
-              <FieldsetLegend>Cronograma</FieldsetLegend>
-              <div className="grid gap-3 md:grid-cols-3">
-                <Field>
-                  <FieldLabel>Frecuencia</FieldLabel>
-                  <Select items={frequencyItems} value={form.frequency} onValueChange={(value) => update("frequency", value ?? "monthly")}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {frequencyItems.map((item) => (
-                          <SelectItem key={item.value} value={item.value}>
-                            {item.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="loan-installments">Plazo</FieldLabel>
-                  <InputGroup>
-                    <InputGroupInput id="loan-installments" type="number" min="1" max="120" value={form.installmentsCount} onChange={(event) => update("installmentsCount", event.target.value)} />
-                    <InputGroupAddon align="inline-end">
-                      <InputGroupText>{installmentUnitLabels[form.frequency] ?? "cuotas"}</InputGroupText>
-                    </InputGroupAddon>
-                  </InputGroup>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="loan-start-date">Fecha de inicio</FieldLabel>
-                  <DatePicker value={form.startDate} onChange={(value) => update("startDate", value)} />
-                  <FieldDescription>El día base del cronograma se toma de esta fecha.</FieldDescription>
-                </Field>
-              </div>
-            </Fieldset>
-
-            <Collapsible open={previewOpen} onOpenChange={setPreviewOpen}>
+            <DialogPanel className="flex flex-col gap-4">
               <Fieldset className="flex flex-col gap-3">
-                <SectionHeader
-                  open={previewOpen}
-                  title="Preview de cuotas"
-                  summary={`${formatPreciseCurrencyWithSymbol(schedulePreview.totalDebt)} total`}
-                />
-                <CollapsiblePanel>
-                  <SchedulePreview preview={schedulePreview} />
-                </CollapsiblePanel>
+                <FieldsetLegend>Cliente e inversionista</FieldsetLegend>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="loan-client">Cliente</FieldLabel>
+                    {loadingUsers ? (
+                      <UserFieldSkeleton />
+                    ) : clients.length > 0 ? (
+                      <UserSearchSelect
+                        id="loan-client"
+                        placeholder="Selecciona cliente"
+                        users={clients}
+                        value={form.clientId}
+                        onValueChange={(value) => update("clientId", value)}
+                        emptyDetail="Selecciona un cliente para ver sus datos."
+                      />
+                    ) : (
+                      <Input id="loan-client" size="sm" value={form.clientId} onChange={(event) => update("clientId", event.target.value)} placeholder="Selecciona cliente" />
+                    )}
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="loan-investor">Inversionista</FieldLabel>
+                    {loadingUsers ? (
+                      <UserFieldSkeleton />
+                    ) : investors.length > 0 ? (
+                      <UserSearchSelect
+                        id="loan-investor"
+                        placeholder="Opcional"
+                        users={investors}
+                        value={form.investorId}
+                        onValueChange={(value) => update("investorId", value)}
+                        allowClear
+                        emptyDetail="Sin inversionista asignado."
+                      />
+                    ) : (
+                      <Input id="loan-investor" size="sm" value={form.investorId} onChange={(event) => update("investorId", event.target.value)} placeholder="Selecciona inversionista" />
+                    )}
+                  </Field>
+                </div>
               </Fieldset>
-            </Collapsible>
 
-            <Field>
-              <FieldLabel htmlFor="loan-observation">Observación</FieldLabel>
-              <Textarea id="loan-observation" value={form.observation} onChange={(event) => update("observation", event.target.value)} placeholder="Notas internas para revisión..." />
-            </Field>
-          </DialogPanel>
+              <Separator />
+
+              <Fieldset className="flex flex-col gap-3">
+                <FieldsetLegend>Condiciones financieras</FieldsetLegend>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="loan-principal">Principal (S/)</FieldLabel>
+                    <LoanNumberField
+                      id="loan-principal"
+                      min={1}
+                      step={1}
+                      value={form.principal}
+                      onValueChange={(value) => update("principal", value)}
+                      decrementLabel="Reducir principal"
+                      incrementLabel="Aumentar principal"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="loan-rate">Tasa (%)</FieldLabel>
+                    <LoanNumberField
+                      id="loan-rate"
+                      min={0.01}
+                      step={0.01}
+                      value={form.interestRate}
+                      onValueChange={(value) => update("interestRate", value)}
+                      decrementLabel="Reducir tasa"
+                      incrementLabel="Aumentar tasa"
+                    />
+                  </Field>
+                </div>
+              </Fieldset>
+
+              <Fieldset className="flex flex-col gap-3">
+                <FieldsetLegend>Cronograma</FieldsetLegend>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Field>
+                    <FieldLabel>Frecuencia</FieldLabel>
+                    <Select items={frequencyItems} value={form.frequency} onValueChange={(value) => update("frequency", value ?? "monthly")}>
+                      <SelectTrigger size="sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {frequencyItems.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="loan-installments">Plazo ({installmentPeriodLabels[form.frequency]?.plural ?? "cuotas"})</FieldLabel>
+                    <LoanNumberField
+                      id="loan-installments"
+                      min={1}
+                      max={120}
+                      step={1}
+                      value={form.installmentsCount}
+                      onValueChange={(value) => update("installmentsCount", value)}
+                      decrementLabel="Reducir plazo"
+                      incrementLabel="Aumentar plazo"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="loan-start-date">Fecha de inicio</FieldLabel>
+                    <DatePicker value={form.startDate} onChange={(value) => update("startDate", value)} />
+                  </Field>
+                </div>
+              </Fieldset>
+
+              <Collapsible open={previewOpen} onOpenChange={setPreviewOpen}>
+                <Fieldset className="flex min-w-0 flex-col gap-3 overflow-hidden">
+                  <SectionHeader
+                    open={previewOpen}
+                    title="Cronograma de cuotas"
+                    summary={getScheduleHeaderSummary(schedulePreview)}
+                  />
+                  <CollapsiblePanel>
+                    <SchedulePreview preview={schedulePreview} />
+                  </CollapsiblePanel>
+                </Fieldset>
+              </Collapsible>
+
+              <Field>
+                <FieldLabel htmlFor="loan-observation">Observación</FieldLabel>
+                <Textarea id="loan-observation" value={form.observation} onChange={(event) => update("observation", event.target.value)} placeholder="Notas internas para revisión..." />
+              </Field>
+            </DialogPanel>
           </div>
           <DialogFooter className="shrink-0">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={creating}>
+            <Button type="submit" disabled={creating || !isFormValid}>
               {creating ? <Spinner /> : <PlusIcon data-icon="inline-start" />}
               Crear préstamo
             </Button>
@@ -305,35 +376,108 @@ function SchedulePreview({
 }) {
   if (!preview.rows.length) {
     return (
-      <div className="mt-3 rounded-md border bg-muted/32 p-4 text-sm text-muted-foreground">
-        Completa monto, plazo y fecha de inicio para ver las cuotas.
-      </div>
+      <Empty className="mt-3 min-h-28 flex-none rounded-lg border bg-muted/24 px-4 py-6 md:py-6">
+        <EmptyMedia className="mb-0" variant="icon">
+          <ClipboardListIcon />
+        </EmptyMedia>
+        <EmptyDescription>{preview.emptyMessage}</EmptyDescription>
+      </Empty>
     )
   }
 
   return (
     <div className="flex flex-col gap-3 pt-3">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <PreviewMetric label="Deuda total" value={formatPreciseCurrencyWithSymbol(preview.totalDebt)} />
-        <PreviewMetric label="Cuota" value={formatPreciseCurrencyWithSymbol(preview.amountPerInstallment)} />
-        <PreviewMetric label="Vencimientos" value={`${preview.rows.length} cuotas`} />
+      <ScheduleSummary preview={preview} />
+      <div className="min-w-0 overflow-hidden rounded-2xl">
+        <DataTableCard
+          columns={schedulePreviewColumns}
+          data={preview.rows}
+          getRowId={(row) => String(row.installmentNumber)}
+          tableClassName="min-w-[820px]"
+        />
       </div>
-      <DataTableCard
-        columns={schedulePreviewColumns}
-        data={preview.rows}
-        getRowId={(row) => String(row.installmentNumber)}
-        tableClassName="min-w-[420px]"
-        className="max-h-72 overflow-auto"
-      />
     </div>
   )
 }
 
-function PreviewMetric({ label, value }: { label: string; value: string }) {
+function ScheduleSummary({
+  preview,
+}: {
+  preview: ReturnType<typeof createSchedulePreview>
+}) {
   return (
-    <div className="rounded-md border bg-muted/32 p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate font-medium">{value}</p>
+    <div className="rounded-lg border bg-muted/24 p-3">
+      <p className="mb-2 text-sm font-medium">Resumen</p>
+      <div className="grid gap-2 text-sm sm:grid-cols-2">
+        <SummaryLine label="Valor préstamo" value={formatPreciseCurrencyWithSymbol(preview.principal)} />
+        <SummaryLine label="Cuota fija" value={formatPreciseCurrencyWithSymbol(preview.amountPerInstallment)} />
+        <SummaryLine label="Suma de cuotas" value={formatPreciseCurrencyWithSymbol(preview.totalDebt)} />
+        <SummaryLine label="Suma de interés" value={formatPreciseCurrencyWithSymbol(preview.totalInterest)} />
+      </div>
+    </div>
+  )
+}
+
+function SummaryLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-md bg-background px-3 py-2">
+      <span className="truncate text-muted-foreground">{label}</span>
+      <span className="shrink-0 font-medium tabular-nums">{value}</span>
+    </div>
+  )
+}
+
+function LoanNumberField({
+  id,
+  value,
+  min,
+  max,
+  step,
+  decrementLabel,
+  incrementLabel,
+  onValueChange,
+}: {
+  id: string
+  value: string
+  min?: number
+  max?: number
+  step?: number
+  decrementLabel: string
+  incrementLabel: string
+  onValueChange: (value: string) => void
+}) {
+  return (
+    <NumberField
+      id={id}
+      min={min}
+      max={max}
+      size="sm"
+      step={step}
+      value={parseNumberFieldValue(value)}
+      onValueChange={(nextValue) => onValueChange(formatNumberFieldValue(nextValue))}
+    >
+      <NumberFieldGroup>
+        <NumberFieldDecrement aria-label={decrementLabel} />
+        <NumberFieldInput className="w-full px-1 text-center" />
+        <NumberFieldIncrement aria-label={incrementLabel} />
+      </NumberFieldGroup>
+    </NumberField>
+  )
+}
+
+function UserFieldSkeleton() {
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-2">
+      <Skeleton className="h-7.5 w-full rounded-lg sm:h-6.5" />
+      <div className="min-h-16 rounded-md border border-dashed bg-muted/16 p-3">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-8 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1">
+            <Skeleton className="mb-1.5 h-3.5 w-28" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -343,6 +487,7 @@ function UserSearchSelect({
   users,
   value,
   placeholder,
+  emptyDetail,
   allowClear = false,
   onValueChange,
 }: {
@@ -350,6 +495,7 @@ function UserSearchSelect({
   users: RelatedUser[]
   value: string
   placeholder: string
+  emptyDetail: string
   allowClear?: boolean
   onValueChange: (value: string) => void
 }) {
@@ -361,7 +507,7 @@ function UserSearchSelect({
     if (!normalizedQuery) return users
 
     return users.filter((user) =>
-      [personName(user), user.email, user.publicCode]
+      [personName(user), user.email, user.publicCode, user.dni, user.bank, ...(user.bankAccounts ?? [])]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -375,6 +521,7 @@ function UserSearchSelect({
         <AutocompleteInput
           className="w-full"
           id={id}
+          size="sm"
           value={query || (selectedUser ? personName(selectedUser) : "")}
           onChange={(event) => {
             const nextQuery = event.target.value
@@ -410,7 +557,7 @@ function UserSearchSelect({
             )}
             {filteredUsers.map((user) => (
               <AutocompleteItem
-                className="w-full min-w-0"
+                className="w-full min-w-0 px-2"
                 key={user.id}
                 onClick={() => {
                   onValueChange(user.id)
@@ -418,7 +565,6 @@ function UserSearchSelect({
                   setDetailsOpen(false)
                 }}
               >
-                <CheckIcon className={cn("mr-2 opacity-0", user.id === value && "opacity-100")} />
                 <UserOption user={user} />
               </AutocompleteItem>
             ))}
@@ -426,13 +572,22 @@ function UserSearchSelect({
           </AutocompleteList>
         </AutocompletePopup>
       </Autocomplete>
-      {selectedUser && (
-        <SelectedUserDetails
-          open={detailsOpen}
-          user={selectedUser}
-          onOpenChange={setDetailsOpen}
-        />
-      )}
+      <div className="min-h-16">
+        {selectedUser ? (
+          <SelectedUserDetails
+            open={detailsOpen}
+            user={selectedUser}
+            onOpenChange={setDetailsOpen}
+          />
+        ) : (
+          <Empty className="min-h-16 flex-none flex-row items-center justify-start gap-3 rounded-md border border-dashed bg-muted/16 px-3 py-2 text-left md:py-2">
+            <EmptyMedia className="mb-0" variant="icon">
+              <UserRoundIcon />
+            </EmptyMedia>
+            <EmptyDescription className="text-xs">{emptyDetail}</EmptyDescription>
+          </Empty>
+        )}
+      </div>
     </div>
   )
 }
@@ -493,6 +648,9 @@ function SelectedUserDetails({
         <div className="grid gap-2 border-t p-3 text-sm sm:grid-cols-2">
           <UserDetailItem label="Correo" value={user.email ?? "Sin correo"} />
           <UserDetailItem label="Teléfono" value={user.phone ?? "Sin teléfono"} />
+          <UserDetailItem label="DNI" value={user.dni ?? "Sin DNI"} />
+          <UserDetailItem label="Banco" value={user.bank ?? "Sin banco"} />
+          <UserDetailItem className="sm:col-span-2" label="Cuentas" value={(user.bankAccounts ?? []).join(", ") || "Sin cuentas"} />
           <UserDetailItem className="sm:col-span-2" label="Código" value={publicUserCode(user)} />
         </div>
       </CollapsiblePanel>
@@ -546,7 +704,7 @@ function DatePicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button type="button" variant="outline" className="w-full justify-start font-normal" />}>
+      <PopoverTrigger render={<Button type="button" variant="outline" size="sm" className="w-full justify-start font-normal" />}>
         <CalendarIcon data-icon="inline-start" />
         {selectedDate
           ? new Intl.DateTimeFormat("es-PE", {
@@ -580,8 +738,24 @@ function createSchedulePreview(form: LoanFormState) {
   if (!startDate || principal <= 0 || !Number.isInteger(installmentsCount) || installmentsCount < 1) {
     return {
       amountPerInstallment: 0,
+      emptyMessage: "Completa monto, tasa, plazo y fecha de inicio para ver las cuotas.",
+      frequency: form.frequency,
+      principal: 0,
       rows: [] as SchedulePreviewRow[],
       totalDebt: 0,
+      totalInterest: 0,
+    }
+  }
+
+  if (!Number.isFinite(interestRate) || interestRate <= 0) {
+    return {
+      amountPerInstallment: 0,
+      emptyMessage: "La tasa debe ser mayor que 0 para calcular el cronograma.",
+      frequency: form.frequency,
+      principal,
+      rows: [] as SchedulePreviewRow[],
+      totalDebt: 0,
+      totalInterest: 0,
     }
   }
 
@@ -592,27 +766,33 @@ function createSchedulePreview(form: LoanFormState) {
     safeInstallmentsCount,
   )
   const roundedAmountPerInstallment = roundMoney(amountPerInstallment)
-  const roundedTotalDebt = roundMoney(amountPerInstallment * safeInstallmentsCount)
-  let accumulatedAmount = 0
+  const roundedTotalDebt = roundMoney(roundedAmountPerInstallment * safeInstallmentsCount)
+  const totalInterest = roundMoney(Math.max(roundedTotalDebt - principal, 0))
+  const decimalRate = interestRate / 100
+  let remainingPrincipal = roundMoney(principal)
 
   return {
     amountPerInstallment: roundedAmountPerInstallment,
+    emptyMessage: "",
+    frequency: form.frequency,
+    principal,
     rows: Array.from({ length: safeInstallmentsCount }, (_, index) => {
       const installmentNumber = index + 1
-      const isLastInstallment = installmentNumber === safeInstallmentsCount
-      const amount = isLastInstallment
-        ? roundMoney(roundedTotalDebt - accumulatedAmount)
-        : roundedAmountPerInstallment
-
-      accumulatedAmount = roundMoney(accumulatedAmount + amount)
+      const interestAmount = roundMoney(remainingPrincipal * decimalRate)
+      const amortizedPrincipal = roundMoney(roundedAmountPerInstallment - interestAmount)
+      remainingPrincipal = Math.max(roundMoney(remainingPrincipal - amortizedPrincipal), 0)
 
       return {
+        amortizedPrincipal,
         installmentNumber,
+        interestAmount,
         dueDate: calculateDueDate(startDate, installmentNumber, form.frequency),
-        amount,
+        amount: roundedAmountPerInstallment,
+        remainingPrincipal,
       }
     }),
     totalDebt: roundedTotalDebt,
+    totalInterest,
   }
 }
 
@@ -692,7 +872,30 @@ function startOfLocalDay(date: Date) {
 }
 
 function roundMoney(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100
+  const rounded = Math.round((value + Number.EPSILON) * 100) / 100
+  return Object.is(rounded, -0) ? 0 : rounded
+}
+
+function parseNumberFieldValue(value: string) {
+  if (value.trim() === "") return null
+
+  const numericValue = Number.parseFloat(value)
+  return Number.isFinite(numericValue) ? numericValue : null
+}
+
+function formatNumberFieldValue(value: number | null) {
+  if (value === null || !Number.isFinite(value)) return ""
+  return String(value)
+}
+
+function formatInstallmentSummary(count: number, frequency: string) {
+  const labels = installmentPeriodLabels[frequency] ?? { singular: "cuota", plural: "cuotas" }
+  return `${count} ${count === 1 ? labels.singular : labels.plural}`
+}
+
+function getScheduleHeaderSummary(preview: ReturnType<typeof createSchedulePreview>) {
+  if (!preview.rows.length) return "Sin calcular"
+  return `${formatInstallmentSummary(preview.rows.length, preview.frequency)} · cuota ${formatPreciseCurrencyWithSymbol(preview.amountPerInstallment)}`
 }
 
 function formatScheduleDate(date: Date) {

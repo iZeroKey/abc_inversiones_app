@@ -3,9 +3,6 @@ export function formatCurrency(value: number | string | undefined | null): strin
   const numericValue = typeof value === "string" ? parseFloat(value) : value
   if (isNaN(numericValue)) return "S/ 0.00"
   
-  if (numericValue >= 1000) {
-    return `S/ ${(numericValue / 1000).toFixed(1)}K`
-  }
   return new Intl.NumberFormat("es-PE", {
     style: "currency",
     currency: "PEN",

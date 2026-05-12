@@ -36,6 +36,8 @@ export function ReviewLoanDialog({
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
+  if (!mode) return null
+
   const approving = mode === "approve"
 
   return (

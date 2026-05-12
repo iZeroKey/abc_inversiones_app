@@ -625,6 +625,7 @@ export function AdminLoansOperationsPanel({
               onReject={onReject}
               onRetry={onRetryDetail}
               sticky={false}
+              hideBackButton
             />
           </SheetPanel>
         </SheetContent>

@@ -9,9 +9,17 @@ type AuthSession = {
 
 type AuthUser = {
   id: string
-  email: string
+  authUserId?: string | null
+  publicCode?: string | null
+  email?: string | null
   firstName?: string
   lastName?: string
+  phone?: string | null
+  dni?: string | null
+  address?: string | null
+  bank?: string | null
+  bankAccounts?: string[]
+  maritalStatus?: "single" | "married" | "unspecified" | null
   avatarUrl?: string | null
   role?: string
   isOwner?: boolean
