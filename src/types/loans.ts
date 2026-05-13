@@ -12,6 +12,16 @@ export type LoanStatus =
   | "cancelled"
 
 export type InstallmentStatus = "pending" | "paid" | "overdue" | "partial" | string
+export type PaymentMethod = "cash" | "transfer" | "deposit" | "other"
+export type PaymentStatus = "confirmed" | "reversed"
+export type VoucherStatus =
+  | "draft"
+  | "pending_investor_review"
+  | "investor_approved"
+  | "investor_rejected"
+  | "owner_approved"
+  | "owner_rejected"
+  | "deleted"
 
 export type InterestType = "simple" | "compound" | string
 export type InterestPeriod = "daily" | "weekly" | "monthly" | "annual" | string
@@ -133,24 +143,36 @@ export type Payment = {
   id: string
   loanId?: string
   installmentId?: string | null
+  voucherId?: string | null
   amount?: string | number
-  method?: string
-  status?: string
+  method?: PaymentMethod | string
+  status?: PaymentStatus | string
   reference?: string | null
+  evidenceUrl?: string | null
+  observation?: string | null
+  registeredById?: string | null
   paymentDate?: string
   createdAt?: string
+  updatedAt?: string
+  deletedAt?: string | null
 }
 
 export type PaymentVoucher = {
   id: string
   loanId?: string
+  clientId?: string
   paymentId?: string | null
   amount?: string | number
   operationId?: string
-  status?: string
+  operationDate?: string | null
+  status?: VoucherStatus | string
   evidenceUrl?: string | null
   fileUrl?: string | null
+  observation?: string | null
+  processedById?: string | null
   createdAt?: string
+  updatedAt?: string
+  deletedAt?: string | null
 }
 
 export type PaginationMeta = {

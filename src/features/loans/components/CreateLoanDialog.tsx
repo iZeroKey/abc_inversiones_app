@@ -701,10 +701,14 @@ function DatePicker({
 }) {
   const [open, setOpen] = useState(false)
   const selectedDate = value ? parseInputDate(value) ?? undefined : undefined
+  const selectToday = () => {
+    onChange(formatInputDate(new Date()))
+    setOpen(false)
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button type="button" variant="outline" size="sm" className="w-full justify-start font-normal" />}>
+      <PopoverTrigger render={<Button type="button" variant="outline" size="lg" className="w-full justify-start font-normal" />}>
         <CalendarIcon data-icon="inline-start" />
         {selectedDate
           ? new Intl.DateTimeFormat("es-PE", {
@@ -714,7 +718,7 @@ function DatePicker({
             }).format(selectedDate)
           : "Selecciona fecha"}
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto p-0">
+      <PopoverContent align="start" className="flex w-auto flex-col gap-2 p-2">
         <Calendar
           mode="single"
           selected={selectedDate}
@@ -724,6 +728,9 @@ function DatePicker({
             setOpen(false)
           }}
         />
+        <Button type="button" variant="outline" size="sm" className="w-full" onClick={selectToday}>
+          Hoy
+        </Button>
       </PopoverContent>
     </Popover>
   )

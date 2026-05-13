@@ -6,6 +6,12 @@ import { formatCurrency, formatCurrencyPrecise } from "@/lib/formatters"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Link } from "react-router-dom"
 import { Badge } from "@/components/ui/badge"
+import {
+  getLoanPaidAmount,
+  getLoanProgress,
+  getRemainingDebt,
+  toNumber,
+} from "@/features/loans/loan-utils"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
@@ -22,6 +28,8 @@ type Loan = {
 
 type Installment = {
   id: string
+  loanId?: string
+  paidAmount?: string | number
   status?: string
 }
 
@@ -50,20 +58,39 @@ export default function ClientDashboard() {
         const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/reports/statement`)
         const json = (await res.json()) as ApiResponse<ClientStatement>
         if (json.success && json.data) {
-          setData(json.data)
-          const activeLoans = (json.data.loans ?? []).filter((loan) => loan.status === "active")
+          const loans = json.data.loans ?? []
+          const activeLoanIds = new Set(loans.filter((loan) => loan.status === "active").map((loan) => loan.id))
           const installmentResponses = await Promise.all(
-            activeLoans.map(async (loan) => {
+            loans.map(async (loan) => {
               const installmentRes = await fetchWithAuth(
                 `${API_BASE_URL}/api/v1/loans/${loan.id}/installments`,
               )
               const installmentJson = (await installmentRes.json()) as ApiResponse<Installment[]>
-              return installmentJson.success ? installmentJson.data ?? [] : []
+              return {
+                loan,
+                installments: installmentJson.success ? installmentJson.data ?? [] : [],
+              }
             }),
           )
+          const loansWithProgress = installmentResponses.map(({ loan, installments }) => ({
+            ...loan,
+            totalPaid: String(getLoanPaidAmount(loan, installments)),
+          }))
+          const paidFromInstallments = loansWithProgress.reduce(
+            (total, loan) => total + toNumber(loan.totalPaid),
+            0,
+          )
+          setData({
+            ...json.data,
+            loans: loansWithProgress,
+            summary: {
+              ...json.data.summary,
+              totalPaid: String(Math.max(toNumber(json.data.summary?.totalPaid), paidFromInstallments)),
+            },
+          })
           setPendingInstallments(
             installmentResponses
-              .flat()
+              .flatMap(({ loan, installments }) => (activeLoanIds.has(loan.id) ? installments : []))
               .filter((installment) => installment.status !== "paid").length,
           )
         }
@@ -131,8 +158,8 @@ export default function ClientDashboard() {
   const summary = data?.summary || {}
   
   const activeLoans = loans.filter((loan) => loan.status === "active")
-  const totalDebt = parseFloat(summary.totalDebt || "0")
-  const totalPaid = parseFloat(summary.totalPaid || "0")
+  const totalDebt = toNumber(summary.totalDebt)
+  const totalPaid = toNumber(summary.totalPaid)
   const remainingDebt = Math.max(0, totalDebt - totalPaid)
   const mainLoan = activeLoans.length > 0 ? activeLoans[0] : null
   const otherLoans = activeLoans.length > 1 ? activeLoans.slice(1) : []
@@ -230,10 +257,9 @@ function MetricCardSkeleton() {
 }
 
 function MainLoanCard({ loan }: { loan: Loan }) {
-  const totalDebt = parseFloat(loan.totalDebt || "0")
-  const totalPaid = parseFloat(loan.totalPaid || "0")
-  const remainingDebt = Math.max(0, totalDebt - totalPaid)
-  const progressPercent = totalDebt > 0 ? (totalPaid / totalDebt) * 100 : 0
+  const totalPaid = getLoanPaidAmount(loan)
+  const remainingDebt = getRemainingDebt(loan)
+  const progressPercent = getLoanProgress(loan)
   
   const frequencyMap: Record<string, string> = {
     daily: "Diario",
@@ -297,10 +323,8 @@ function MainLoanCard({ loan }: { loan: Loan }) {
 }
 
 function OtherLoanCard({ loan }: { loan: Loan }) {
-  const totalDebt = parseFloat(loan.totalDebt || "0")
-  const totalPaid = parseFloat(loan.totalPaid || "0")
-  const remainingDebt = Math.max(0, totalDebt - totalPaid)
-  const progressPercent = totalDebt > 0 ? (totalPaid / totalDebt) * 100 : 0
+  const remainingDebt = getRemainingDebt(loan)
+  const progressPercent = getLoanProgress(loan)
   const frequencyMap: Record<string, string> = {
     daily: "Diario",
     weekly: "Semanal",

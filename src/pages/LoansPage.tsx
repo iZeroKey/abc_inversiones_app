@@ -21,6 +21,7 @@ import { PAGE_SIZE } from "@/features/loans/loan-constants"
 import {
   createLoanSearchText,
   getErrorMessage,
+  getLoanPaidAmount,
 } from "@/features/loans/loan-utils"
 import { useAuth } from "@/contexts/auth-context"
 import {
@@ -46,6 +47,14 @@ const emptyRelatedData: RelatedData = {
   installments: [],
   payments: [],
   vouchers: [],
+}
+
+function withPaymentProgress(loan: Loan, installments: RelatedData["installments"] = []) {
+  if (installments.length === 0) return loan
+  return {
+    ...loan,
+    totalPaid: getLoanPaidAmount(loan, installments),
+  }
 }
 
 export default function LoansPage() {
@@ -138,12 +147,22 @@ export default function LoansPage() {
           search: searchQuery.trim() || (loanId && !isUuid(loanId) ? loanId : undefined),
         })
 
-        setLoans(loansResult.loans)
+        const installmentsByLoan = await Promise.allSettled(
+          loansResult.loans.map((loan) => fetchLoanInstallments(fetchWithAuth, loan.id)),
+        )
+        const loansWithProgress = loansResult.loans.map((loan, index) => {
+          const installmentsResult = installmentsByLoan[index]
+          return installmentsResult?.status === "fulfilled"
+            ? withPaymentProgress(loan, installmentsResult.value)
+            : loan
+        })
+
+        setLoans(loansWithProgress)
         setPagination(loansResult.meta)
 
-        if (adminView === "advanced" && !activeLoanIdRef.current && loansResult.loans[0]) {
-          activeLoanIdRef.current = loansResult.loans[0].id
-          setManualSelectedLoanId(loansResult.loans[0].id)
+        if (adminView === "advanced" && !activeLoanIdRef.current && loansWithProgress[0]) {
+          activeLoanIdRef.current = loansWithProgress[0].id
+          setManualSelectedLoanId(loansWithProgress[0].id)
         }
       } catch (error) {
         setListError(getErrorMessage(error, "No se pudieron cargar los préstamos."))
@@ -179,16 +198,19 @@ export default function LoansPage() {
 
         if (pendingDetailIdRef.current !== id) return
 
+        const installments = installmentsResult.status === "fulfilled" ? installmentsResult.value : []
+
         if (detailResult.status === "fulfilled") {
-          setSelectedLoan(detailResult.value ?? fallbackLoan ?? null)
+          const detailLoan = detailResult.value ?? fallbackLoan ?? null
+          setSelectedLoan(detailLoan ? withPaymentProgress(detailLoan, installments) : null)
         } else if (fallbackLoan) {
-          setSelectedLoan(fallbackLoan)
+          setSelectedLoan(withPaymentProgress(fallbackLoan, installments))
         } else {
           throw detailResult.reason
         }
 
         setRelatedData({
-          installments: installmentsResult.status === "fulfilled" ? installmentsResult.value : [],
+          installments,
           payments: paymentsResult.status === "fulfilled" ? paymentsResult.value : [],
           vouchers: vouchersResult.status === "fulfilled" ? vouchersResult.value : [],
         })
@@ -383,6 +405,19 @@ export default function LoansPage() {
     }
   }
 
+  const refreshSelectedLoanData = useCallback(async () => {
+    const id = detailLoanId ?? visibleSelectedLoan?.id
+    if (!id) {
+      await loadLoans({ keepContent: true })
+      return
+    }
+
+    await Promise.all([
+      loadLoans({ keepContent: true }),
+      loadDetail(id, visibleSelectedLoan),
+    ])
+  }, [detailLoanId, loadDetail, loadLoans, visibleSelectedLoan])
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5 px-3 py-4 md:px-8 md:py-8">
       <header className="flex items-start justify-between gap-3 border-b border-border pb-5">
@@ -423,6 +458,7 @@ export default function LoansPage() {
           onApprove={() => setReviewDialog("approve")}
           onReject={() => setReviewDialog("reject")}
           onRetryDetail={() => detailLoanId && void loadDetail(detailLoanId, visibleSelectedLoan)}
+          onDataChanged={refreshSelectedLoanData}
         />
       ) : isAdminView ? (
         <Tabs value={adminView} onValueChange={setAdminView} className="gap-5">
@@ -476,6 +512,7 @@ export default function LoansPage() {
               onApprove={() => setReviewDialog("approve")}
               onReject={() => setReviewDialog("reject")}
               onRetryDetail={() => visibleSelectedLoan && void loadDetail(visibleSelectedLoan.id, visibleSelectedLoan)}
+              onDataChanged={refreshSelectedLoanData}
             />
           </TabsContent>
         </Tabs>
@@ -536,6 +573,7 @@ function LoanDetailRoute({
   onApprove,
   onReject,
   onRetryDetail,
+  onDataChanged,
 }: {
   selectedLoan: Loan | null
   relatedData: RelatedData
@@ -547,9 +585,10 @@ function LoanDetailRoute({
   onApprove: () => void
   onReject: () => void
   onRetryDetail: () => void
+  onDataChanged: () => Promise<void> | void
 }) {
   return (
-    <section className="mx-auto w-full max-w-5xl">
+    <section className="mx-auto w-full max-w-7xl">
       <LoanDetailPanel
         loan={selectedLoan}
         relatedData={relatedData}
@@ -561,6 +600,7 @@ function LoanDetailRoute({
         onApprove={onApprove}
         onReject={onReject}
         onRetry={onRetryDetail}
+        onDataChanged={onDataChanged}
         sticky={false}
       />
     </section>

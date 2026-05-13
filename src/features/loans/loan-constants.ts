@@ -38,6 +38,13 @@ export const interestPeriodLabels: Record<string, string> = {
   annual: "anual",
 }
 
+export const paymentMethodLabels: Record<string, string> = {
+  cash: "Efectivo",
+  transfer: "Transferencia",
+  deposit: "Depósito",
+  other: "Otro",
+}
+
 export const voucherStatusLabels: Record<string, string> = {
   draft: "Borrador",
   pending_investor_review: "Pendiente",

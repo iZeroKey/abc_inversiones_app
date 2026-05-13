@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   BadgeCheckIcon,
   BanknoteIcon,
@@ -1618,6 +1618,18 @@ function UserDialog({
   const authRequired = !isEditing && (form.role === "admin" || form.createAuthAccount)
   const showInactiveWarning = Boolean(editingUser && permissions.canUpdateActive && !form.active)
   const title = isEditing ? "Editar usuario" : "Nuevo usuario"
+  const bankAccountRefs = useRef<Array<HTMLInputElement | null>>([])
+  const pendingBankAccountFocusIndex = useRef<number | null>(null)
+  const canAddBankAccount = form.bankAccounts.every((account) => account.trim().length > 0)
+
+  useEffect(() => {
+    const focusIndex = pendingBankAccountFocusIndex.current
+    if (focusIndex === null) return
+
+    bankAccountRefs.current[focusIndex]?.focus()
+    pendingBankAccountFocusIndex.current = null
+  }, [form.bankAccounts.length])
+
   const handleBankAccountChange = (index: number, value: string) => {
     onFormChange((current) => ({
       ...current,
@@ -1627,6 +1639,8 @@ function UserDialog({
     }))
   }
   const addBankAccount = () => {
+    if (!canAddBankAccount) return
+    pendingBankAccountFocusIndex.current = form.bankAccounts.length
     onFormChange((current) => ({
       ...current,
       bankAccounts: [...current.bankAccounts, ""],
@@ -1833,13 +1847,7 @@ function UserDialog({
               </Field>
 
               <Field>
-                <div className="flex w-full items-center justify-between gap-3">
-                  <FieldLabel>Cuentas bancarias</FieldLabel>
-                  <Button type="button" variant="outline" size="sm" onClick={addBankAccount}>
-                    <PlusIcon data-icon="inline-start" />
-                    Agregar
-                  </Button>
-                </div>
+                <FieldLabel>Cuentas bancarias</FieldLabel>
                 <div className="flex w-full flex-col gap-2">
                   {form.bankAccounts.map((account, index) => (
                     <InputGroup key={index}>
@@ -1849,6 +1857,9 @@ function UserDialog({
                       <InputGroupInput
                         aria-label={`Cuenta bancaria ${index + 1}`}
                         value={account}
+                        ref={(node) => {
+                          bankAccountRefs.current[index] = node
+                        }}
                         onChange={(event) => handleBankAccountChange(index, event.target.value)}
                       />
                       <InputGroupAddon align="inline-end">
@@ -1865,13 +1876,23 @@ function UserDialog({
                       </InputGroupAddon>
                     </InputGroup>
                   ))}
+                  {canAddBankAccount && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8.5 w-full justify-center border-dashed text-muted-foreground sm:h-7.5"
+                      onClick={addBankAccount}
+                    >
+                      <PlusIcon data-icon="inline-start" />
+                      Agregar cuenta bancaria
+                    </Button>
+                  )}
                 </div>
               </Field>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <RoleAccessPanel
-                authRequired={authRequired}
                 editingUser={editingUser}
                 form={form}
                 isEditing={isEditing}
@@ -1879,22 +1900,14 @@ function UserDialog({
                 onFormChange={onFormChange}
               />
 
-              <Field>
-                <div className="flex min-h-9 w-full items-center justify-between gap-3">
-                  <FieldLabel htmlFor="active">Acceso</FieldLabel>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <StatusBadge active={form.active} />
-                    <Switch
-                      id="active"
-                      checked={form.active}
-                      disabled={!permissions.canUpdateActive}
-                      onCheckedChange={(checked) =>
-                        onFormChange((current) => ({ ...current, active: checked }))
-                      }
-                    />
-                  </div>
-                </div>
-              </Field>
+              <AccessStatusField
+                authRequired={authRequired}
+                editingUser={editingUser}
+                form={form}
+                isEditing={isEditing}
+                permissions={permissions}
+                onFormChange={onFormChange}
+              />
             </div>
 
             {!isEditing && (
@@ -2103,66 +2116,112 @@ function LinkAuthDialog({
 }
 
 function RoleAccessPanel({
-  authRequired,
   editingUser,
   form,
   isEditing,
   roleItemsForUser,
   onFormChange,
 }: {
-  authRequired: boolean
   editingUser: ManagedUser | null
   form: UserFormState
   isEditing: boolean
   roleItemsForUser: { label: string; value: UserRole }[]
   onFormChange: React.Dispatch<React.SetStateAction<UserFormState>>
 }) {
+  const normalizedRole = normalizeRole(form.role)
+  const RoleIcon = normalizedRole === "admin" ? ShieldIcon : UserIcon
+
   return (
     <Field>
-      <div className="flex w-full flex-col gap-3 rounded-lg border bg-muted/20 p-3">
-        <div className="flex min-h-9 items-center justify-between gap-3">
-          <FieldLabel>Rol</FieldLabel>
-          {isEditing ? (
-            <RoleBadge role={form.role} isOwner={editingUser?.isOwner} />
-          ) : (
-            <Select
-              items={roleItemsForUser}
-              value={form.role}
-              onValueChange={(value) =>
-                onFormChange((current) => ({
-                  ...current,
-                  role: value ?? "client",
-                  createAuthAccount: value === "admin" ? true : current.createAuthAccount,
-                }))
-              }
-            >
-              <SelectTrigger className="min-w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {roleItemsForUser.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+      <FieldLabel htmlFor={isEditing ? undefined : "role"}>Rol</FieldLabel>
+      {isEditing ? (
+        <InputGroup>
+          <InputGroupAddon align="inline-start">
+            <RoleIcon />
+          </InputGroupAddon>
+          <InputGroupInput
+            aria-label="Rol"
+            value={getRoleLabel(normalizedRole)}
+            readOnly
+            className="font-medium"
+          />
+          {editingUser?.isOwner && (
+            <InputGroupAddon align="inline-end">
+              <Badge variant="secondary">Owner</Badge>
+            </InputGroupAddon>
           )}
-        </div>
+        </InputGroup>
+      ) : (
+        <Select
+          items={roleItemsForUser}
+          value={form.role}
+          onValueChange={(value) =>
+            onFormChange((current) => ({
+              ...current,
+              role: value ?? "client",
+              createAuthAccount: value === "admin" ? true : current.createAuthAccount,
+            }))
+          }
+        >
+          <SelectTrigger id="role">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {roleItemsForUser.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      )}
+    </Field>
+  )
+}
 
-        <div className="flex flex-wrap gap-2">
-          {isEditing && editingUser ? (
-            <AccessBadge user={editingUser} />
-          ) : (
-            <>
-              <AccessBadge user={{ id: "draft", authUserId: authRequired ? "draft" : null }} />
-              <Badge variant={authRequired ? "default" : "outline"}>
-                {authRequired ? "Requiere credenciales" : "Sin credenciales"}
-              </Badge>
-            </>
-          )}
+function AccessStatusField({
+  authRequired,
+  editingUser,
+  form,
+  isEditing,
+  permissions,
+  onFormChange,
+}: {
+  authRequired: boolean
+  editingUser: ManagedUser | null
+  form: UserFormState
+  isEditing: boolean
+  permissions: UserEditPermissions
+  onFormChange: React.Dispatch<React.SetStateAction<UserFormState>>
+}) {
+  const accessUser: ManagedUser = isEditing && editingUser
+    ? editingUser
+    : { id: "draft", authUserId: authRequired ? "draft" : null }
+  const hasAuthAccess = Boolean(accessUser.authUserId)
+  const AccessIcon = hasAuthAccess ? BadgeCheckIcon : UserCogIcon
+
+  return (
+    <Field>
+      <FieldLabel htmlFor="active">Acceso</FieldLabel>
+      <div className="flex min-h-9 w-full items-center justify-between gap-3 rounded-lg border border-input bg-background px-3 text-base shadow-xs/5 sm:text-sm">
+        <div className="flex min-w-0 items-center gap-2">
+          <AccessIcon className="size-4 shrink-0 text-muted-foreground" />
+          <span className="truncate font-medium">
+            {hasAuthAccess ? "Con acceso" : "Operativo"}
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusBadge active={form.active} />
+          <Switch
+            id="active"
+            checked={form.active}
+            disabled={!permissions.canUpdateActive}
+            onCheckedChange={(checked) =>
+              onFormChange((current) => ({ ...current, active: checked }))
+            }
+          />
         </div>
       </div>
     </Field>

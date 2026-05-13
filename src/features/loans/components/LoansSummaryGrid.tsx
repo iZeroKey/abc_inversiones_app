@@ -9,7 +9,7 @@ import {
 
 import { formatCurrency } from "@/lib/formatters"
 import { SummaryMetricCard } from "@/features/loans/components/LoanMetricBits"
-import { toNumber } from "@/features/loans/loan-utils"
+import { getLoanPaidAmount, toNumber } from "@/features/loans/loan-utils"
 import type { Loan, LoanSummary } from "@/types/loans"
 
 export function LoansSummaryGrid({
@@ -24,8 +24,8 @@ export function LoansSummaryGrid({
     summary.activeLoans ?? summary.active ?? loans.filter((loan) => loan.status === "active").length
   const debt =
     summary.totalDebt ?? summary.debt ?? loans.reduce((total, loan) => total + toNumber(loan.totalDebt), 0)
-  const paid =
-    summary.totalPaid ?? summary.paidAmount ?? loans.reduce((total, loan) => total + toNumber(loan.totalPaid), 0)
+  const paidFromLoans = loans.reduce((total, loan) => total + getLoanPaidAmount(loan), 0)
+  const paid = Math.max(toNumber(summary.totalPaid ?? summary.paidAmount), paidFromLoans)
   const overdue =
     summary.overduePayments ??
     summary.overdueLoans ??

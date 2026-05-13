@@ -17,6 +17,10 @@ export function clampPercent(value: number) {
   return Math.min(Math.max(value, 0), 100)
 }
 
+export function getInstallmentsPaidAmount(installments: Installment[] = []) {
+  return installments.reduce((total, installment) => total + toNumber(installment.paidAmount), 0)
+}
+
 export function formatDate(value?: string | null) {
   if (!value) return "Sin fecha"
 
@@ -51,14 +55,20 @@ export function loanInvestorName(loan: Loan) {
   return loan.investorName || personName(loan.investor, "ABC Inversiones")
 }
 
-export function getLoanProgress(loan: Loan) {
-  const totalDebt = toNumber(loan.totalDebt)
-  if (totalDebt <= 0) return 0
-  return clampPercent((toNumber(loan.totalPaid) / totalDebt) * 100)
+export function getLoanPaidAmount(loan: Loan, installments: Installment[] = []) {
+  const totalPaid = toNumber(loan.totalPaid)
+  const installmentsPaid = getInstallmentsPaidAmount(installments)
+  return totalPaid > 0 ? totalPaid : installmentsPaid
 }
 
-export function getRemainingDebt(loan: Loan) {
-  return Math.max(toNumber(loan.totalDebt) - toNumber(loan.totalPaid), 0)
+export function getLoanProgress(loan: Loan, installments: Installment[] = []) {
+  const totalDebt = toNumber(loan.totalDebt)
+  if (totalDebt <= 0) return 0
+  return clampPercent((getLoanPaidAmount(loan, installments) / totalDebt) * 100)
+}
+
+export function getRemainingDebt(loan: Loan, installments: Installment[] = []) {
+  return Math.max(toNumber(loan.totalDebt) - getLoanPaidAmount(loan, installments), 0)
 }
 
 export function getNextInstallment(installments: Installment[]) {

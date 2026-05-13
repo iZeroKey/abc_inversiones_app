@@ -41,6 +41,7 @@ import { frequencyLabels, statusFilters, statusLabels } from "@/features/loans/l
 import {
   formatDate,
   formatPreciseCurrencyWithSymbol,
+  getLoanPaidAmount,
   getLoanProgress,
   getRemainingDebt,
   loanClientName,
@@ -105,6 +106,7 @@ type AdminLoansOperationsPanelProps = {
   onApprove: () => void
   onReject: () => void
   onRetryDetail: () => void
+  onDataChanged?: () => Promise<void> | void
 }
 
 const focusOptions: Array<{ value: OperationsFocus; label: string }> = [
@@ -211,9 +213,9 @@ const columns: ColumnDefinition[] = [
     defaultVisible: false,
     group: "Importes",
     align: "right",
-    render: (loan) => formatPreciseCurrencyWithSymbol(loan.totalPaid),
-    exportValue: (loan) => toNumber(loan.totalPaid),
-    sortValue: (loan) => toNumber(loan.totalPaid),
+    render: (loan) => formatPreciseCurrencyWithSymbol(getLoanPaidAmount(loan)),
+    exportValue: (loan) => getLoanPaidAmount(loan),
+    sortValue: (loan) => getLoanPaidAmount(loan),
   },
   {
     key: "progress",
@@ -281,6 +283,7 @@ export function AdminLoansOperationsPanel({
   onApprove,
   onReject,
   onRetryDetail,
+  onDataChanged,
 }: AdminLoansOperationsPanelProps) {
   const [view, setView] = useState<OperationsView>("table")
   const [focus, setFocus] = useState<OperationsFocus>("all")
@@ -624,6 +627,7 @@ export function AdminLoansOperationsPanel({
               onApprove={onApprove}
               onReject={onReject}
               onRetry={onRetryDetail}
+              onDataChanged={onDataChanged}
               sticky={false}
               hideBackButton
             />

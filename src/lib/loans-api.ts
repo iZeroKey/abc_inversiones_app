@@ -7,6 +7,7 @@ import type {
   LoanSummary,
   PaginationMeta,
   Payment,
+  PaymentMethod,
   PaymentVoucher,
   RelatedUser,
 } from "@/types/loans"
@@ -25,6 +26,48 @@ type UserListEnvelope = {
   users?: RelatedUser[]
   items?: RelatedUser[]
   results?: RelatedUser[]
+}
+
+export type PaymentMutationPayload = {
+  loanId?: string
+  amount: string
+  paymentDate?: string
+  method?: PaymentMethod
+  reference?: string
+  observation?: string
+  evidence?: File | null
+}
+
+export type VoucherSubmitPayload = {
+  loanId: string
+  amount: string
+  operationId: string
+  operationDate?: string
+  observation?: string
+  evidence?: File | null
+}
+
+export type VoucherUpdatePayload = {
+  amount?: string
+  operationId?: string
+  operationDate?: string
+  observation?: string | null
+}
+
+export type VoucherAnalysis = {
+  extracted?: {
+    operationId?: string | null
+    amount?: string | null
+    operationDate?: string | null
+    bank?: string | null
+  }
+  warnings?: string[]
+}
+
+type MultipartRequestOptions = {
+  accessToken?: string
+  onUploadProgress?: (progress: number) => void
+  signal?: AbortSignal
 }
 
 function getApiBaseUrl() {
@@ -80,6 +123,49 @@ async function readApiUrl<T>(
 function unwrapList<T>(data: T[] | { items?: T[]; results?: T[] } | null | undefined) {
   if (Array.isArray(data)) return data
   return data?.items ?? data?.results ?? []
+}
+
+function readMultipartApiResponse<T>(
+  path: string,
+  formData: FormData,
+  options?: MultipartRequestOptions,
+): Promise<ApiResponse<T>> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open("POST", `${getApiBaseUrl()}${path}`)
+
+    if (options?.accessToken) {
+      xhr.setRequestHeader("Authorization", `Bearer ${options.accessToken}`)
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return
+      options?.onUploadProgress?.(Math.round((event.loaded / event.total) * 100))
+    }
+
+    xhr.onload = () => {
+      options?.onUploadProgress?.(100)
+      const payload = safeParseJson<ApiResponse<T>>(xhr.responseText)
+      if (xhr.status < 200 || xhr.status >= 300 || !payload?.success) {
+        reject(new Error(payload?.message || "No se pudo completar la solicitud."))
+        return
+      }
+      resolve(payload)
+    }
+
+    xhr.onerror = () => reject(new Error("No se pudo completar la solicitud."))
+    xhr.onabort = () => reject(new DOMException("Solicitud cancelada.", "AbortError"))
+    options?.signal?.addEventListener("abort", () => xhr.abort(), { once: true })
+    xhr.send(formData)
+  })
+}
+
+function safeParseJson<T>(value: string): T | null {
+  try {
+    return JSON.parse(value) as T
+  } catch {
+    return null
+  }
 }
 
 export async function fetchLoans(
@@ -149,6 +235,177 @@ export async function fetchLoanVouchers(fetchWithAuth: FetchWithAuth, loanId: st
   )
 
   return Array.isArray(payload.data) ? payload.data : payload.data?.vouchers ?? []
+}
+
+export async function createPayment(
+  fetchWithAuth: FetchWithAuth,
+  payload: PaymentMutationPayload & { loanId: string },
+  options?: MultipartRequestOptions,
+) {
+  if (payload.evidence) {
+    const formData = new FormData()
+    formData.set("loanId", payload.loanId)
+    formData.set("amount", payload.amount)
+    if (payload.paymentDate) formData.set("paymentDate", payload.paymentDate)
+    if (payload.method) formData.set("method", payload.method)
+    if (payload.reference) formData.set("reference", payload.reference)
+    if (payload.observation) formData.set("observation", payload.observation)
+    formData.set("evidence", payload.evidence)
+
+    return readMultipartApiResponse<Payment>("/api/v1/payments", formData, options)
+  }
+
+  return readApiResponse<Payment>(fetchWithAuth, "/api/v1/payments", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function updatePayment(
+  fetchWithAuth: FetchWithAuth,
+  paymentId: string,
+  payload: PaymentMutationPayload,
+) {
+  return readApiResponse<{ payment: Payment; loan?: Loan; overpaidAmount?: string }>(
+    fetchWithAuth,
+    `/api/v1/payments/${paymentId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export async function deletePayment(fetchWithAuth: FetchWithAuth, paymentId: string) {
+  return readApiResponse<{ payment: Payment; loan?: Loan; overpaidAmount?: string }>(
+    fetchWithAuth,
+    `/api/v1/payments/${paymentId}`,
+    {
+      method: "DELETE",
+    },
+  )
+}
+
+export async function analyzeVoucherEvidence(
+  fetchWithAuth: FetchWithAuth,
+  evidence: File,
+  options?: MultipartRequestOptions,
+) {
+  const formData = new FormData()
+  formData.set("evidence", evidence)
+
+  if (options?.accessToken) {
+    const payload = await readMultipartApiResponse<VoucherAnalysis>(
+      "/api/v1/payment-vouchers/analyze",
+      formData,
+      options,
+    )
+    return payload.data ?? {}
+  }
+
+  const payload = await readApiResponse<VoucherAnalysis>(
+    fetchWithAuth,
+    "/api/v1/payment-vouchers/analyze",
+    {
+      method: "POST",
+      body: formData,
+    },
+  )
+
+  return payload.data ?? {}
+}
+
+export async function checkOperationIdExists(fetchWithAuth: FetchWithAuth, operationId: string) {
+  const payload = await readApiUrl<{ operationId: string; exists: boolean }>(
+    fetchWithAuth,
+    buildUrl("/api/v1/payment-vouchers/operation-id/exists", { operationId }),
+  )
+
+  return payload.data?.exists ?? false
+}
+
+export async function submitVoucher(
+  fetchWithAuth: FetchWithAuth,
+  payload: VoucherSubmitPayload,
+  options?: MultipartRequestOptions,
+) {
+  if (payload.evidence) {
+    const formData = new FormData()
+    formData.set("loanId", payload.loanId)
+    formData.set("amount", payload.amount)
+    formData.set("operationId", payload.operationId)
+    if (payload.operationDate) formData.set("operationDate", payload.operationDate)
+    if (payload.observation) formData.set("observation", payload.observation)
+    formData.set("evidence", payload.evidence)
+
+    return readMultipartApiResponse<PaymentVoucher>("/api/v1/payment-vouchers", formData, options)
+  }
+
+  return readApiResponse<PaymentVoucher>(fetchWithAuth, "/api/v1/payment-vouchers", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      loanId: payload.loanId,
+      amount: payload.amount,
+      operationId: payload.operationId,
+      operationDate: payload.operationDate || undefined,
+      observation: payload.observation || undefined,
+    }),
+  })
+}
+
+export async function processVoucher(
+  fetchWithAuth: FetchWithAuth,
+  voucherId: string,
+  payload: { action: "approve" | "reject"; observation?: string },
+) {
+  return readApiResponse<PaymentVoucher>(
+    fetchWithAuth,
+    `/api/v1/payment-vouchers/${voucherId}/process`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export async function updateVoucher(
+  fetchWithAuth: FetchWithAuth,
+  voucherId: string,
+  payload: VoucherUpdatePayload,
+) {
+  return readApiResponse<{ voucher: PaymentVoucher; recalculation?: unknown }>(
+    fetchWithAuth,
+    `/api/v1/payment-vouchers/${voucherId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export async function deleteVoucher(fetchWithAuth: FetchWithAuth, voucherId: string) {
+  return readApiResponse<{ voucher: PaymentVoucher; recalculation?: unknown }>(
+    fetchWithAuth,
+    `/api/v1/payment-vouchers/${voucherId}`,
+    {
+      method: "DELETE",
+    },
+  )
 }
 
 export async function fetchUsersByRole(fetchWithAuth: FetchWithAuth, role: string) {
