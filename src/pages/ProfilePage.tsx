@@ -4,8 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupTextarea } from "@/components/ui/input-group"
-import { Label } from "@/components/ui/label"
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
@@ -18,7 +18,7 @@ import {
   validateAvatarFile,
 } from "@/lib/avatar-image"
 import { cn } from "@/lib/utils"
-import { BanknoteIcon, CalendarIcon, CameraIcon, Edit2Icon, IdCardIcon, MailIcon, MapPinIcon, PhoneIcon, SaveIcon, ShieldCheckIcon, Trash2Icon, UserIcon, XIcon } from "lucide-react"
+import { BanknoteIcon, CalendarIcon, CameraIcon, Edit2Icon, IdCardIcon, MailIcon, MapPinIcon, PhoneIcon, PlusIcon, SaveIcon, ShieldCheckIcon, Trash2Icon, UserIcon, XIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { PhotoProvider, PhotoView } from "react-photo-view"
 
@@ -62,15 +62,17 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
-function parseBankAccounts(value: string) {
+function normalizeBankAccounts(value: string[]) {
   return value
-    .split(/[\n,]/)
     .map((item) => item.trim())
     .filter(Boolean)
 }
 
-function serializeBankAccounts(value?: string[] | null) {
-  return (value ?? []).join("\n")
+function resolveProfileAvatarUrl(url?: string | null) {
+  if (!url) return undefined
+  if (/^(https?:)?\/\//.test(url) || url.startsWith("data:") || url.startsWith("blob:")) return url
+  if (url.startsWith("/") && API_BASE_URL) return `${API_BASE_URL}${url}`
+  return url
 }
 
 function normalizeMaritalStatus(value: string) {
@@ -104,7 +106,7 @@ export default function ProfilePage() {
   const [dni, setDni] = useState("")
   const [address, setAddress] = useState("")
   const [bank, setBank] = useState("")
-  const [bankAccounts, setBankAccounts] = useState("")
+  const [bankAccounts, setBankAccounts] = useState<string[]>([""])
   const [maritalStatus, setMaritalStatus] = useState("none")
 
   // Image states
@@ -127,7 +129,7 @@ export default function ProfilePage() {
           setDni(json.data.dni || "")
           setAddress(json.data.address || "")
           setBank(json.data.bank || "")
-          setBankAccounts(serializeBankAccounts(json.data.bankAccounts))
+          setBankAccounts(json.data.bankAccounts?.length ? json.data.bankAccounts : [""])
           setMaritalStatus(json.data.maritalStatus || "none")
         }
       } catch (error) {
@@ -161,7 +163,7 @@ export default function ProfilePage() {
           dni,
           address,
           bank,
-          bankAccounts: parseBankAccounts(bankAccounts),
+          bankAccounts: normalizeBankAccounts(bankAccounts),
           maritalStatus: normalizeMaritalStatus(maritalStatus),
         })
       })
@@ -217,6 +219,21 @@ export default function ProfilePage() {
   const openAvatarPicker = () => {
     if (!isEditing || saving) return
     fileInputRef.current?.click()
+  }
+
+  const updateBankAccount = (index: number, value: string) => {
+    setBankAccounts((current) => current.map((account, accountIndex) => accountIndex === index ? value : account))
+  }
+
+  const addBankAccount = () => {
+    setBankAccounts((current) => [...current, ""])
+  }
+
+  const removeBankAccount = (index: number) => {
+    setBankAccounts((current) => {
+      const nextAccounts = current.filter((_, accountIndex) => accountIndex !== index)
+      return nextAccounts.length ? nextAccounts : [""]
+    })
   }
 
   const handleRemoveAvatar = async () => {
@@ -299,25 +316,26 @@ export default function ProfilePage() {
   }
   const roleKey = profileData?.role?.toLowerCase() ?? ""
   const memberSinceYear = profileData?.createdAt ? new Date(profileData.createdAt).getFullYear() : "-"
+  const avatarSrc = resolveProfileAvatarUrl(profileData?.avatarUrl)
 
   return (
     <>
       <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
         <Card className="overflow-hidden border-border/60 shadow-sm">
-          <div className="bg-[radial-gradient(circle_at_top_left,_rgba(120,119,198,0.16),_transparent_45%),linear-gradient(135deg,rgba(15,23,42,0.02),rgba(15,23,42,0.06))] px-6 py-6 md:px-8 md:py-7">
+          <div className="border-b bg-muted/20 px-6 py-6 md:px-8 md:py-7">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="flex flex-col items-center gap-5 md:flex-row md:items-center">
                 <div className="relative w-fit">
                   <PhotoProvider>
-                    {profileData?.avatarUrl ? (
-                      <PhotoView src={profileData.avatarUrl}>
+                    {avatarSrc ? (
+                      <PhotoView src={avatarSrc}>
                         <button
                           type="button"
                           className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           aria-label="Ver avatar en tamaño completo"
                         >
                           <Avatar className="size-32 md:size-28 border border-border/70 shadow-md ring-4 ring-background mx-auto md:mx-0">
-                            <AvatarImage src={profileData.avatarUrl} />
+                            <AvatarImage key={avatarSrc} src={avatarSrc} />
                             <AvatarFallback className="bg-primary text-primary-foreground text-4xl md:text-3xl font-bold">
                               {firstName?.[0] || "U"}
                             </AvatarFallback>
@@ -420,8 +438,8 @@ export default function ProfilePage() {
               <CardContent className="space-y-6">
                 <form id="profile-form" onSubmit={handleUpdate} className="space-y-6">
                   <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">Nombres</Label>
+                    <Field>
+                      <FieldLabel htmlFor="firstName">Nombres</FieldLabel>
                       <InputGroup>
                         <InputGroupAddon align="inline-start">
                           <UserIcon className="size-4" />
@@ -434,9 +452,9 @@ export default function ProfilePage() {
                           disabled={!isEditing}
                         />
                       </InputGroup>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Apellidos</Label>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="lastName">Apellidos</FieldLabel>
                       <InputGroup>
                         <InputGroupAddon align="inline-start">
                           <UserIcon className="size-4" />
@@ -449,11 +467,11 @@ export default function ProfilePage() {
                           disabled={!isEditing}
                         />
                       </InputGroup>
-                    </div>
+                    </Field>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Correo Electrónico</Label>
+                  <Field>
+                    <FieldLabel htmlFor="email">Correo Electrónico</FieldLabel>
                     <InputGroup>
                       <InputGroupAddon align="inline-start">
                         <MailIcon className="size-4" />
@@ -465,11 +483,11 @@ export default function ProfilePage() {
                         className="bg-muted/50" 
                       />
                     </InputGroup>
-                    <p className="text-[10px] text-muted-foreground">El correo electrónico no puede ser modificado por seguridad.</p>
-                  </div>
+                    <FieldDescription>El correo electrónico no puede ser modificado por seguridad.</FieldDescription>
+                  </Field>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Teléfono</Label>
+                  <Field>
+                      <FieldLabel htmlFor="phone">Teléfono</FieldLabel>
                     <InputGroup>
                       <InputGroupAddon align="inline-start">
                         <PhoneIcon className="size-4" />
@@ -483,11 +501,11 @@ export default function ProfilePage() {
                         disabled={!isEditing}
                       />
                     </InputGroup>
-                  </div>
+                  </Field>
 
                   <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="dni">DNI</Label>
+                    <Field>
+                      <FieldLabel htmlFor="dni">DNI</FieldLabel>
                       <InputGroup>
                         <InputGroupAddon align="inline-start">
                           <IdCardIcon className="size-4" />
@@ -500,10 +518,10 @@ export default function ProfilePage() {
                           disabled={!isEditing}
                         />
                       </InputGroup>
-                    </div>
+                    </Field>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="maritalStatus">Estado civil</Label>
+                    <Field>
+                      <FieldLabel htmlFor="maritalStatus">Estado civil</FieldLabel>
                       <Select
                         items={maritalStatusItems}
                         value={maritalStatus}
@@ -523,11 +541,11 @@ export default function ProfilePage() {
                           </SelectGroup>
                         </SelectContent>
                       </Select>
-                    </div>
+                    </Field>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Dirección</Label>
+                  <Field>
+                    <FieldLabel htmlFor="address">Dirección</FieldLabel>
                     <InputGroup>
                       <InputGroupAddon align="inline-start">
                         <MapPinIcon className="size-4" />
@@ -540,11 +558,11 @@ export default function ProfilePage() {
                         disabled={!isEditing}
                       />
                     </InputGroup>
-                  </div>
+                  </Field>
 
                   <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="bank">Banco</Label>
+                    <Field>
+                      <FieldLabel htmlFor="bank">Banco</FieldLabel>
                       <InputGroup>
                         <InputGroupAddon align="inline-start">
                           <BanknoteIcon className="size-4" />
@@ -557,23 +575,52 @@ export default function ProfilePage() {
                           disabled={!isEditing}
                         />
                       </InputGroup>
-                    </div>
+                    </Field>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="bankAccounts">Cuentas bancarias</Label>
-                      <InputGroup>
-                        <InputGroupAddon align="inline-start">
-                          <BanknoteIcon className="size-4" />
-                        </InputGroupAddon>
-                        <InputGroupTextarea
-                          id="bankAccounts"
-                          value={bankAccounts}
-                          onChange={(e) => setBankAccounts(e.target.value)}
-                          disabled={!isEditing}
-                        />
-                      </InputGroup>
-                      <p className="text-[10px] text-muted-foreground">Una cuenta por línea o separadas por coma.</p>
-                    </div>
+                    <Field>
+                      <FieldLabel>Cuentas bancarias</FieldLabel>
+                      <div className="flex w-full flex-col gap-2">
+                        {bankAccounts.map((account, index) => (
+                          <InputGroup key={index}>
+                            <InputGroupAddon align="inline-start">
+                              <BanknoteIcon className="size-4" />
+                            </InputGroupAddon>
+                            <InputGroupInput
+                              aria-label={`Cuenta bancaria ${index + 1}`}
+                              value={account}
+                              onChange={(event) => updateBankAccount(index, event.target.value)}
+                              placeholder="CCI o número de cuenta"
+                              disabled={!isEditing}
+                            />
+                            {isEditing && bankAccounts.length > 1 && (
+                              <InputGroupAddon align="inline-end">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label="Eliminar cuenta bancaria"
+                                  onClick={() => removeBankAccount(index)}
+                                >
+                                  <XIcon />
+                                </Button>
+                              </InputGroupAddon>
+                            )}
+                          </InputGroup>
+                        ))}
+                        {isEditing && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8.5 w-full justify-center border-dashed text-muted-foreground animate-in fade-in-0 slide-in-from-top-1 sm:h-7.5"
+                            onClick={addBankAccount}
+                          >
+                            <PlusIcon data-icon="inline-start" />
+                            Agregar cuenta
+                          </Button>
+                        )}
+                      </div>
+                      <FieldDescription>Una cuenta por campo.</FieldDescription>
+                    </Field>
                   </div>
 
                 </form>

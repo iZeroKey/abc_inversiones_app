@@ -254,7 +254,7 @@ export function DataTableColumnHeader<TData, TValue>({
       <ArrowUpIcon
         className={cn(
           "size-3.5 shrink-0 text-foreground transition-all duration-200 ease-out",
-          sorted ? "scale-100 opacity-100" : "scale-75 opacity-0",
+          sorted ? "scale-100 opacity-100" : "scale-90 opacity-35",
           sorted === "desc" && "rotate-180",
         )}
         data-icon="inline-end"

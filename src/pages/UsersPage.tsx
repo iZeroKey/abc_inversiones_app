@@ -5,7 +5,8 @@ import {
   CheckIcon,
   ChevronDownIcon,
   CircleAlertIcon,
-  ClipboardIcon,
+  CopyIcon,
+  Dice5Icon,
   EyeIcon,
   IdCardIcon,
   KeyRoundIcon,
@@ -92,6 +93,7 @@ import type { ApiResponse, MaritalStatus, PaginationMeta, UserRole } from "@/typ
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 const USERS_PAGE_SIZE = 10
+const usersPreferencesKey = "abc-users-page-preferences"
 
 type UsersTab = "users" | "requests"
 type RoleFilter = "all" | UserRole
@@ -213,6 +215,11 @@ const defaultVisibleUserColumns = userColumnsConfig
   .map((column) => column.key)
 
 const userColumnGroups: UserColumnGroup[] = ["Identidad", "Operativo", "Sistema"]
+
+type UsersPagePreferences = {
+  activeTab?: UsersTab
+  visibleColumns?: UserColumnKey[]
+}
 
 const editableRoleItems: { label: string; value: UserRole }[] = [
   { label: "Cliente", value: "client" },
@@ -428,9 +435,22 @@ async function reviewAccessRequest(
   return readApiPayload<AccessRequest>(response)
 }
 
+function readUsersPreferences(): UsersPagePreferences {
+  try {
+    return JSON.parse(localStorage.getItem(usersPreferencesKey) ?? "{}") as UsersPagePreferences
+  } catch {
+    return {}
+  }
+}
+
+function writeUsersPreferences(nextPreferences: UsersPagePreferences) {
+  const currentPreferences = readUsersPreferences()
+  localStorage.setItem(usersPreferencesKey, JSON.stringify({ ...currentPreferences, ...nextPreferences }))
+}
+
 export default function UsersPage({ initialTab = "users" }: { initialTab?: UsersTab }) {
   const { user, session, fetchWithAuth } = useAuth()
-  const [activeTab, setActiveTab] = useState<UsersTab>(initialTab)
+  const [activeTab, setActiveTab] = useState<UsersTab>(() => readUsersPreferences().activeTab ?? initialTab)
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [requests, setRequests] = useState<AccessRequest[]>([])
   const [page, setPage] = useState(1)
@@ -803,7 +823,15 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         <MetricTile label="Solicitudes pendientes" value={stats.pendingRequests} loading={loadingRequests} emphasis />
       </section>
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as UsersTab)} className="gap-5">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          const nextTab = value as UsersTab
+          setActiveTab(nextTab)
+          writeUsersPreferences({ activeTab: nextTab })
+        }}
+        className="gap-5"
+      >
         <TabsList className="w-full overflow-x-auto md:w-fit">
           <TabsTrigger value="users" className="flex-1 md:flex-none">
             Usuarios
@@ -971,12 +999,23 @@ function UsersWorkspace({
   onSearchQueryChange: (query: string) => void
   onStatusFilterChange: (value: StatusFilter | null) => void
 }) {
-  const [visibleColumnKeys, setVisibleColumnKeys] = useState<UserColumnKey[]>(defaultVisibleUserColumns)
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState<UserColumnKey[]>(() => {
+    const savedColumns = readUsersPreferences().visibleColumns?.filter((key) =>
+      userColumnsConfig.some((column) => column.key === key),
+    )
+    return savedColumns?.length ? savedColumns : defaultVisibleUserColumns
+  })
   const handleToggleColumn = (key: UserColumnKey, checked: boolean) => {
     setVisibleColumnKeys((current) => {
-      if (checked) return current.includes(key) ? current : [...current, key]
+      if (checked) {
+        const nextColumns = current.includes(key) ? current : [...current, key]
+        writeUsersPreferences({ visibleColumns: nextColumns })
+        return nextColumns
+      }
       if (key === "user" || key === "action") return current
-      return current.filter((columnKey) => columnKey !== key)
+      const nextColumns = current.filter((columnKey) => columnKey !== key)
+      writeUsersPreferences({ visibleColumns: nextColumns })
+      return nextColumns
     })
   }
   const userColumns = useMemo<ColumnDef<ManagedUser>[]>(
@@ -1079,7 +1118,7 @@ function UsersWorkspace({
       },
       {
         id: "maritalStatus",
-        accessorFn: (item) => getMaritalStatusLabel(item.maritalStatus),
+        accessorFn: (item) => item.maritalStatus ? getMaritalStatusLabel(item.maritalStatus) : "",
         header: (context) => (
           <DataTableColumnHeader
             column={context.column}
@@ -1088,7 +1127,11 @@ function UsersWorkspace({
             onSort={(context as { toggleSorting?: () => void }).toggleSorting}
           />
         ),
-        cell: ({ row }) => <span className="text-sm">{getMaritalStatusLabel(row.original.maritalStatus)}</span>,
+        cell: ({ row }) => (
+          <span className={cn("text-sm", !row.original.maritalStatus && "text-muted-foreground")}>
+            {getMaritalStatusLabel(row.original.maritalStatus)}
+          </span>
+        ),
         meta: {
           headerClassName: "w-[150px]",
           cellClassName: "min-w-0",
@@ -1399,7 +1442,7 @@ function RequestsWorkspace({
       },
       {
         id: "status",
-        accessorFn: (request) => request.status ?? "pending",
+        accessorFn: (request) => getRequestStatusLabel(request.status),
         header: (context) => (
           <DataTableColumnHeader
             column={context.column}
@@ -1616,11 +1659,13 @@ function UserDialog({
     ? editableRoleItems
     : editableRoleItems.filter((item) => item.value !== "admin")
   const authRequired = !isEditing && (form.role === "admin" || form.createAuthAccount)
+  const missingAuthEmail = authRequired && form.email.trim().length === 0
   const showInactiveWarning = Boolean(editingUser && permissions.canUpdateActive && !form.active)
   const title = isEditing ? "Editar usuario" : "Nuevo usuario"
   const bankAccountRefs = useRef<Array<HTMLInputElement | null>>([])
   const pendingBankAccountFocusIndex = useRef<number | null>(null)
   const canAddBankAccount = form.bankAccounts.every((account) => account.trim().length > 0)
+  const canSubmit = !saving && !missingAuthEmail
 
   useEffect(() => {
     const focusIndex = pendingBankAccountFocusIndex.current
@@ -1681,7 +1726,17 @@ function UserDialog({
         </DialogHeader>
 
         <DialogPanel className="pt-4 max-sm:pt-4">
-          <form id="user-form" className="flex flex-col gap-4" onSubmit={onSubmit}>
+          <form
+            id="user-form"
+            className="flex flex-col gap-4"
+            onSubmit={(event) => {
+              if (!canSubmit) {
+                event.preventDefault()
+                return
+              }
+              onSubmit(event)
+            }}
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="firstName">Nombres</FieldLabel>
@@ -1743,6 +1798,11 @@ function UserDialog({
                   Clientes e inversionistas pueden quedar sin correo si no tendrán cuenta de acceso.
                 </FieldDescription>
               )}
+              {missingAuthEmail && (
+                <FieldDescription className="text-destructive">
+                  Agrega un correo para crear la cuenta de acceso.
+                </FieldDescription>
+              )}
             </Field>
 
             <Field>
@@ -1784,42 +1844,6 @@ function UserDialog({
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="bank">Banco</FieldLabel>
-                <InputGroup>
-                  <InputGroupAddon align="inline-start">
-                    <BanknoteIcon />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    id="bank"
-                    value={form.bank}
-                    placeholder="BCP, Interbank..."
-                    onChange={(event) =>
-                      onFormChange((current) => ({ ...current, bank: event.target.value }))
-                    }
-                  />
-                </InputGroup>
-              </Field>
-            </div>
-
-            <Field>
-              <FieldLabel htmlFor="address">Dirección</FieldLabel>
-              <InputGroup>
-                <InputGroupAddon align="inline-start">
-                  <MapPinIcon />
-                </InputGroupAddon>
-                <InputGroupInput
-                  id="address"
-                  value={form.address}
-                  placeholder="Av. Principal 123"
-                  onChange={(event) =>
-                    onFormChange((current) => ({ ...current, address: event.target.value }))
-                  }
-                />
-              </InputGroup>
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
                 <FieldLabel htmlFor="maritalStatus">Estado civil</FieldLabel>
                 <Select
                   items={maritalStatusItems}
@@ -1845,6 +1869,42 @@ function UserDialog({
                   </SelectContent>
                 </Select>
               </Field>
+            </div>
+
+            <Field>
+              <FieldLabel htmlFor="address">Dirección</FieldLabel>
+              <InputGroup>
+                <InputGroupAddon align="inline-start">
+                  <MapPinIcon />
+                </InputGroupAddon>
+                <InputGroupInput
+                  id="address"
+                  value={form.address}
+                  placeholder="Av. Principal 123"
+                  onChange={(event) =>
+                    onFormChange((current) => ({ ...current, address: event.target.value }))
+                  }
+                />
+              </InputGroup>
+            </Field>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="bank">Banco</FieldLabel>
+                <InputGroup>
+                  <InputGroupAddon align="inline-start">
+                    <BanknoteIcon />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id="bank"
+                    value={form.bank}
+                    placeholder="BCP, Interbank..."
+                    onChange={(event) =>
+                      onFormChange((current) => ({ ...current, bank: event.target.value }))
+                    }
+                  />
+                </InputGroup>
+              </Field>
 
               <Field>
                 <FieldLabel>Cuentas bancarias</FieldLabel>
@@ -1857,6 +1917,7 @@ function UserDialog({
                       <InputGroupInput
                         aria-label={`Cuenta bancaria ${index + 1}`}
                         value={account}
+                        placeholder="CCI o número de cuenta"
                         ref={(node) => {
                           bankAccountRefs.current[index] = node
                         }}
@@ -1880,7 +1941,7 @@ function UserDialog({
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-8.5 w-full justify-center border-dashed text-muted-foreground sm:h-7.5"
+                      className="h-8.5 w-full justify-center border-dashed text-muted-foreground animate-in fade-in-0 slide-in-from-top-1 sm:h-7.5"
                       onClick={addBankAccount}
                     >
                       <PlusIcon data-icon="inline-start" />
@@ -1956,17 +2017,18 @@ function UserDialog({
                           size="sm"
                           onClick={setGeneratedPassword}
                         >
+                          <Dice5Icon data-icon="inline-start" />
                           Generar
                         </Button>
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon-sm"
-                          aria-label="Copiar contraseña temporal"
+                          size="sm"
                           disabled={!form.password}
                           onClick={() => void copyPassword()}
                         >
-                          <ClipboardIcon />
+                          <CopyIcon data-icon="inline-start" />
+                          Copiar
                         </Button>
                       </InputGroupAddon>
                     </InputGroup>
@@ -1993,10 +2055,10 @@ function UserDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
-              <Button type="submit" form="user-form" disabled={saving}>
-                {saving ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
-                {saving ? "Guardando..." : "Guardar"}
-              </Button>
+          <Button type="submit" form="user-form" disabled={!canSubmit}>
+            {saving ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
+            {saving ? "Guardando..." : "Guardar"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -2083,17 +2145,18 @@ function LinkAuthDialog({
                 />
                 <InputGroupAddon align="inline-end">
                   <Button type="button" variant="ghost" size="sm" onClick={setGeneratedPassword}>
+                    <Dice5Icon data-icon="inline-start" />
                     Generar
                   </Button>
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon-sm"
-                    aria-label="Copiar contraseña temporal"
+                    size="sm"
                     disabled={!form.password}
                     onClick={() => void copyPassword()}
                   >
-                    <ClipboardIcon />
+                    <CopyIcon data-icon="inline-start" />
+                    Copiar
                   </Button>
                 </InputGroupAddon>
               </InputGroup>
@@ -2143,6 +2206,7 @@ function RoleAccessPanel({
             aria-label="Rol"
             value={getRoleLabel(normalizedRole)}
             readOnly
+            size="lg"
             className="font-medium"
           />
           {editingUser?.isOwner && (
@@ -2163,7 +2227,7 @@ function RoleAccessPanel({
             }))
           }
         >
-          <SelectTrigger id="role">
+          <SelectTrigger id="role" size="lg">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -2205,7 +2269,7 @@ function AccessStatusField({
   return (
     <Field>
       <FieldLabel htmlFor="active">Acceso</FieldLabel>
-      <div className="flex min-h-9 w-full items-center justify-between gap-3 rounded-lg border border-input bg-background px-3 text-base shadow-xs/5 sm:text-sm">
+      <div className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg border border-input bg-background px-3 text-base shadow-xs/5 sm:min-h-9 sm:text-sm">
         <div className="flex min-w-0 items-center gap-2">
           <AccessIcon className="size-4 shrink-0 text-muted-foreground" />
           <span className="truncate font-medium">

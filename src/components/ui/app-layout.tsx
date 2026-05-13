@@ -20,6 +20,8 @@ import { BellIcon, ChevronRightIcon, LogOutIcon } from "lucide-react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import type { ElementType, MouseEvent, ReactNode } from "react"
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
+
 export type NavItem = {
   title: string
   href: string
@@ -146,6 +148,7 @@ function AppSidebar({
     owner: "Dueño"
   }
   const displayRole = user?.role ? (roleMap[user.role.toLowerCase()] || user.role) : ""
+  const avatarSrc = resolveAvatarUrl(user?.avatarUrl)
 
   return (
     <Sidebar side="left" collapsible="icon" variant="sidebar" className="z-50">
@@ -255,7 +258,7 @@ function AppSidebar({
         <div className="flex items-center justify-between px-2 w-full overflow-hidden">
           <div className="flex items-center gap-2 overflow-hidden">
             <Avatar className="shrink-0">
-              <AvatarImage src={user?.avatarUrl ?? undefined} />
+              <AvatarImage key={avatarSrc} src={avatarSrc} />
               <AvatarFallback>{user?.firstName?.[0] || "U"}</AvatarFallback>
             </Avatar>
             <div className="grid flex-1 gap-0.5 group-data-[collapsible=icon]:hidden overflow-hidden">
@@ -284,6 +287,14 @@ function AppSidebar({
       </SidebarFooter>
     </Sidebar>
   )
+}
+
+function resolveAvatarUrl(url?: string | null) {
+  if (!url) return undefined
+  if (url.startsWith("storage://")) return undefined
+  if (/^(https?:)?\/\//.test(url) || url.startsWith("data:") || url.startsWith("blob:")) return url
+  if (url.startsWith("/") && API_BASE_URL) return `${API_BASE_URL}${url}`
+  return url
 }
 
 function AppHeader({

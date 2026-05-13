@@ -708,7 +708,7 @@ function DatePicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button type="button" variant="outline" size="lg" className="w-full justify-start font-normal" />}>
+      <PopoverTrigger render={<Button type="button" variant="outline" size="sm" className="w-full justify-start font-normal" />}>
         <CalendarIcon data-icon="inline-start" />
         {selectedDate
           ? new Intl.DateTimeFormat("es-PE", {
@@ -728,7 +728,9 @@ function DatePicker({
             setOpen(false)
           }}
         />
-        <Button type="button" variant="outline" size="sm" className="w-full" onClick={selectToday}>
+        <Separator className="my-1" />
+        <Button type="button" variant="ghost" size="sm" className="w-full justify-center" onClick={selectToday}>
+          <CalendarIcon data-icon="inline-start" />
           Hoy
         </Button>
       </PopoverContent>

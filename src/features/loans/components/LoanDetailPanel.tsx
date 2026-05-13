@@ -1,4 +1,4 @@
-import { useMemo, useState, type ElementType } from "react"
+import { useMemo, useState, type ElementType, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import {
   AlertCircleIcon,
@@ -7,7 +7,6 @@ import {
   CheckIcon,
   CreditCardIcon,
   EditIcon,
-  EyeIcon,
   FileImageIcon,
   MoreHorizontalIcon,
   ReceiptTextIcon,
@@ -17,7 +16,7 @@ import {
   UserRoundIcon,
   XIcon,
 } from "lucide-react"
-import type { ColumnDef } from "@tanstack/react-table"
+import type { Column, ColumnDef } from "@tanstack/react-table"
 import { PhotoProvider, PhotoView } from "react-photo-view"
 
 import {
@@ -36,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Progress } from "@/components/ui/progress"
+import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
@@ -51,7 +51,9 @@ import {
 import {
   frequencyLabels,
   interestPeriodLabels,
+  installmentStatusLabels,
   paymentMethodLabels,
+  voucherStatusLabels,
 } from "@/features/loans/loan-constants"
 import {
   formatDate,
@@ -100,34 +102,56 @@ const scheduleColumns: ColumnDef<Installment>[] = [
   {
     id: "number",
     accessorFn: (installment) => installment.installmentNumber ?? installment.number ?? 0,
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Cuota" />,
+    header: sortableHeader("Cuota"),
     cell: ({ row }) => `#${row.original.installmentNumber ?? row.original.number ?? "-"}`,
   },
   {
     id: "dueDate",
     accessorFn: (installment) => installment.dueDate ?? "",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Vence" />,
+    header: sortableHeader("Vence"),
     cell: ({ row }) => formatDate(row.original.dueDate),
   },
   {
     id: "amount",
     accessorFn: (installment) => Number(installment.amount ?? 0),
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Monto" />,
+    header: sortableHeader("Monto"),
     cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.amount),
   },
   {
     id: "paid",
     accessorFn: (installment) => Number(installment.paidAmount ?? 0),
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Pagado" />,
+    header: sortableHeader("Pagado"),
     cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.paidAmount),
   },
   {
     id: "status",
-    accessorFn: (installment) => installment.status ?? "pending",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Estado" />,
+    accessorFn: (installment) => installmentStatusLabels[installment.status ?? "pending"] ?? installment.status ?? "Pendiente",
+    header: sortableHeader("Estado"),
     cell: ({ row }) => <InstallmentBadge status={row.original.status ?? "pending"} />,
   },
 ]
+
+type SortDirection = false | "asc" | "desc"
+
+function sortableHeader<TData, TValue>(title: string, align: "left" | "right" = "left") {
+  return ({
+    column,
+    sortDirection,
+    toggleSorting,
+  }: {
+    column: Column<TData, TValue>
+    sortDirection?: SortDirection
+    toggleSorting?: () => void
+  }) => (
+    <DataTableColumnHeader
+      column={column}
+      title={title}
+      align={align}
+      sortDirection={sortDirection}
+      onSort={toggleSorting}
+    />
+  )
+}
 
 export function LoanDetailPanel({
   loan,
@@ -143,6 +167,7 @@ export function LoanDetailPanel({
   sticky = true,
   hideBackButton = false,
   onDataChanged,
+  paymentPresentation = "dialog",
 }: {
   loan: Loan | null
   relatedData: RelatedData
@@ -157,6 +182,7 @@ export function LoanDetailPanel({
   sticky?: boolean
   hideBackButton?: boolean
   onDataChanged?: () => Promise<void> | void
+  paymentPresentation?: "dialog" | "panel"
 }) {
   const { user, session, fetchWithAuth } = useAuth()
   const [paymentDialogPayment, setPaymentDialogPayment] = useState<Payment | null | undefined>()
@@ -260,11 +286,6 @@ export function LoanDetailPanel({
         file,
         { accessToken: session?.access_token, onUploadProgress, signal },
       )
-      toastManager.add({
-        type: "success",
-        title: "OCR completado",
-        description: result.warnings?.[0] ?? "Revisa los datos extraídos antes de enviar.",
-      })
       return {
         amount: result.extracted?.amount ?? undefined,
         operationId: result.extracted?.operationId ?? undefined,
@@ -386,6 +407,58 @@ export function LoanDetailPanel({
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (paymentPresentation === "panel" && paymentDialogPayment !== undefined) {
+    return (
+      <section className="flex min-h-0 flex-col">
+        <div className="mb-4 flex items-center gap-2 border-b pb-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setPaymentDialogPayment(undefined)}
+            aria-label="Volver al detalle del préstamo"
+          >
+            <ArrowLeftIcon />
+          </Button>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{loanPublicCode(loan)}</p>
+            <p className="text-xs text-muted-foreground">Volver al detalle operativo</p>
+          </div>
+        </div>
+        <PaymentDialog
+          open
+          payment={paymentDialogPayment}
+          submitting={submitting}
+          analyzing={analyzing}
+          presentation="panel"
+          onOpenChange={(open) => {
+            if (!open) setPaymentDialogPayment(undefined)
+          }}
+          onAnalyze={async (file, onUploadProgress, signal) => {
+            const analyzed = await handleVoucherAnalyze(file, onUploadProgress, signal)
+            return {
+              amount: analyzed.amount,
+              reference: analyzed.operationId,
+              paymentDate: analyzed.operationDate,
+            }
+          }}
+          onSubmit={(form, onUploadProgress) => handlePaymentSubmit(form, onUploadProgress)}
+        />
+      </section>
+    )
+  }
+
+  if (paymentPresentation === "panel" && deleteTarget) {
+    return (
+      <InlineDeleteConfirmation
+        target={deleteTarget}
+        submitting={submitting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => void handleDeleteTarget()}
+      />
+    )
   }
 
   return (
@@ -512,19 +585,29 @@ export function LoanDetailPanel({
           <TabsContent value="payments">
             <PaymentsTable
               payments={relatedData.payments}
+              vouchers={relatedData.vouchers}
               canManage={perspective === "admin"}
+              showPendingVouchers={perspective === "client"}
+              canManageVoucher={(voucher) =>
+                canEditVoucher(voucher, perspective, user?.id) || canDeleteVoucher(voucher, perspective, user?.id)
+              }
               onEdit={setPaymentDialogPayment}
               onDelete={(payment) => setDeleteTarget({ type: "payment", item: payment })}
+              onEditVoucher={setVoucherDialogVoucher}
+              onDeleteVoucher={(voucher) => setDeleteTarget({ type: "voucher", item: voucher })}
             />
           </TabsContent>
           <TabsContent value="vouchers">
             <VouchersTable
               vouchers={relatedData.vouchers}
+              payments={relatedData.payments}
+              canDeletePayment={perspective === "admin"}
               canEdit={(voucher) => canEditVoucher(voucher, perspective, user?.id)}
               canDelete={(voucher) => canDeleteVoucher(voucher, perspective, user?.id)}
               canProcess={(voucher) => canProcessVoucher(voucher, loan, perspective, user?.id)}
               onEdit={setVoucherDialogVoucher}
               onDelete={(voucher) => setDeleteTarget({ type: "voucher", item: voucher })}
+              onDeletePayment={(payment) => setDeleteTarget({ type: "payment", item: payment })}
               onApprove={(voucher) => setProcessDialog({ voucher, mode: "approve" })}
               onReject={(voucher) => setProcessDialog({ voucher, mode: "reject" })}
             />
@@ -577,20 +660,100 @@ export function LoanDetailPanel({
           onSubmit={(form) => void handleProcessVoucher(form)}
         />
       )}
-      <DeleteWorkflowDialog
-        open={Boolean(deleteTarget)}
-        title={deleteTarget?.type === "payment" ? "Eliminar pago" : "Eliminar voucher"}
-        description={
-          deleteTarget?.type === "payment"
-            ? "El pago se eliminará lógicamente y el préstamo se recalculará."
-            : "El voucher se eliminará lógicamente. Si ya generó un pago, el backend lo revertirá."
-        }
-        submitting={submitting}
-        onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null)
-        }}
-        onConfirm={() => void handleDeleteTarget()}
-      />
+      {paymentPresentation !== "panel" && (
+        <DeleteWorkflowDialog
+          open={Boolean(deleteTarget)}
+          title={deleteTarget?.type === "payment" ? "Eliminar pago" : "Eliminar voucher"}
+          description={
+            deleteTarget?.type === "payment"
+              ? "El pago se eliminará lógicamente y el préstamo se recalculará."
+              : "El voucher se eliminará lógicamente. Si ya generó un pago, el sistema lo revertirá."
+          }
+          submitting={submitting}
+          onOpenChange={(open) => {
+            if (!open) setDeleteTarget(null)
+          }}
+          onConfirm={() => void handleDeleteTarget()}
+        />
+      )}
+    </section>
+  )
+}
+
+function InlineDeleteConfirmation({
+  target,
+  submitting,
+  onCancel,
+  onConfirm,
+}: {
+  target: {
+    type: "payment" | "voucher"
+    item: Payment | PaymentVoucher
+  }
+  submitting: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const isPayment = target.type === "payment"
+  const title = isPayment ? "Eliminar pago" : "Eliminar voucher"
+  const description = isPayment
+    ? "El pago se eliminará lógicamente y el préstamo se recalculará."
+    : "El voucher se eliminará lógicamente. Si ya generó un pago, el sistema lo revertirá."
+  const reference = isPayment
+    ? (target.item as Payment).reference
+    : (target.item as PaymentVoucher).operationId
+
+  return (
+    <section className="flex min-h-0 flex-col">
+      <div className="mb-4 flex items-center gap-2 border-b pb-3">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onCancel}
+          aria-label="Volver al detalle del préstamo"
+          disabled={submitting}
+        >
+          <ArrowLeftIcon />
+        </Button>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">Confirmar eliminación</p>
+          <p className="text-xs text-muted-foreground">Volver sin abrir otra ventana</p>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <Trash2Icon className="size-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-semibold">{title}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+            <div className="mt-3 grid gap-2 rounded-md border bg-background/80 p-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Monto</span>
+                <span className="font-medium">{formatCurrency(target.item.amount)}</span>
+              </div>
+              {reference && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">Referencia</span>
+                  <span className="truncate font-mono text-xs">{reference}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
+            Cancelar
+          </Button>
+          <Button type="button" variant="destructive" onClick={onConfirm} disabled={submitting}>
+            {submitting ? <Spinner /> : <Trash2Icon data-icon="inline-start" />}
+            Eliminar
+          </Button>
+        </div>
+      </div>
     </section>
   )
 }
@@ -618,45 +781,102 @@ function ScheduleTable({ installments }: { installments: Installment[] }) {
 
 function PaymentsTable({
   payments,
+  vouchers,
   canManage,
+  showPendingVouchers,
+  canManageVoucher,
   onEdit,
   onDelete,
+  onEditVoucher,
+  onDeleteVoucher,
 }: {
   payments: Payment[]
+  vouchers: PaymentVoucher[]
   canManage: boolean
+  showPendingVouchers: boolean
+  canManageVoucher: (voucher: PaymentVoucher) => boolean
   onEdit: (payment: Payment) => void
   onDelete: (payment: Payment) => void
+  onEditVoucher: (voucher: PaymentVoucher) => void
+  onDeleteVoucher: (voucher: PaymentVoucher) => void
 }) {
-  const columns = useMemo<ColumnDef<Payment>[]>(
+  type PaymentListRow =
+    | { id: string; kind: "payment"; payment: Payment; voucher?: never }
+    | { id: string; kind: "voucher"; payment?: never; voucher: PaymentVoucher }
+
+  const rows = useMemo<PaymentListRow[]>(() => {
+    const paymentRows = payments.map((payment) => ({
+      id: `payment-${payment.id}`,
+      kind: "payment" as const,
+      payment,
+    }))
+    const pendingVoucherRows = showPendingVouchers
+      ? vouchers
+          .filter((voucher) => isPendingVoucherForClient(voucher))
+          .map((voucher) => ({
+            id: `voucher-${voucher.id}`,
+            kind: "voucher" as const,
+            voucher,
+          }))
+      : []
+
+    return [...paymentRows, ...pendingVoucherRows]
+  }, [payments, showPendingVouchers, vouchers])
+
+  const columns = useMemo<ColumnDef<PaymentListRow>[]>(
     () => [
       {
         id: "date",
-        accessorFn: (payment) => payment.paymentDate ?? payment.createdAt ?? "",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Fecha" />,
-        cell: ({ row }) => formatDate(row.original.paymentDate ?? row.original.createdAt),
+        accessorFn: (row) =>
+          row.kind === "payment"
+            ? row.payment.paymentDate ?? row.payment.createdAt ?? ""
+            : row.voucher.operationDate ?? row.voucher.createdAt ?? "",
+        header: sortableHeader("Fecha"),
+        cell: ({ row }) =>
+          row.original.kind === "payment"
+            ? formatDate(row.original.payment.paymentDate ?? row.original.payment.createdAt)
+            : formatDate(row.original.voucher.operationDate ?? row.original.voucher.createdAt),
       },
       {
         id: "amount",
-        accessorFn: (payment) => Number(payment.amount ?? 0),
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Monto" />,
-        cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.amount)}</span>,
+        accessorFn: (row) => Number(row.kind === "payment" ? row.payment.amount ?? 0 : row.voucher.amount ?? 0),
+        header: sortableHeader("Monto"),
+        cell: ({ row }) => (
+          <span className="font-medium">
+            {formatCurrency(row.original.kind === "payment" ? row.original.payment.amount : row.original.voucher.amount)}
+          </span>
+        ),
       },
       {
         id: "method",
-        accessorFn: (payment) => payment.method ?? "",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Método" />,
+        accessorFn: (row) =>
+          row.kind === "payment"
+            ? row.payment.method ? paymentMethodLabels[row.payment.method] ?? row.payment.method : ""
+            : "Transferencia",
+        header: sortableHeader("Método"),
         cell: ({ row }) => {
-          const method = row.original.method
+          if (row.original.kind === "voucher") return <Badge variant="outline">Transferencia</Badge>
+          const method = row.original.payment.method
           return <Badge variant="outline">{method ? paymentMethodLabels[method] ?? method : "Sin método"}</Badge>
         },
       },
       {
+        id: "status",
+        accessorFn: (row) =>
+          row.kind === "payment" ? "Aplicado" : voucherStatusLabels[row.voucher.status ?? "pending_investor_review"] ?? row.voucher.status ?? "",
+        header: sortableHeader("Estado"),
+        cell: ({ row }) => {
+          if (row.original.kind === "payment") return <Badge variant="success">Aplicado</Badge>
+          return <VoucherStatusBadge status={row.original.voucher.status} />
+        },
+      },
+      {
         id: "reference",
-        accessorFn: (payment) => payment.reference ?? "",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Referencia" />,
+        accessorFn: (row) => row.kind === "payment" ? row.payment.reference ?? "" : row.voucher.operationId ?? "",
+        header: sortableHeader("Referencia"),
         cell: ({ row }) => (
           <span className="block max-w-32 truncate font-mono text-xs">
-            {row.original.reference ?? "-"}
+            {row.original.kind === "payment" ? row.original.payment.reference ?? "-" : row.original.voucher.operationId ?? "-"}
           </span>
         ),
       },
@@ -664,28 +884,31 @@ function PaymentsTable({
         id: "evidence",
         enableSorting: false,
         header: () => <DataTableStaticHeader title="Evidencia" />,
-        cell: ({ row }) => <EvidenceButton url={row.original.evidenceUrl} />,
+        cell: ({ row }) => (
+          <EvidenceButton
+            url={row.original.kind === "payment" ? row.original.payment.evidenceUrl : row.original.voucher.evidenceUrl}
+          />
+        ),
       },
-      ...(canManage
+      ...(canManage || rows.some((row) => row.kind === "voucher" && canManageVoucher(row.voucher))
         ? [{
             id: "actions",
             enableSorting: false,
             header: () => <DataTableStaticHeader title="" />,
-            cell: ({ row }) => (
-              <RowActions
-                items={[
-                  { label: "Editar", icon: EditIcon, onClick: () => onEdit(row.original) },
-                  { label: "Eliminar", icon: Trash2Icon, destructive: true, onClick: () => onDelete(row.original) },
-                ]}
-              />
-            ),
-          } satisfies ColumnDef<Payment>]
+            cell: ({ row }) => {
+              const items = row.original.kind === "payment"
+                ? getPaymentActions(row.original.payment, canManage, onEdit, onDelete)
+                : getVoucherPaymentRowActions(row.original.voucher, canManageVoucher, onEditVoucher, onDeleteVoucher)
+
+              return items.length ? <RowActions items={items} /> : <span className="text-muted-foreground">-</span>
+            },
+          } satisfies ColumnDef<PaymentListRow>]
         : []),
     ],
-    [canManage, onDelete, onEdit],
+    [canManage, canManageVoucher, onDelete, onDeleteVoucher, onEdit, onEditVoucher, rows],
   )
 
-  if (payments.length === 0) {
+  if (rows.length === 0) {
     return (
       <CompactEmpty
         icon={relatedEmptyIcons.payments}
@@ -698,33 +921,121 @@ function PaymentsTable({
   return (
     <DataTableCard
       columns={columns}
-      data={payments}
-      getRowId={(payment) => payment.id}
-      tableClassName="min-w-[640px]"
+      data={rows}
+      getRowId={(row) => row.id}
+      tableClassName="min-w-[740px]"
     />
   )
 }
 
+function getPaymentActions(
+  payment: Payment,
+  canManage: boolean,
+  onEdit: (payment: Payment) => void,
+  onDelete: (payment: Payment) => void,
+) {
+  if (!canManage) return []
+
+  return [
+    { label: "Editar", icon: EditIcon, onClick: () => onEdit(payment) },
+    { label: "Eliminar", icon: Trash2Icon, destructive: true, onClick: () => onDelete(payment) },
+  ]
+}
+
+function getVoucherPaymentRowActions(
+  voucher: PaymentVoucher,
+  canManageVoucher: (voucher: PaymentVoucher) => boolean,
+  onEditVoucher: (voucher: PaymentVoucher) => void,
+  onDeleteVoucher: (voucher: PaymentVoucher) => void,
+) {
+  if (!canManageVoucher(voucher)) return []
+
+  return [
+    { label: "Editar voucher", icon: EditIcon, onClick: () => onEditVoucher(voucher) },
+    { label: "Eliminar voucher", icon: Trash2Icon, destructive: true, onClick: () => onDeleteVoucher(voucher) },
+  ]
+}
+
 function VouchersTable({
   vouchers,
+  payments,
+  canDeletePayment,
   canEdit,
   canDelete,
   canProcess,
   onEdit,
   onDelete,
+  onDeletePayment,
   onApprove,
   onReject,
 }: {
   vouchers: PaymentVoucher[]
+  payments: Payment[]
+  canDeletePayment: boolean
   canEdit: (voucher: PaymentVoucher) => boolean
   canDelete: (voucher: PaymentVoucher) => boolean
   canProcess: (voucher: PaymentVoucher) => boolean
   onEdit: (voucher: PaymentVoucher) => void
   onDelete: (voucher: PaymentVoucher) => void
+  onDeletePayment: (payment: Payment) => void
   onApprove: (voucher: PaymentVoucher) => void
   onReject: (voucher: PaymentVoucher) => void
 }) {
-  if (vouchers.length === 0) {
+  type GalleryAction = {
+    label: string
+    icon: ElementType
+    destructive?: boolean
+    onClick: () => void
+  }
+  type GalleryItem = {
+    id: string
+    amount?: string | number
+    date?: string | null
+    imageUrl: string | null
+    title: string
+    badge: ReactNode
+    actions: GalleryAction[]
+  }
+
+  const galleryItems: GalleryItem[] = [
+    ...vouchers.map((voucher) => ({
+      id: `voucher-${voucher.id}`,
+      amount: voucher.amount,
+      date: voucher.createdAt ?? voucher.operationDate,
+      imageUrl: getVoucherImageUrl(voucher),
+      title: voucher.operationId ? `Operación ${voucher.operationId}` : "Voucher sin operación",
+      badge: <VoucherStatusBadge status={voucher.status} />,
+      actions: [
+        ...(canProcess(voucher)
+          ? [
+              { label: "Aprobar", icon: CheckIcon, onClick: () => onApprove(voucher) },
+              { label: "Rechazar", icon: XIcon, destructive: true, onClick: () => onReject(voucher) },
+            ]
+          : []),
+        ...(canEdit(voucher)
+          ? [{ label: "Editar", icon: EditIcon, onClick: () => onEdit(voucher) }]
+          : []),
+        ...(canDelete(voucher)
+          ? [{ label: "Eliminar voucher", icon: Trash2Icon, destructive: true, onClick: () => onDelete(voucher) }]
+          : []),
+      ],
+    })),
+    ...payments
+      .filter((payment) => Boolean(getPaymentEvidenceUrl(payment)))
+      .map((payment) => ({
+        id: `payment-${payment.id}`,
+        amount: payment.amount,
+        date: payment.paymentDate ?? payment.createdAt,
+        imageUrl: getPaymentEvidenceUrl(payment),
+        title: payment.reference ? `Pago ${payment.reference}` : "Pago registrado",
+        badge: <Badge variant="success">Aplicado</Badge>,
+        actions: canDeletePayment
+          ? [{ label: "Eliminar pago", icon: Trash2Icon, destructive: true, onClick: () => onDeletePayment(payment) }]
+          : [],
+      })),
+  ]
+
+  if (galleryItems.length === 0) {
     return (
       <CompactEmpty
         icon={relatedEmptyIcons.vouchers}
@@ -736,65 +1047,52 @@ function VouchersTable({
 
   return (
     <PhotoProvider>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {vouchers.map((voucher) => {
-          const imageUrl = voucher.evidenceUrl ?? voucher.fileUrl
-          const actions = [
-            ...(canProcess(voucher)
-              ? [
-                  { label: "Aprobar", icon: CheckIcon, onClick: () => onApprove(voucher) },
-                  { label: "Rechazar", icon: XIcon, destructive: true, onClick: () => onReject(voucher) },
-                ]
-              : []),
-            ...(canEdit(voucher)
-              ? [{ label: "Editar", icon: EditIcon, onClick: () => onEdit(voucher) }]
-              : []),
-            ...(canDelete(voucher)
-              ? [{ label: "Eliminar", icon: Trash2Icon, destructive: true, onClick: () => onDelete(voucher) }]
-              : []),
-          ]
-
+      <div className="columns-1 gap-3 sm:columns-2 xl:columns-3">
+        {galleryItems.map((item, index) => {
           return (
-            <Card key={voucher.id} className="overflow-hidden rounded-[8px] before:rounded-[7px]">
+            <Card
+              key={item.id}
+              className="mb-3 break-inside-avoid overflow-hidden rounded-[8px] before:rounded-[7px]"
+            >
               <CardContent className="p-0">
-                {imageUrl ? (
-                  <PhotoView src={imageUrl}>
+                {item.imageUrl ? (
+                  <PhotoView src={item.imageUrl}>
                     <button
                       type="button"
-                      className="group relative flex aspect-square w-full items-center justify-center overflow-hidden bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className={cn(
+                        "group relative flex w-full cursor-zoom-in items-center justify-center overflow-hidden bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                        getVoucherImageClassName(index),
+                      )}
                       aria-label="Ver voucher en tamaño completo"
                     >
                       <img
-                        src={imageUrl}
-                        alt={voucher.operationId ? `Voucher ${voucher.operationId}` : "Voucher subido"}
-                        className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                        src={item.imageUrl}
+                        alt={item.title}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />
-                      <span className="absolute bottom-2 right-2 inline-flex size-8 items-center justify-center rounded-full border bg-background/90 text-foreground opacity-0 shadow-sm backdrop-blur transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                        <EyeIcon />
-                      </span>
                     </button>
                   </PhotoView>
                 ) : (
-                  <div className="flex aspect-square w-full flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground">
+                  <div className={cn("flex w-full flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground", getVoucherImageClassName(index))}>
                     <FileImageIcon />
                     <span className="text-xs font-medium">Sin imagen</span>
                   </div>
                 )}
               </CardContent>
-              <CardHeader className="gap-2 p-3 pb-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <CardTitle className="truncate text-sm">
-                      {voucher.operationId ? `Operación ${voucher.operationId}` : "Voucher sin operación"}
-                    </CardTitle>
-                    <p className="mt-1 text-xs text-muted-foreground">{formatDate(voucher.createdAt)}</p>
-                  </div>
-                  <VoucherStatusBadge status={voucher.status} />
+              <CardHeader className="gap-1.5 p-2.5 pb-1.5">
+                <div className="min-w-0">
+                  <CardTitle className="truncate text-sm">
+                    {item.title}
+                  </CardTitle>
+                  <p className="mt-1 text-xs text-muted-foreground">{formatDate(item.date)}</p>
                 </div>
               </CardHeader>
-              <CardFooter className="justify-between gap-2 p-3 pt-0">
-                <span className="font-medium">{formatCurrency(voucher.amount)}</span>
-                {actions.length > 0 ? <RowActions items={actions} /> : <span className="text-muted-foreground">-</span>}
+              <CardFooter className="flex-row items-center justify-between gap-2 p-2.5 pt-0">
+                <span className="font-medium">{formatCurrency(item.amount)}</span>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  {item.badge}
+                  {item.actions.length > 0 ? <RowActions items={item.actions} /> : null}
+                </div>
               </CardFooter>
             </Card>
           )
@@ -802,6 +1100,29 @@ function VouchersTable({
       </div>
     </PhotoProvider>
   )
+}
+
+function getVoucherImageUrl(voucher: PaymentVoucher) {
+  const imageUrl = voucher.evidenceUrl ?? voucher.fileUrl
+  if (!imageUrl || imageUrl.startsWith("storage://")) return null
+  return imageUrl
+}
+
+function getPaymentEvidenceUrl(payment: Payment) {
+  if (!payment.evidenceUrl || payment.evidenceUrl.startsWith("storage://")) return null
+  return payment.evidenceUrl
+}
+
+function getVoucherImageClassName(index: number) {
+  const pattern = index % 6
+  if (pattern === 1) return "h-72"
+  if (pattern === 2) return "h-48"
+  if (pattern === 4) return "h-64"
+  return "h-56"
+}
+
+function isPendingVoucherForClient(voucher: PaymentVoucher) {
+  return ["draft", "pending_investor_review", "pending_admin_review"].includes(voucher.status ?? "")
 }
 
 function RowActions({
@@ -845,7 +1166,7 @@ function canEditVoucher(voucher: PaymentVoucher, perspective: "admin" | "client"
   return (
     perspective === "client" &&
     voucher.clientId === userId &&
-    (voucher.status === "draft" || voucher.status === "pending_investor_review")
+    isPendingVoucherForClient(voucher)
   )
 }
 
@@ -854,7 +1175,7 @@ function canDeleteVoucher(voucher: PaymentVoucher, perspective: "admin" | "clien
   return (
     perspective === "client" &&
     voucher.clientId === userId &&
-    (voucher.status === "draft" || voucher.status === "pending_investor_review")
+    isPendingVoucherForClient(voucher)
   )
 }
 
@@ -870,9 +1191,7 @@ function canProcessVoucher(
 
   if (perspective !== "admin") return false
 
-  return loan.investorId
-    ? voucher.status === "investor_approved"
-    : voucher.status === "pending_investor_review" || voucher.status === "investor_approved"
+  return ["pending_investor_review", "pending_admin_review", "investor_approved"].includes(voucher.status ?? "")
 }
 
 function getErrorText(error: unknown) {

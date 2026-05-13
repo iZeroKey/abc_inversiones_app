@@ -42,10 +42,13 @@ import {
 } from "@/components/ui/number-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Progress } from "@/components/ui/progress"
+import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { PhotoProvider, PhotoView } from "react-photo-view"
 import type {
   Payment,
   PaymentMethod,
@@ -85,14 +88,18 @@ type FileUploadState = {
   mode: "scan" | "submit"
   progress: number
   phase: "idle" | "uploading" | "processing" | "done" | "error"
+  message?: string
 }
 
 const idleScanState: FileUploadState = { mode: "scan", progress: 0, phase: "idle" }
+const maxEvidenceFileSize = 1.5 * 1024 * 1024
+const evidenceCompressionMimeType = "image/webp"
 
 export function PaymentDialog({
   open,
   payment,
   submitting,
+  presentation = "dialog",
   onOpenChange,
   onAnalyze,
   onSubmit,
@@ -101,6 +108,7 @@ export function PaymentDialog({
   payment?: Payment | null
   submitting: boolean
   analyzing: boolean
+  presentation?: "dialog" | "panel"
   onOpenChange: (open: boolean) => void
   onAnalyze: (
     file: File,
@@ -116,6 +124,7 @@ export function PaymentDialog({
 
   const imageBusy = uploadState.phase === "uploading" || uploadState.phase === "processing"
   const scanBusy = imageBusy && uploadState.mode === "scan"
+  const fieldsLoading = scanBusy
   const valid = Number(form.amount) > 0
   const canSubmit = valid && !submitting && !scanBusy
 
@@ -124,18 +133,9 @@ export function PaymentDialog({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit) return
-    if (form.evidence) setUploadState({ mode: "submit", phase: "uploading", progress: 0 })
     void Promise.resolve(
-      onSubmit(form, (progress) =>
-        setUploadState({
-          mode: "submit",
-          phase: progress >= 100 ? "processing" : "uploading",
-          progress,
-        }),
-      ),
-    ).finally(() => {
-      if (form.evidence) setUploadState({ mode: "submit", phase: "done", progress: 100 })
-    })
+      onSubmit(form, () => undefined),
+    )
   }
 
   const cancelScan = () => {
@@ -144,17 +144,17 @@ export function PaymentDialog({
     setUploadState(idleScanState)
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100vh-2rem)] max-w-xl overflow-hidden">
-        <DialogHeader>
+  const isPanel = presentation === "panel"
+  const content = (
+    <>
+        <DialogHeader className={cn(isPanel && "p-0 pb-4")}>
           <DialogTitle>{editing ? "Editar pago" : "Registrar pago"}</DialogTitle>
           <DialogDescription>
-            El backend aplicará el monto al cronograma y recalculará el préstamo.
+            El sistema aplicará el monto al cronograma y recalculará el préstamo.
           </DialogDescription>
         </DialogHeader>
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-          <DialogPanel className="flex flex-col gap-4">
+          <DialogPanel className={cn("flex flex-col gap-4", isPanel && "p-0")}>
             {!editing && (
               <EvidenceSection
                 file={form.evidence}
@@ -193,31 +193,44 @@ export function PaymentDialog({
             <div className="grid gap-3 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="payment-amount">Monto</FieldLabel>
-                <MoneyNumberField
-                  id="payment-amount"
-                  min="0.01"
-                  step="0.01"
-                  value={form.amount}
-                  onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
-                />
+                {fieldsLoading ? (
+                  <LoadingInputShell />
+                ) : (
+                  <MoneyNumberField
+                    id="payment-amount"
+                    min="0.01"
+                    step="0.01"
+                    value={form.amount}
+                    onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
+                  />
+                )}
               </Field>
               <Field>
                 <FieldLabel htmlFor="payment-reference">Referencia</FieldLabel>
-                <Input
-                  id="payment-reference"
-                  value={form.reference}
-                  onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))}
-                  placeholder="Nro. operación"
-                />
+                {fieldsLoading ? (
+                  <LoadingInputShell />
+                ) : (
+                  <Input
+                    id="payment-reference"
+                    size="lg"
+                    value={form.reference}
+                    onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))}
+                    placeholder="Nro. operación"
+                  />
+                )}
               </Field>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field>
                 <FieldLabel>Fecha de pago</FieldLabel>
-                <DatePicker
-                  value={form.paymentDate}
-                  onChange={(paymentDate) => setForm((current) => ({ ...current, paymentDate }))}
-                />
+                {fieldsLoading ? (
+                  <LoadingInputShell />
+                ) : (
+                  <DatePicker
+                    value={form.paymentDate}
+                    onChange={(paymentDate) => setForm((current) => ({ ...current, paymentDate }))}
+                  />
+                )}
               </Field>
               <Field>
                 <FieldLabel>Método</FieldLabel>
@@ -228,7 +241,7 @@ export function PaymentDialog({
                     setForm((current) => ({ ...current, method: (value ?? "cash") as PaymentMethod }))
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger size="lg">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -253,7 +266,10 @@ export function PaymentDialog({
               />
             </Field>
           </DialogPanel>
-          <DialogFooter>
+          <DialogFooter
+            variant={isPanel ? "bare" : "default"}
+            className={cn(isPanel && "mt-4 border-t bg-transparent px-0 pb-0 pt-4")}
+          >
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
@@ -263,6 +279,17 @@ export function PaymentDialog({
             </Button>
           </DialogFooter>
         </form>
+    </>
+  )
+
+  if (presentation === "panel") {
+    return <div className="flex min-h-0 flex-1 flex-col">{content}</div>
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[calc(100vh-2rem)] max-w-xl overflow-hidden">
+        {content}
       </DialogContent>
     </Dialog>
   )
@@ -385,6 +412,7 @@ export function VoucherDialog({
                 <FieldLabel htmlFor="voucher-operation">Operación</FieldLabel>
                 <Input
                   id="voucher-operation"
+                  size="lg"
                   value={form.operationId}
                   onChange={(event) => setForm((current) => ({ ...current, operationId: event.target.value }))}
                   placeholder="Código bancario"
@@ -523,17 +551,21 @@ export function EvidenceButton({ url }: { url?: string | null }) {
   if (!url) return <span className="text-muted-foreground">-</span>
 
   return (
-    <Button variant="link" size="sm" render={<a href={url} target="_blank" rel="noreferrer" />}>
-      <EyeIcon data-icon="inline-start" />
-      Abrir
-    </Button>
+    <PhotoProvider>
+      <PhotoView src={url}>
+        <Button type="button" variant="link" size="sm">
+          <EyeIcon data-icon="inline-start" />
+          Visualizar
+        </Button>
+      </PhotoView>
+    </PhotoProvider>
   )
 }
 
 function getPaymentDefaults(payment?: Payment | null): PaymentFormState {
   return {
     amount: payment?.amount ? String(payment.amount) : "",
-    paymentDate: toInputDate(payment?.paymentDate),
+    paymentDate: payment ? toInputDate(payment.paymentDate) : formatInputDate(new Date()),
     method: (payment?.method as PaymentMethod) || "cash",
     reference: payment?.reference ?? "",
     observation: payment?.observation ?? "",
@@ -570,7 +602,7 @@ function MoneyNumberField({
     <NumberField
       id={id}
       min={value.trim() ? (min ? Number(min) : undefined) : undefined}
-      size="sm"
+      size="lg"
       step={step ? Number(step) : undefined}
       value={numericValue}
       onValueChange={(nextValue) => onValueChange(formatNumberFieldValue(nextValue))}
@@ -581,6 +613,14 @@ function MoneyNumberField({
         <NumberFieldIncrement aria-label="Aumentar monto" />
       </NumberFieldGroup>
     </NumberField>
+  )
+}
+
+function LoadingInputShell() {
+  return (
+    <div className="flex h-10 w-full items-center rounded-lg border bg-background px-3 shadow-xs/5 sm:h-9">
+      <Skeleton className="h-4 w-2/3" />
+    </div>
   )
 }
 
@@ -620,7 +660,9 @@ function DatePicker({
             setOpen(false)
           }}
         />
-        <Button type="button" variant="outline" size="sm" className="w-full" onClick={selectToday}>
+        <Separator className="my-1" />
+        <Button type="button" variant="ghost" size="sm" className="w-full justify-center" onClick={selectToday}>
+          <CalendarIcon data-icon="inline-start" />
           Hoy
         </Button>
       </PopoverContent>
@@ -643,18 +685,42 @@ function ImageDropzone({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [localStatus, setLocalStatus] = useState<FileUploadState | null>(null)
+  const visibleUploadState = localStatus ?? uploadState
 
-  const pickFile = (selectedFile?: File | null) => {
+  const pickFile = async (selectedFile?: File | null) => {
     if (!selectedFile) return
-    if (!selectedFile.type.startsWith("image/")) return
-    onFileSelected(selectedFile)
-    if (inputRef.current) inputRef.current.value = ""
+    if (!selectedFile.type.startsWith("image/")) {
+      setLocalStatus({
+        mode: "scan",
+        phase: "error",
+        progress: 100,
+        message: "Selecciona una imagen en JPG, PNG o WebP.",
+      })
+      return
+    }
+
+    setLocalStatus({ mode: "scan", phase: "processing", progress: 15, message: "Optimizando imagen" })
+    try {
+      const optimizedFile = await optimizeEvidenceImage(selectedFile)
+      setLocalStatus(null)
+      onFileSelected(optimizedFile)
+      if (inputRef.current) inputRef.current.value = ""
+    } catch (error) {
+      setLocalStatus({
+        mode: "scan",
+        phase: "error",
+        progress: 100,
+        message: error instanceof Error ? error.message : "No se pudo optimizar la imagen.",
+      })
+      if (inputRef.current) inputRef.current.value = ""
+    }
   }
 
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     setDragging(false)
-    pickFile(event.dataTransfer.files?.[0])
+    void pickFile(event.dataTransfer.files?.[0])
   }
 
   return (
@@ -669,13 +735,13 @@ function ImageDropzone({
     >
       <div
         className={cn(
-          "rounded-lg border border-dashed bg-muted/16 p-3 transition-colors",
+          "relative overflow-hidden rounded-lg border border-dashed bg-muted/16 p-3 transition-colors",
           !file && "hover:bg-muted/28",
           dragging && "border-primary bg-primary/5",
         )}
       >
         {file ? (
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,11rem)_1fr]">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.75fr)]">
             <ImagePreview key={`${file.name}-${file.size}-${file.lastModified}`} file={file} />
             <div className="flex min-w-0 flex-col justify-between gap-3">
               <div className="min-w-0">
@@ -711,31 +777,35 @@ function ImageDropzone({
             </Empty>
           </button>
         )}
+        {(visibleUploadState.phase === "uploading" || visibleUploadState.phase === "processing") && (
+          <div className="absolute inset-x-0 bottom-0 bg-background/80 backdrop-blur-sm">
+            <Progress className="h-1 rounded-none border-0" value={visibleUploadState.progress} />
+          </div>
+        )}
       </div>
       <input
         ref={inputRef}
         accept="image/jpeg,image/png,image/webp"
         className="sr-only"
         type="file"
-        onChange={(event) => pickFile(event.target.files?.[0])}
+        onChange={(event) => void pickFile(event.target.files?.[0])}
       />
-      {uploadState.phase !== "idle" && (
+      {visibleUploadState.phase !== "idle" && (
         <div className="flex items-center gap-3 rounded-md border bg-muted/20 px-3 py-2">
-          {uploadState.phase === "processing" && <Spinner />}
+          {visibleUploadState.phase === "processing" && <Spinner />}
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3 text-xs">
-              <span className={cn("truncate font-medium", uploadState.phase === "error" && "text-destructive")}>
-                {getUploadStatusLabel(uploadState)}
+              <span className={cn("truncate font-medium", visibleUploadState.phase === "error" && "text-destructive")}>
+                {getUploadStatusLabel(visibleUploadState)}
               </span>
-              {uploadState.phase === "uploading" && (
-                <span className="shrink-0 text-muted-foreground tabular-nums">{uploadState.progress}%</span>
+              {visibleUploadState.phase === "uploading" && (
+                <span className="shrink-0 text-muted-foreground tabular-nums">{visibleUploadState.progress}%</span>
               )}
             </div>
-            {(uploadState.phase === "uploading" || uploadState.phase === "processing") && (
-              <Progress className="mt-1 gap-1" value={uploadState.progress} />
-            )}
           </div>
-          {uploadState.mode === "scan" && (uploadState.phase === "uploading" || uploadState.phase === "processing") && (
+          {visibleUploadState.mode === "scan" &&
+            (visibleUploadState.phase === "uploading" || visibleUploadState.phase === "processing") &&
+            !localStatus && (
             <Button type="button" variant="ghost" size="xs" onClick={onCancelScan}>
               Cancelar
             </Button>
@@ -776,15 +846,44 @@ function EvidenceSection({
 }
 
 function ImagePreview({ file }: { file: File }) {
-  const [previewUrl] = useState(() => URL.createObjectURL(file))
+  const [previewUrl, setPreviewUrl] = useState("")
 
   useEffect(() => {
-    return () => URL.revokeObjectURL(previewUrl)
-  }, [previewUrl])
+    let active = true
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (active && typeof reader.result === "string") setPreviewUrl(reader.result)
+    }
+    reader.readAsDataURL(file)
+
+    return () => {
+      active = false
+    }
+  }, [file])
+
+  if (!previewUrl) {
+    return <LoadingImagePreview />
+  }
 
   return (
-    <div className="flex aspect-[4/3] min-h-32 items-center justify-center overflow-hidden rounded-md border bg-background">
-      <img src={previewUrl} alt="Vista previa del voucher" className="h-full w-full object-contain" />
+    <PhotoProvider>
+      <PhotoView src={previewUrl}>
+        <button
+          type="button"
+          className="group relative flex aspect-[16/10] min-h-40 w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-md border bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label="Ver imagen en pantalla completa"
+        >
+          <img src={previewUrl} alt="Vista previa del voucher" className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105" />
+        </button>
+      </PhotoView>
+    </PhotoProvider>
+  )
+}
+
+function LoadingImagePreview() {
+  return (
+    <div className="flex aspect-[16/10] min-h-40 w-full items-center justify-center overflow-hidden rounded-md border bg-background">
+      <Skeleton className="h-full w-full rounded-none" />
     </div>
   )
 }
@@ -827,6 +926,8 @@ function runAutomaticOcr<T extends object>({
 }
 
 function getUploadStatusLabel(uploadState: FileUploadState) {
+  if (uploadState.message) return uploadState.message
+
   if (uploadState.mode === "submit") {
     if (uploadState.phase === "uploading") return "Subiendo evidencia"
     if (uploadState.phase === "processing") return "Procesando registro"
@@ -838,6 +939,49 @@ function getUploadStatusLabel(uploadState: FileUploadState) {
   if (uploadState.phase === "processing") return "Procesando imagen"
   if (uploadState.phase === "error") return "Escaneo de imagen erróneo"
   return "Imagen escaneada con éxito"
+}
+
+async function optimizeEvidenceImage(file: File) {
+  if (file.size <= maxEvidenceFileSize && file.type === evidenceCompressionMimeType) return file
+
+  const bitmap = await createImageBitmap(file)
+  try {
+    const maxSide = 1800
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height))
+    const width = Math.max(1, Math.round(bitmap.width * scale))
+    const height = Math.max(1, Math.round(bitmap.height * scale))
+    const canvas = document.createElement("canvas")
+    canvas.width = width
+    canvas.height = height
+
+    const context = canvas.getContext("2d")
+    if (!context) throw new Error("No se pudo preparar la imagen.")
+    context.drawImage(bitmap, 0, 0, width, height)
+
+    for (const quality of [0.82, 0.72, 0.62, 0.52, 0.42]) {
+      const blob = await canvasToBlob(canvas, evidenceCompressionMimeType, quality)
+      if (blob.size <= maxEvidenceFileSize) {
+        const baseName = file.name.replace(/\.[^.]+$/, "") || "voucher"
+        return new File([blob], `${baseName}.webp`, {
+          type: evidenceCompressionMimeType,
+          lastModified: Date.now(),
+        })
+      }
+    }
+  } finally {
+    bitmap.close()
+  }
+
+  throw new Error("La imagen supera 1.5 MB incluso después de optimizarla.")
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob)
+      else reject(new Error("No se pudo convertir la imagen."))
+    }, type, quality)
+  })
 }
 
 function removeEmptyValues<T extends object>(values: T) {

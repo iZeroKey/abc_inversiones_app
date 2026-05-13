@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
-import { frequencyLabels } from "@/features/loans/loan-constants"
+import { frequencyLabels, statusLabels } from "@/features/loans/loan-constants"
 import { formatDate, formatPreciseCurrencyWithSymbol, toNumber } from "@/features/loans/loan-utils"
 import type { AdminLoanSummaryRow } from "@/types/loans"
 
@@ -193,7 +193,7 @@ export function AdminLoansSummaryPanel({
       },
       {
         id: "status",
-        accessorFn: (row) => row.status ?? "pending",
+        accessorFn: (row) => statusLabels[row.status ?? "pending"] ?? row.status ?? "Pendiente",
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title="Estado" />
         ),

@@ -157,7 +157,7 @@ const columns: ColumnDefinition[] = [
     group: "Seguimiento",
     render: (loan) => <LoanStatusBadge status={normalizeStatus(loan)} />,
     exportValue: (loan) => statusLabels[normalizeStatus(loan)] ?? normalizeStatus(loan),
-    sortValue: (loan) => normalizeStatus(loan),
+    sortValue: (loan) => statusLabels[normalizeStatus(loan)] ?? normalizeStatus(loan),
   },
   {
     key: "creditDate",
@@ -175,7 +175,7 @@ const columns: ColumnDefinition[] = [
     group: "Condiciones",
     render: (loan) => frequencyLabels[String(loan.frequency)] ?? loan.frequency ?? "-",
     exportValue: (loan) => frequencyLabels[String(loan.frequency)] ?? loan.frequency ?? "-",
-    sortValue: (loan) => String(loan.frequency ?? ""),
+    sortValue: (loan) => frequencyLabels[String(loan.frequency)] ?? String(loan.frequency ?? ""),
   },
   {
     key: "principal",
@@ -259,6 +259,26 @@ const columnGroups: Array<ColumnDefinition["group"]> = [
   "Seguimiento",
 ]
 const brandLogoUrl = new URL("../../../assets/icon-name-abc.png", import.meta.url).href
+const operationsPreferencesKey = "abc-loans-operations-preferences"
+
+type OperationsPreferences = {
+  view?: OperationsView
+  focus?: OperationsFocus
+  visibleColumns?: ColumnKey[]
+}
+
+function readOperationsPreferences(): OperationsPreferences {
+  try {
+    return JSON.parse(localStorage.getItem(operationsPreferencesKey) ?? "{}") as OperationsPreferences
+  } catch {
+    return {}
+  }
+}
+
+function writeOperationsPreferences(nextPreferences: OperationsPreferences) {
+  const currentPreferences = readOperationsPreferences()
+  localStorage.setItem(operationsPreferencesKey, JSON.stringify({ ...currentPreferences, ...nextPreferences }))
+}
 
 export function AdminLoansOperationsPanel({
   loans,
@@ -285,11 +305,16 @@ export function AdminLoansOperationsPanel({
   onRetryDetail,
   onDataChanged,
 }: AdminLoansOperationsPanelProps) {
-  const [view, setView] = useState<OperationsView>("table")
-  const [focus, setFocus] = useState<OperationsFocus>("all")
+  const [view, setView] = useState<OperationsView>(() => readOperationsPreferences().view ?? "table")
+  const [focus, setFocus] = useState<OperationsFocus>(() => readOperationsPreferences().focus ?? "all")
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [detailOpen, setDetailOpen] = useState(false)
-  const [visibleColumnKeys, setVisibleColumnKeys] = useState<ColumnKey[]>(defaultVisibleColumns)
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState<ColumnKey[]>(() => {
+    const savedColumns = readOperationsPreferences().visibleColumns?.filter((key) =>
+      columns.some((column) => column.key === key),
+    )
+    return savedColumns?.length ? savedColumns : defaultVisibleColumns
+  })
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
 
@@ -341,9 +366,15 @@ export function AdminLoansOperationsPanel({
 
   const handleToggleColumn = (key: ColumnKey, checked: boolean) => {
     setVisibleColumnKeys((current) => {
-      if (checked) return [...new Set([...current, key])]
+      if (checked) {
+        const nextColumns = [...new Set([...current, key])]
+        writeOperationsPreferences({ visibleColumns: nextColumns })
+        return nextColumns
+      }
       if (current.length === 1) return current
-      return current.filter((columnKey) => columnKey !== key)
+      const nextColumns = current.filter((columnKey) => columnKey !== key)
+      writeOperationsPreferences({ visibleColumns: nextColumns })
+      return nextColumns
     })
   }
 
@@ -461,7 +492,10 @@ export function AdminLoansOperationsPanel({
                 key={option.value}
                 variant={focus === option.value ? "default" : "outline"}
                 size="sm"
-                onClick={() => setFocus(option.value)}
+                onClick={() => {
+                  setFocus(option.value)
+                  writeOperationsPreferences({ focus: option.value })
+                }}
               >
                 {option.label}
               </Button>
@@ -485,7 +519,13 @@ export function AdminLoansOperationsPanel({
       <div className="flex flex-col gap-3 border-b pb-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <SelectionSummary total={operationRows.length} selected={selectedRows.length} />
-          <ViewModeSwitch value={view} onChange={setView} />
+          <ViewModeSwitch
+            value={view}
+            onChange={(nextView) => {
+              setView(nextView)
+              writeOperationsPreferences({ view: nextView })
+            }}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center lg:justify-end">
@@ -616,7 +656,7 @@ export function AdminLoansOperationsPanel({
               Revisa cronograma, pagos, vouchers y acciones del préstamo seleccionado.
             </SheetDescription>
           </SheetHeader>
-          <SheetPanel className="p-4 sm:p-6">
+          <SheetPanel className="px-4 pb-4 pt-2 sm:px-5 sm:pb-5">
             <LoanDetailPanel
               loan={selectedLoan}
               relatedData={relatedData}
@@ -630,6 +670,7 @@ export function AdminLoansOperationsPanel({
               onDataChanged={onDataChanged}
               sticky={false}
               hideBackButton
+              paymentPresentation="panel"
             />
           </SheetPanel>
         </SheetContent>

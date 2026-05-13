@@ -53,6 +53,11 @@ type RefreshResponse = {
   }
 }
 
+type UserProfileResponse = {
+  success: boolean
+  data?: AuthUser
+}
+
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
 const STORAGE_KEYS = {
@@ -161,6 +166,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [state.session?.expires_at, state.session?.refresh_token])
+
+  useEffect(() => {
+    if (!state.session?.access_token || !API_BASE_URL) return
+
+    const accessToken = state.session.access_token
+    let cancelled = false
+
+    void (async () => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      const payload = (await response.json().catch(() => null)) as UserProfileResponse | null
+
+      if (cancelled || !response.ok || !payload?.success || !payload.data) return
+
+      const profile = payload.data
+      setState((prev) => {
+        if (!prev.session) return prev
+        const nextUser: AuthUser = { ...prev.user, ...profile, id: profile.id }
+        getActiveStorage().setItem(STORAGE_KEYS.user, JSON.stringify(nextUser))
+        return { ...prev, user: nextUser, isHydrating: false }
+      })
+    })().catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [state.session?.access_token])
 
   const value = useMemo<AuthContextValue>(() => {
     const persistSession = (session: AuthSession) => {
