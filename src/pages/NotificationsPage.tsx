@@ -31,6 +31,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
+import { dispatchNotificationsUpdated, realtimeNotificationsEvent } from "@/lib/realtime"
 import { cn } from "@/lib/utils"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
@@ -232,10 +233,6 @@ function getNotificationTitle(notification: NotificationItem) {
   return titleDictionary[normalizedTitle] ?? details.title ?? notification.title
 }
 
-function dispatchNotificationsUpdated() {
-  window.dispatchEvent(new Event("abc:notifications-updated"))
-}
-
 export default function NotificationsPage() {
   const { session, fetchWithAuth } = useAuth()
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
@@ -327,6 +324,15 @@ export default function NotificationsPage() {
     return () => window.clearTimeout(timeoutId)
   }, [fetchNotifications])
 
+  useEffect(() => {
+    const refreshFromRealtime = () => {
+      void fetchNotifications({ keepContent: true })
+    }
+
+    window.addEventListener(realtimeNotificationsEvent, refreshFromRealtime)
+    return () => window.removeEventListener(realtimeNotificationsEvent, refreshFromRealtime)
+  }, [fetchNotifications])
+
   const handleFilterChange = (nextFilter: string) => {
     if (!nextFilter || !["all", "unread", "read"].includes(nextFilter)) return
 
@@ -350,9 +356,17 @@ export default function NotificationsPage() {
       }
 
       setNotifications((current) =>
-        current.map((notification) => ({ ...notification, isRead: true })),
+        filter === "unread"
+          ? []
+          : current.map((notification) => ({ ...notification, isRead: true })),
       )
-      setPagination((current) => ({ ...current, unreadCount: 0 }))
+      setPagination((current) => ({
+        ...current,
+        page: filter === "unread" ? 1 : current.page,
+        total: filter === "unread" ? 0 : current.total,
+        totalPages: filter === "unread" ? 1 : current.totalPages,
+        unreadCount: 0,
+      }))
       dispatchNotificationsUpdated()
       toastManager.add({
         type: "success",
@@ -362,7 +376,6 @@ export default function NotificationsPage() {
       if (filter === "unread") {
         setPage(1)
       }
-      void fetchNotifications({ keepContent: true })
     } catch (markError) {
       toastManager.add({
         type: "error",
@@ -382,12 +395,19 @@ export default function NotificationsPage() {
 
     setMarkingIds((current) => new Set(current).add(notification.id))
     setNotifications((current) =>
-      current.map((item) =>
-        item.id === notification.id ? { ...item, isRead: true } : item,
-      ),
+      filter === "unread"
+        ? current.filter((item) => item.id !== notification.id)
+        : current.map((item) =>
+            item.id === notification.id ? { ...item, isRead: true } : item,
+          ),
     )
     setPagination((current) => ({
       ...current,
+      total: filter === "unread" ? Math.max((current.total ?? 0) - 1, 0) : current.total,
+      totalPages:
+        filter === "unread"
+          ? Math.max(Math.ceil(Math.max((current.total ?? 0) - 1, 0) / (current.limit ?? PAGE_SIZE)), 1)
+          : current.totalPages,
       unreadCount: Math.max((current.unreadCount ?? 0) - 1, 0),
     }))
 
@@ -407,15 +427,21 @@ export default function NotificationsPage() {
       }
 
       dispatchNotificationsUpdated()
-      void fetchNotifications({ keepContent: true })
     } catch (markError) {
       setNotifications((current) =>
-        current.map((item) =>
-          item.id === notification.id ? { ...item, isRead: false } : item,
-        ),
+        filter === "unread"
+          ? [notification, ...current.filter((item) => item.id !== notification.id)]
+          : current.map((item) =>
+              item.id === notification.id ? { ...item, isRead: false } : item,
+            ),
       )
       setPagination((current) => ({
         ...current,
+        total: filter === "unread" ? (current.total ?? 0) + 1 : current.total,
+        totalPages:
+          filter === "unread"
+            ? Math.max(Math.ceil(((current.total ?? 0) + 1) / (current.limit ?? PAGE_SIZE)), 1)
+            : current.totalPages,
         unreadCount: (current.unreadCount ?? 0) + 1,
       }))
       toastManager.add({

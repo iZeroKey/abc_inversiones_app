@@ -107,9 +107,9 @@ export default function AdminDashboard() {
             size="lg"
             variant="default"
             className="w-full md:w-auto shadow-md"
-            onClick={() => navigate("/users")}
+            onClick={() => navigate("/loans", { state: { adminView: "advanced" } })}
           >
-            <ReceiptIcon className="size-4 mr-2" />
+            <ReceiptIcon data-icon="inline-start" />
             Revisar Vouchers ({vouchersCount})
             <span className="ml-2 flex size-2 rounded-full bg-destructive animate-pulse" />
           </Button>

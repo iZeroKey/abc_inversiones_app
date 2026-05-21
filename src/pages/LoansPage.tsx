@@ -24,6 +24,7 @@ import {
   getLoanPaidAmount,
 } from "@/features/loans/loan-utils"
 import { useAuth } from "@/contexts/auth-context"
+import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import {
   approveLoan,
   createLoan,
@@ -66,6 +67,7 @@ export default function LoansPage() {
   const role = getLoanRole(user)
   const roleCopy = getRoleCopy(role)
   const basePath = location.pathname.startsWith("/investments") ? "/investments" : "/loans"
+  const routeState = location.state as { adminView?: string } | null
   const pageTitle = basePath === "/investments" ? "Inversiones" : roleCopy.title
   const isDetailRoute = Boolean(loanId)
 
@@ -92,7 +94,8 @@ export default function LoansPage() {
   const [clients, setClients] = useState<RelatedUser[]>([])
   const [investors, setInvestors] = useState<RelatedUser[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
-  const [adminView, setAdminView] = useState("simple")
+  const [loanUsersLoaded, setLoanUsersLoaded] = useState(false)
+  const [adminView, setAdminView] = useState(() => routeState?.adminView === "advanced" ? "advanced" : "simple")
 
   const activeLoanLookup = loanId ?? manualSelectedLoanId
   const activeLoanIdRef = useRef<string | null>(loanId ?? null)
@@ -147,22 +150,12 @@ export default function LoansPage() {
           search: searchQuery.trim() || (loanId && !isUuid(loanId) ? loanId : undefined),
         })
 
-        const installmentsByLoan = await Promise.allSettled(
-          loansResult.loans.map((loan) => fetchLoanInstallments(fetchWithAuth, loan.id)),
-        )
-        const loansWithProgress = loansResult.loans.map((loan, index) => {
-          const installmentsResult = installmentsByLoan[index]
-          return installmentsResult?.status === "fulfilled"
-            ? withPaymentProgress(loan, installmentsResult.value)
-            : loan
-        })
-
-        setLoans(loansWithProgress)
+        setLoans(loansResult.loans)
         setPagination(loansResult.meta)
 
-        if (adminView === "advanced" && !activeLoanIdRef.current && loansWithProgress[0]) {
-          activeLoanIdRef.current = loansWithProgress[0].id
-          setManualSelectedLoanId(loansWithProgress[0].id)
+        if (adminView === "advanced" && !activeLoanIdRef.current && loansResult.loans[0]) {
+          activeLoanIdRef.current = loansResult.loans[0].id
+          setManualSelectedLoanId(loansResult.loans[0].id)
         }
       } catch (error) {
         setListError(getErrorMessage(error, "No se pudieron cargar los préstamos."))
@@ -268,6 +261,7 @@ export default function LoansPage() {
 
   useEffect(() => {
     if (!canCreateLoan(user) || !session?.access_token || !createOpen) return
+    if (loanUsersLoaded) return
 
     const timeoutId = window.setTimeout(() => {
       setLoadingUsers(true)
@@ -277,12 +271,13 @@ export default function LoansPage() {
       ]).then(([clientsResult, investorsResult]) => {
         if (clientsResult.status === "fulfilled") setClients(clientsResult.value)
         if (investorsResult.status === "fulfilled") setInvestors(investorsResult.value)
+        setLoanUsersLoaded(true)
         setLoadingUsers(false)
       })
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
-  }, [createOpen, fetchWithAuth, session?.access_token, user])
+  }, [createOpen, fetchWithAuth, loanUsersLoaded, session?.access_token, user])
 
   const handleSelectLoan = (loan: Loan) => {
     if (activeLoanIdRef.current === loan.id && relatedDataLoanId === loan.id) return
@@ -359,10 +354,36 @@ export default function LoansPage() {
       })
       setCreateOpen(false)
       setLoanForm(defaultLoanForm)
-      await loadLoans({ keepContent: true })
 
       if (createdLoan?.id) {
+        const matchesCurrentView =
+          page === 1 &&
+          (statusFilter === "all" || createdLoan.status === statusFilter) &&
+          (!searchQuery.trim() || createLoanSearchText(createdLoan).includes(searchQuery.trim().toLowerCase()))
+
+        if (matchesCurrentView) {
+          setLoans((currentLoans) => [
+            createdLoan,
+            ...currentLoans.filter((loan) => loan.id !== createdLoan.id),
+          ].slice(0, PAGE_SIZE))
+          setPagination((currentPagination) => {
+            const total = (currentPagination.total ?? loans.length) + 1
+            const limit = currentPagination.limit ?? PAGE_SIZE
+
+            return {
+              ...currentPagination,
+              page: 1,
+              total,
+              totalPages: Math.max(currentPagination.totalPages ?? 1, Math.ceil(total / limit)),
+            }
+          })
+        } else {
+          await loadLoans({ keepContent: true })
+        }
+
         handleSelectLoan(createdLoan)
+      } else {
+        await loadLoans({ keepContent: true })
       }
     } catch (error) {
       toastManager.add({
@@ -417,6 +438,27 @@ export default function LoansPage() {
       loadDetail(id, visibleSelectedLoan),
     ])
   }, [detailLoanId, loadDetail, loadLoans, visibleSelectedLoan])
+
+  useEffect(() => {
+    const refreshFromRealtime = (event: Event) => {
+      const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
+      if (!detail?.type) return
+
+      const payload = detail.data as { loanId?: string } | undefined
+      const eventLoanId = payload?.loanId
+      const activeId = detailLoanId ?? visibleSelectedLoan?.id
+
+      if (eventLoanId && activeId && eventLoanId !== activeId) {
+        void loadLoans({ keepContent: true })
+        return
+      }
+
+      void refreshSelectedLoanData()
+    }
+
+    window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
+    return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
+  }, [detailLoanId, loadLoans, refreshSelectedLoanData, visibleSelectedLoan?.id])
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5 px-3 py-4 md:px-8 md:py-8">

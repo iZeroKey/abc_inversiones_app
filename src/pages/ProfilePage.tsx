@@ -19,7 +19,7 @@ import {
 } from "@/lib/avatar-image"
 import { cn } from "@/lib/utils"
 import { BanknoteIcon, CalendarIcon, CameraIcon, Edit2Icon, IdCardIcon, MailIcon, MapPinIcon, PhoneIcon, PlusIcon, SaveIcon, ShieldCheckIcon, Trash2Icon, UserIcon, XIcon } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { type ElementType, useEffect, useRef, useState } from "react"
 import { PhotoProvider, PhotoView } from "react-photo-view"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
@@ -79,6 +79,18 @@ function normalizeMaritalStatus(value: string) {
   return value === "none" ? null : value
 }
 
+function hasProfileDetails(data: ProfileData | null | undefined) {
+  return Boolean(
+    data &&
+      (
+        "bankAccounts" in data ||
+        "dni" in data ||
+        "address" in data ||
+        "avatarUrl" in data
+      ),
+  )
+}
+
 function formatPhoneNumber(value: string) {
   const digits = value.trim().replace(/\D/g, "")
   if (!digits) return ""
@@ -115,7 +127,30 @@ export default function ProfilePage() {
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const applyProfileToForm = (data: ProfileData) => {
+    setFirstName(data.firstName || "")
+    setLastName(data.lastName || "")
+    setPhone(data.phone || "")
+    setDni(data.dni || "")
+    setAddress(data.address || "")
+    setBank(data.bank || "")
+    setBankAccounts(data.bankAccounts?.length ? data.bankAccounts : [""])
+    setMaritalStatus(data.maritalStatus || "none")
+  }
+
   useEffect(() => {
+    if (!session?.access_token) return
+
+    if (user?.id && hasProfileDetails(user)) {
+      const timeoutId = window.setTimeout(() => {
+        setProfileData(user)
+        applyProfileToForm(user)
+        setLoading(false)
+      }, 0)
+
+      return () => window.clearTimeout(timeoutId)
+    }
+
     async function fetchProfile() {
       try {
         if (!API_BASE_URL) throw new Error("No se pudo conectar con el servidor.")
@@ -123,14 +158,7 @@ export default function ProfilePage() {
         const json = (await res.json()) as ApiResponse<ProfileData>
         if (json.success) {
           setProfileData(json.data)
-          setFirstName(json.data.firstName || "")
-          setLastName(json.data.lastName || "")
-          setPhone(json.data.phone || "")
-          setDni(json.data.dni || "")
-          setAddress(json.data.address || "")
-          setBank(json.data.bank || "")
-          setBankAccounts(json.data.bankAccounts?.length ? json.data.bankAccounts : [""])
-          setMaritalStatus(json.data.maritalStatus || "none")
+          applyProfileToForm(json.data)
         }
       } catch (error) {
         toastManager.add({
@@ -142,10 +170,18 @@ export default function ProfilePage() {
         setLoading(false)
       }
     }
-    if (session?.access_token) {
-      fetchProfile()
-    }
-  }, [fetchWithAuth, session?.access_token])
+    fetchProfile()
+  }, [fetchWithAuth, session?.access_token, user])
+
+  const handleStartEditing = () => {
+    if (profileData) applyProfileToForm(profileData)
+    setIsEditing(true)
+  }
+
+  const handleCancelEditing = () => {
+    if (profileData) applyProfileToForm(profileData)
+    setIsEditing(false)
+  }
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -175,6 +211,7 @@ export default function ProfilePage() {
           description: "Tus datos se han guardado correctamente."
         })
         setProfileData(json.data)
+        applyProfileToForm(json.data)
         if (updateProfile) updateProfile(json.data)
         setIsEditing(false)
       } else {
@@ -320,7 +357,7 @@ export default function ProfilePage() {
 
   return (
     <>
-      <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 duration-500 animate-in fade-in md:p-8">
         <Card className="overflow-hidden border-border/60 shadow-sm">
           <div className="border-b bg-muted/20 px-6 py-6 md:px-8 md:py-7">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -399,19 +436,22 @@ export default function ProfilePage() {
                       Miembro desde {memberSinceYear}
                     </span>
                     <span className="rounded-full border bg-background/80 px-3 py-1">{profileData?.email || "Sin correo"}</span>
+                    {profileData?.publicCode && (
+                      <span className="rounded-full border bg-background/80 px-3 py-1">{profileData.publicCode}</span>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-2 w-full lg:w-[320px] lg:shrink-0 lg:justify-end mt-4 lg:mt-0">
                 {!isEditing ? (
-                  <Button key="edit-btn" onClick={() => setIsEditing(true)} className="gap-2 shadow-sm w-full sm:w-auto">
+                  <Button key="edit-btn" onClick={handleStartEditing} className="gap-2 shadow-sm w-full sm:w-auto">
                     <Edit2Icon className="size-4" />
                     Editar información
                   </Button>
                 ) : (
                   <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <Button key="cancel-btn" onClick={() => setIsEditing(false)} variant="ghost" className="gap-2 text-muted-foreground w-full sm:w-auto">
+                    <Button key="cancel-btn" onClick={handleCancelEditing} variant="ghost" className="gap-2 text-muted-foreground w-full sm:w-auto">
                       <XIcon className="size-4" />
                       Cancelar
                     </Button>
@@ -426,8 +466,8 @@ export default function ProfilePage() {
           </div>
         </Card>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="md:col-span-2 space-y-6">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0">
             <Card className={cn("transition-all duration-300", isEditing ? "ring-2 ring-primary/20 shadow-lg" : "")}>
               <CardHeader>
                 <CardTitle>Información Personal</CardTitle>
@@ -628,10 +668,11 @@ export default function ProfilePage() {
             </Card>
           </div>
 
-          <div className="space-y-6">
+          <div className="flex min-w-0 flex-col gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Cuenta y Seguridad</CardTitle>
+                <CardDescription>Acceso y controles sensibles de tu cuenta.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
@@ -644,6 +685,24 @@ export default function ProfilePage() {
                 <Button variant="outline" className="w-full" onClick={() => setIsPasswordDialogOpen(true)}>
                   Cambiar Contraseña
                 </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Resumen rápido</CardTitle>
+                <CardDescription>Datos principales usados en operaciones.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <ProfileInfoTile icon={PhoneIcon} label="Teléfono" value={phone || "Sin teléfono"} />
+                <ProfileInfoTile icon={IdCardIcon} label="DNI" value={dni || "Sin DNI"} />
+                <ProfileInfoTile icon={MapPinIcon} label="Dirección" value={address || "Sin dirección"} />
+                <ProfileInfoTile icon={BanknoteIcon} label="Banco" value={bank || "Sin banco"} />
+                <ProfileInfoTile
+                  icon={BanknoteIcon}
+                  label="Cuentas"
+                  value={normalizeBankAccounts(bankAccounts).length ? `${normalizeBankAccounts(bankAccounts).length} registradas` : "Sin cuentas"}
+                />
               </CardContent>
             </Card>
           </div>
@@ -732,6 +791,26 @@ function ProfileFieldSkeleton({ wide = false }: { wide?: boolean }) {
       <div className="flex h-10 items-center gap-3 rounded-md border bg-muted/20 px-3">
         <Skeleton className="size-4 rounded-sm" />
         <Skeleton className={cn("h-4", wide ? "w-64 max-w-[70%]" : "w-36")} />
+      </div>
+    </div>
+  )
+}
+
+function ProfileInfoTile({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: ElementType
+  label: string
+  value: string
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border bg-muted/20 p-3">
+      <Icon className="mt-0.5 size-4 text-muted-foreground" />
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="break-words text-sm font-medium">{value}</p>
       </div>
     </div>
   )

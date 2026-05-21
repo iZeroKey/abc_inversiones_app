@@ -10,9 +10,12 @@ import {
 } from "./components/ui/toast"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { AuthProvider } from "./contexts/auth-context"
+import { RealtimeProvider } from "./contexts/realtime-context"
+import AuditPage from "./pages/AuditPage"
 import HomePage from "./pages/HomePage"
 import LoginPage from "./pages/LoginPage"
 import LoansPage from "./pages/LoansPage"
+import NotFoundPage from "./pages/NotFoundPage"
 import NotificationsPage from "./pages/NotificationsPage"
 import ProfilePage from "./pages/ProfilePage"
 import UsersPage from "./pages/UsersPage"
@@ -25,6 +28,7 @@ const pageTitles: Record<string, string> = {
   "/investments": "Inversiones",
   "/users": "Usuarios",
   "/requests": "Solicitudes",
+  "/audit": "Auditoría",
   "/profile": "Perfil",
   "/notifications": "Notificaciones",
 }
@@ -54,9 +58,10 @@ function ProtectedAppRoutes() {
           <Route path="investments/:loanId" element={<LoansPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="requests" element={<UsersPage initialTab="requests" />} />
+          <Route path="audit" element={<AuditPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="*" element={<Navigate to="/home" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </PageTransitionRoutes>
       </AppLayout>
     </ProtectedRoute>
@@ -69,14 +74,16 @@ function App() {
       <ToastProvider>
         <AnchoredToastProvider>
           <AuthProvider>
-            <BrowserRouter>
-              <AppDocumentTitle />
-              <Routes>
-                <Route path="/" element={<Navigate to="/login" replace />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/*" element={<ProtectedAppRoutes />} />
-              </Routes>
-            </BrowserRouter>
+            <RealtimeProvider>
+              <BrowserRouter>
+                <AppDocumentTitle />
+                <Routes>
+                  <Route path="/" element={<Navigate to="/login" replace />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/*" element={<ProtectedAppRoutes />} />
+                </Routes>
+              </BrowserRouter>
+            </RealtimeProvider>
           </AuthProvider>
         </AnchoredToastProvider>
       </ToastProvider>

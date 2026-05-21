@@ -39,15 +39,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -74,13 +65,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  ResponsiveSheetContent,
   Sheet,
-  SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetPanel,
   SheetTitle,
-} from "@/components/ui/sheet"
+} from "@/components/ui/responsive-sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
@@ -287,6 +279,13 @@ function unwrapRequests(data: AccessRequest[] | RequestsEnvelope | null | undefi
   return data?.accessRequests ?? data?.requests ?? data?.items ?? data?.results ?? []
 }
 
+function upsertById<T extends { id: string }>(items: T[], item: T) {
+  const index = items.findIndex((currentItem) => currentItem.id === item.id)
+  if (index === -1) return [item, ...items]
+
+  return items.map((currentItem) => (currentItem.id === item.id ? item : currentItem))
+}
+
 async function readApiPayload<T>(response: Response): Promise<ApiResponse<T>> {
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null
 
@@ -422,6 +421,7 @@ async function reviewAccessRequest(
   requestId: string,
   status: "approved" | "rejected",
   observation: string,
+  initialPassword?: string,
 ) {
   const response = await fetchWithAuth(`${getApiBaseUrl()}/api/v1/access-requests/${requestId}/status`, {
     method: "PATCH",
@@ -429,6 +429,7 @@ async function reviewAccessRequest(
     body: JSON.stringify({
       status,
       observation: observation.trim() || undefined,
+      initialPassword: status === "approved" ? initialPassword?.trim() : undefined,
     }),
   })
 
@@ -477,6 +478,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   const [selectedRequest, setSelectedRequest] = useState<AccessRequest | null>(null)
   const [requestAction, setRequestAction] = useState<"approved" | "rejected" | null>(null)
   const [requestObservation, setRequestObservation] = useState("")
+  const [requestInitialPassword, setRequestInitialPassword] = useState("")
   const [submittingRequest, setSubmittingRequest] = useState(false)
 
   const isAdmin = user?.role === "admin" || Boolean(user?.isOwner)
@@ -663,10 +665,17 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
     setSavingUser(true)
 
     try {
+      const response = editingUser
+        ? await updateUser(fetchWithAuth, editingUser.id, userForm, permissions)
+        : await createUser(fetchWithAuth, userForm)
+      const savedUser = response.data
+
+      if (savedUser) {
+        setUsers((currentUsers) => upsertById(currentUsers, savedUser))
+      }
+
       if (editingUser) {
-        await updateUser(fetchWithAuth, editingUser.id, userForm, permissions)
-      } else {
-        await createUser(fetchWithAuth, userForm)
+        setEditingUser(savedUser ?? editingUser)
       }
 
       toastManager.add({
@@ -677,7 +686,6 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       setCreateOpen(false)
       setEditOpen(false)
       setEditingUser(null)
-      await loadUsers({ keepContent: true })
     } catch (error) {
       toastManager.add({
         type: "error",
@@ -695,7 +703,11 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
     setSavingLinkAuth(true)
     try {
-      await linkAuthAccount(fetchWithAuth, linkingUser.id, linkAuthForm)
+      const response = await linkAuthAccount(fetchWithAuth, linkingUser.id, linkAuthForm)
+      const linkedUser = response.data
+      if (linkedUser) {
+        setUsers((currentUsers) => upsertById(currentUsers, linkedUser))
+      }
       toastManager.add({
         type: "success",
         title: "Cuenta vinculada",
@@ -703,7 +715,6 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       })
       setLinkingUser(null)
       setLinkAuthForm(defaultLinkAuthForm)
-      await loadUsers({ keepContent: true })
     } catch (error) {
       toastManager.add({
         type: "error",
@@ -718,26 +729,46 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   const handleReviewRequest = async () => {
     if (!reviewingRequest || !requestAction) return
 
+    if (requestAction === "approved" && requestInitialPassword.trim().length < 6) {
+      toastManager.add({
+        type: "warning",
+        title: "Contraseña requerida",
+        description: "Genera o escribe una contraseña temporal de al menos 6 caracteres.",
+      })
+      return
+    }
+
     setSubmittingRequest(true)
     try {
-      await reviewAccessRequest(
+      const response = await reviewAccessRequest(
         fetchWithAuth,
         reviewingRequest.id,
         requestAction,
         requestObservation,
+        requestInitialPassword,
       )
+      const reviewedRequest = response.data
+      if (reviewedRequest) {
+        setRequests((currentRequests) => upsertById(currentRequests, reviewedRequest))
+        setSelectedRequest((currentRequest) =>
+          currentRequest?.id === reviewedRequest.id ? reviewedRequest : currentRequest,
+        )
+      }
       toastManager.add({
         type: "success",
         title: requestAction === "approved" ? "Solicitud aprobada" : "Solicitud rechazada",
         description:
           requestAction === "approved"
-            ? "El acceso fue aprobado y el servidor puede crear el usuario."
+            ? "El acceso fue aprobado con una contraseña temporal explícita."
             : "La solicitud quedó marcada como rechazada.",
       })
       setReviewingRequest(null)
       setRequestAction(null)
       setRequestObservation("")
-      await Promise.all([loadUsers({ keepContent: true }), loadRequests()])
+      setRequestInitialPassword("")
+      if (requestAction === "approved") {
+        await loadUsers({ keepContent: true })
+      }
     } catch (error) {
       toastManager.add({
         type: "error",
@@ -747,6 +778,13 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
     } finally {
       setSubmittingRequest(false)
     }
+  }
+
+  const openReviewRequestDialog = (request: AccessRequest, action: "approved" | "rejected") => {
+    setReviewingRequest(request)
+    setRequestAction(action)
+    setRequestObservation(request.observation ?? "")
+    setRequestInitialPassword(action === "approved" ? generateTemporaryPassword() : "")
   }
 
   const handleRoleFilterChange = (value: RoleFilter | null) => {
@@ -880,11 +918,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             onRoleFilterChange={(value) => setRequestRoleFilter(value ?? "all")}
             onStatusFilterChange={(value) => setRequestStatusFilter(value ?? "all")}
             onInspect={setSelectedRequest}
-            onReview={(request, action) => {
-              setReviewingRequest(request)
-              setRequestAction(action)
-              setRequestObservation(request.observation ?? "")
-            }}
+            onReview={openReviewRequestDialog}
           />
         </TabsContent>
       </Tabs>
@@ -934,13 +968,26 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         request={reviewingRequest}
         action={requestAction}
         observation={requestObservation}
+        initialPassword={requestInitialPassword}
         submitting={submittingRequest}
         onObservationChange={setRequestObservation}
+        onInitialPasswordChange={setRequestInitialPassword}
+        onRegeneratePassword={() => setRequestInitialPassword(generateTemporaryPassword())}
+        onCopyPassword={async () => {
+          if (!requestInitialPassword) return
+          await navigator.clipboard.writeText(requestInitialPassword)
+          toastManager.add({
+            type: "success",
+            title: "Contraseña copiada",
+            description: "La contraseña temporal quedó en el portapapeles.",
+          })
+        }}
         onOpenChange={(open) => {
           if (!open) {
             setReviewingRequest(null)
             setRequestAction(null)
             setRequestObservation("")
+            setRequestInitialPassword("")
           }
         }}
         onConfirm={() => void handleReviewRequest()}
@@ -952,11 +999,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         onOpenChange={(open) => {
           if (!open) setSelectedRequest(null)
         }}
-        onReview={(request, action) => {
-          setReviewingRequest(request)
-          setRequestAction(action)
-          setRequestObservation(request.observation ?? "")
-        }}
+        onReview={openReviewRequestDialog}
       />
     </main>
   )
@@ -1714,18 +1757,23 @@ function UserDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100vh-2rem)] max-w-3xl overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <ResponsiveSheetContent
+        className="overflow-hidden"
+        contentKey={isEditing ? `edit-${editingUser?.id}` : "create-user"}
+        defaultDesktopWidth={860}
+        minDesktopWidth={620}
+      >
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>
             {isEditing
               ? "Actualiza datos operativos y campos administrativos permitidos. El rol no se puede modificar."
               : "Crea clientes, inversionistas o administradores según las reglas de acceso actuales."}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        <DialogPanel className="pt-4 max-sm:pt-4">
+        <SheetPanel className="pt-4 max-sm:pt-4">
           <form
             id="user-form"
             className="flex flex-col gap-4"
@@ -2049,9 +2097,9 @@ function UserDialog({
               </div>
             )}
           </form>
-        </DialogPanel>
+        </SheetPanel>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
@@ -2059,9 +2107,9 @@ function UserDialog({
             {saving ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
             {saving ? "Guardando..." : "Guardar"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </ResponsiveSheetContent>
+    </Sheet>
   )
 }
 
@@ -2098,16 +2146,21 @@ function LinkAuthDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Vincular cuenta de acceso</DialogTitle>
-          <DialogDescription>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <ResponsiveSheetContent
+        contentKey={`link-${user.id}`}
+        defaultDesktopWidth={520}
+        minDesktopWidth={420}
+        maxDesktopWidth={720}
+      >
+        <SheetHeader>
+          <SheetTitle>Vincular cuenta de acceso</SheetTitle>
+          <SheetDescription>
             {displayPersonName(user)} podrá iniciar sesión con el correo y contraseña temporal.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        <DialogPanel className="pt-4 max-sm:pt-4">
+        <SheetPanel className="pt-4 max-sm:pt-4">
           <form id="link-auth-form" className="flex flex-col gap-4" onSubmit={onSubmit}>
             <Field>
               <FieldLabel htmlFor="link-email">Correo electrónico</FieldLabel>
@@ -2162,9 +2215,9 @@ function LinkAuthDialog({
               </InputGroup>
             </Field>
           </form>
-        </DialogPanel>
+        </SheetPanel>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
@@ -2172,9 +2225,9 @@ function LinkAuthDialog({
             {saving ? <Spinner data-icon="inline-start" /> : <LinkIcon data-icon="inline-start" />}
             {saving ? "Vinculando..." : "Vincular acceso"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </ResponsiveSheetContent>
+    </Sheet>
   )
 }
 
@@ -2309,7 +2362,13 @@ function RequestDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="max-w-xl" showCloseButton>
+      <ResponsiveSheetContent
+        contentKey={`request-${request.id}`}
+        defaultDesktopWidth={620}
+        minDesktopWidth={460}
+        maxDesktopWidth={840}
+        showCloseButton
+      >
         <SheetHeader>
           <SheetTitle>Detalle de solicitud</SheetTitle>
           <SheetDescription>
@@ -2372,7 +2431,7 @@ function RequestDetailSheet({
             </div>
           )}
         </SheetPanel>
-      </SheetContent>
+      </ResponsiveSheetContent>
     </Sheet>
   )
 }
@@ -2390,16 +2449,24 @@ function ReviewRequestDialog({
   request,
   action,
   observation,
+  initialPassword,
   submitting,
   onObservationChange,
+  onInitialPasswordChange,
+  onRegeneratePassword,
+  onCopyPassword,
   onOpenChange,
   onConfirm,
 }: {
   request: AccessRequest | null
   action: "approved" | "rejected" | null
   observation: string
+  initialPassword: string
   submitting: boolean
   onObservationChange: (value: string) => void
+  onInitialPasswordChange: (value: string) => void
+  onRegeneratePassword: () => void
+  onCopyPassword: () => Promise<void>
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
@@ -2408,19 +2475,59 @@ function ReviewRequestDialog({
   const approving = action === "approved"
 
   return (
-    <Dialog open={Boolean(request && action)} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{approving ? "Aprobar solicitud" : "Rechazar solicitud"}</DialogTitle>
-          <DialogDescription>
+    <Sheet open={Boolean(request && action)} onOpenChange={onOpenChange}>
+      <ResponsiveSheetContent
+        contentKey={`${request.id}-${action}`}
+        defaultDesktopWidth={520}
+        minDesktopWidth={420}
+        maxDesktopWidth={720}
+      >
+        <SheetHeader>
+          <SheetTitle>{approving ? "Aprobar solicitud" : "Rechazar solicitud"}</SheetTitle>
+          <SheetDescription>
             {request
               ? `${displayPersonName(request)} solicitó acceso como ${getRoleLabel(request.roleRequested).toLowerCase()}.`
               : "Revisa la solicitud seleccionada."}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        <DialogPanel className="pt-4 max-sm:pt-4">
-          <Field>
+        <SheetPanel className="pt-4 max-sm:pt-4">
+          <div className="flex flex-col gap-4">
+            {approving && (
+              <Field>
+                <FieldLabel htmlFor="request-initial-password">Contraseña temporal</FieldLabel>
+                <InputGroup>
+                  <InputGroupAddon align="inline-start">
+                    <KeyRoundIcon />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id="request-initial-password"
+                    type="text"
+                    value={initialPassword}
+                    required
+                    minLength={6}
+                    onChange={(event) => onInitialPasswordChange(event.target.value)}
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <Button type="button" variant="ghost" size="sm" onClick={onRegeneratePassword}>
+                      <Dice5Icon data-icon="inline-start" />
+                      Generar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={!initialPassword}
+                      onClick={() => void onCopyPassword()}
+                    >
+                      <CopyIcon data-icon="inline-start" />
+                      Copiar
+                    </Button>
+                  </InputGroupAddon>
+                </InputGroup>
+              </Field>
+            )}
+            <Field>
             <FieldLabel htmlFor="request-observation">Observación</FieldLabel>
             <Textarea
               id="request-observation"
@@ -2428,10 +2535,11 @@ function ReviewRequestDialog({
               placeholder={approving ? "Usuario validado para acceso." : "Motivo del rechazo."}
               onChange={(event) => onObservationChange(event.target.value)}
             />
-          </Field>
-        </DialogPanel>
+            </Field>
+          </div>
+        </SheetPanel>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancelar
           </Button>
@@ -2439,7 +2547,7 @@ function ReviewRequestDialog({
             type="button"
             variant={approving ? "default" : "destructive"}
             onClick={onConfirm}
-            disabled={submitting}
+            disabled={submitting || (approving && initialPassword.trim().length < 6)}
           >
             {submitting ? (
               <Spinner data-icon="inline-start" />
@@ -2450,9 +2558,9 @@ function ReviewRequestDialog({
             )}
             {submitting ? "Procesando..." : approving ? "Aprobar" : "Rechazar"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </ResponsiveSheetContent>
+    </Sheet>
   )
 }
 
