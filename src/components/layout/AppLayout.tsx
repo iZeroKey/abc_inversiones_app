@@ -1,5 +1,6 @@
 import { useAuth } from "@/contexts/auth-context"
 import {
+  ClipboardListIcon,
   FileTextIcon,
   HomeIcon,
   UserIcon,
@@ -8,6 +9,7 @@ import {
 import { useNavigate } from "react-router-dom"
 import React from "react"
 import { AppLayout as UIAppLayout, type NavItem } from "@/components/ui/app-layout"
+import { realtimeNotificationsEvent } from "@/lib/realtime"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
@@ -64,10 +66,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       void refreshNotificationsCount()
     }, 0)
 
-    window.addEventListener("abc:notifications-updated", refreshNotificationsCount)
+    window.addEventListener(realtimeNotificationsEvent, refreshNotificationsCount)
     return () => {
       window.clearTimeout(timeoutId)
-      window.removeEventListener("abc:notifications-updated", refreshNotificationsCount)
+      window.removeEventListener(realtimeNotificationsEvent, refreshNotificationsCount)
     }
   }, [refreshNotificationsCount])
 
@@ -77,6 +79,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         { title: "Inicio", href: "/home", icon: HomeIcon, activeColorClass: "text-blue-500", activeBgClass: "bg-blue-500/15" },
         { title: "Préstamos", href: "/loans", icon: FileTextIcon, activeColorClass: "text-emerald-500", activeBgClass: "bg-emerald-500/15" },
         { title: "Usuarios", href: "/users", icon: UsersIcon, activeColorClass: "text-purple-500", activeBgClass: "bg-purple-500/15" },
+        { title: "Auditoría", href: "/audit", icon: ClipboardListIcon, activeColorClass: "text-amber-500", activeBgClass: "bg-amber-500/15" },
         { title: "Perfil", href: "/profile", icon: UserIcon, activeColorClass: "text-slate-500", activeBgClass: "bg-slate-500/15" },
       ]
     }

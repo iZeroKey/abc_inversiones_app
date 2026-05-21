@@ -57,6 +57,7 @@ import {
 } from "@/features/loans/loan-constants"
 import {
   formatDate,
+  getInstallmentDisplayStatus,
   formatPreciseCurrencyWithSymbol,
   getLoanPaidAmount,
   getLoanProgress,
@@ -125,9 +126,12 @@ const scheduleColumns: ColumnDef<Installment>[] = [
   },
   {
     id: "status",
-    accessorFn: (installment) => installmentStatusLabels[installment.status ?? "pending"] ?? installment.status ?? "Pendiente",
+    accessorFn: (installment) => {
+      const status = getInstallmentDisplayStatus(installment)
+      return installmentStatusLabels[status] ?? status ?? "Pendiente"
+    },
     header: sortableHeader("Estado"),
-    cell: ({ row }) => <InstallmentBadge status={row.original.status ?? "pending"} />,
+    cell: ({ row }) => <InstallmentBadge status={getInstallmentDisplayStatus(row.original)} />,
   },
 ]
 
@@ -219,7 +223,7 @@ export function LoanDetailPanel({
   const nextInstallment = getNextInstallment(relatedData.installments)
   const loanStatus = normalizeStatus(loan, relatedData.installments)
   const paymentAllowedStatuses = new Set(["active", "defaulted", "overdue"])
-  const canSubmitVoucher = perspective === "client" && paymentAllowedStatuses.has(loanStatus)
+  const canSubmitVoucher = perspective === "client" && loan.status === "active"
   const canRegisterPayment = perspective === "admin" && paymentAllowedStatuses.has(loanStatus)
   const title =
     perspective === "client"

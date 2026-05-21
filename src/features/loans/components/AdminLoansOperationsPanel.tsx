@@ -26,13 +26,13 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
+  ResponsiveSheetContent,
   Sheet,
-  SheetContent,
   SheetDescription,
   SheetHeader,
   SheetPanel,
   SheetTitle,
-} from "@/components/ui/sheet"
+} from "@/components/ui/responsive-sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
@@ -649,7 +649,13 @@ export function AdminLoansOperationsPanel({
       )}
 
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent side="right" className="max-w-2xl" showCloseButton>
+        <ResponsiveSheetContent
+          contentKey={selectedLoan?.id ?? "loan-detail"}
+          defaultDesktopWidth={760}
+          minDesktopWidth={560}
+          maxDesktopWidth={1080}
+          showCloseButton
+        >
           <SheetHeader>
             <SheetTitle>Detalle operativo</SheetTitle>
             <SheetDescription>
@@ -673,7 +679,7 @@ export function AdminLoansOperationsPanel({
               paymentPresentation="panel"
             />
           </SheetPanel>
-        </SheetContent>
+        </ResponsiveSheetContent>
       </Sheet>
     </section>
   )

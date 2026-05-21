@@ -36,26 +36,21 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group"
 import { Slider } from "./ui/slider"
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group"
 import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog"
-import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "./ui/accordion"
 import {
+  ResponsiveSheetContent,
   Sheet,
-  SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
+  SheetPanel,
   SheetTitle,
+} from "./ui/responsive-sheet"
+import {
   SheetTrigger,
 } from "./ui/sheet"
 import {
@@ -77,7 +72,6 @@ import {
   SidebarProvider,
   SidebarSeparator,
 } from "./ui/sidebar"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table"
@@ -368,39 +362,39 @@ export default function Showcase() {
         </div>
       </Section>
 
-      <Section title="Dialog">
-        <Dialog>
-          <DialogTrigger><Button>Open Dialog</Button></DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Dialog Title</DialogTitle>
-              <DialogDescription>This is a dialog description.</DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
+      <Section title="Sheet">
+        <Sheet>
+          <SheetTrigger><Button>Open Sheet</Button></SheetTrigger>
+          <ResponsiveSheetContent contentKey="showcase-form" defaultDesktopWidth={520}>
+            <SheetHeader>
+              <SheetTitle>Sheet Title</SheetTitle>
+              <SheetDescription>This is a sheet description.</SheetDescription>
+            </SheetHeader>
+            <SheetPanel>
               <Input placeholder="Enter something" />
-            </div>
-            <DialogFooter>
+            </SheetPanel>
+            <SheetFooter>
               <Button variant="outline">Cancel</Button>
               <Button>Confirm</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </SheetFooter>
+          </ResponsiveSheetContent>
+        </Sheet>
       </Section>
 
-      <Section title="Alert Dialog">
-        <AlertDialog>
-          <AlertDialogTrigger><Button variant="destructive">Delete Account</Button></AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
+      <Section title="Confirmation Sheet">
+        <Sheet>
+          <SheetTrigger><Button variant="destructive">Delete Account</Button></SheetTrigger>
+          <ResponsiveSheetContent contentKey="showcase-confirm" defaultDesktopWidth={480} maxDesktopWidth={640}>
+            <SheetHeader>
+              <SheetTitle>Are you sure?</SheetTitle>
+              <SheetDescription>This action cannot be undone.</SheetDescription>
+            </SheetHeader>
+            <SheetFooter>
               <Button variant="outline">Cancel</Button>
               <Button variant="destructive">Delete</Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+            </SheetFooter>
+          </ResponsiveSheetContent>
+        </Sheet>
       </Section>
 
       <Section title="Popover & Tooltip">
@@ -537,7 +531,7 @@ export default function Showcase() {
         <div className="flex gap-4">
           <Sheet>
             <SheetTrigger><Button>Open Sheet Right</Button></SheetTrigger>
-            <SheetContent side="right">
+            <ResponsiveSheetContent contentKey="right-sheet" defaultDesktopWidth={520}>
               <SheetHeader>
                 <SheetTitle>Sheet Title</SheetTitle>
                 <SheetDescription>This is a sheet description.</SheetDescription>
@@ -545,18 +539,18 @@ export default function Showcase() {
               <div className="py-4">
                 <p className="text-sm text-muted-foreground">Sheet content goes here.</p>
               </div>
-            </SheetContent>
+            </ResponsiveSheetContent>
           </Sheet>
           <Sheet>
             <SheetTrigger><Button>Open Sheet Bottom</Button></SheetTrigger>
-            <SheetContent side="bottom">
+            <ResponsiveSheetContent contentKey="bottom-sheet" mobileSide="bottom" side="bottom" resizable={false}>
               <SheetHeader>
                 <SheetTitle>Sheet from Bottom</SheetTitle>
               </SheetHeader>
               <div className="py-4">
                 <p className="text-sm text-muted-foreground">This sheet slides from the bottom.</p>
               </div>
-            </SheetContent>
+            </ResponsiveSheetContent>
           </Sheet>
         </div>
       </Section>

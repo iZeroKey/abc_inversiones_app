@@ -179,14 +179,28 @@ export async function fetchLoans(
 
   const data = payload.data
   const loans = Array.isArray(data) ? data : data?.loans ?? data?.items ?? data?.results ?? []
+  const serverMeta = payload.meta?.pagination ?? (
+    typeof payload.meta?.total === "number" ? payload.meta : undefined
+  )
+  const hasServerPagination = Boolean(
+    serverMeta &&
+      typeof serverMeta.page === "number" &&
+      typeof serverMeta.limit === "number" &&
+      typeof serverMeta.total === "number" &&
+      typeof serverMeta.totalPages === "number",
+  )
+  const clientStart = (params.page - 1) * params.limit
+  const clientPaginatedLoans = hasServerPagination
+    ? loans
+    : loans.slice(clientStart, clientStart + params.limit)
 
   return {
-    loans,
-    meta: payload.meta?.pagination ?? payload.meta ?? {
+    loans: clientPaginatedLoans,
+    meta: serverMeta ?? {
       page: params.page,
       limit: params.limit,
       total: loans.length,
-      totalPages: 1,
+      totalPages: Math.max(Math.ceil(loans.length / params.limit), 1),
     },
   }
 }

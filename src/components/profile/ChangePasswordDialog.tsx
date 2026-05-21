@@ -1,5 +1,12 @@
 import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  ResponsiveSheetContent,
+  Sheet,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/responsive-sheet"
 import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Label } from "@/components/ui/label"
@@ -98,14 +105,16 @@ export function ChangePasswordDialog({ isOpen, onClose }: ChangePasswordDialogPr
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px] p-0">
-        <DialogHeader className="px-6 py-5 pb-4 border-b">
-          <DialogTitle>Cambiar Contraseña</DialogTitle>
-          <DialogDescription>
+    <Sheet open={isOpen} onOpenChange={(open) => {
+      if (!open) handleClose()
+    }}>
+      <ResponsiveSheetContent contentKey="change-password" defaultDesktopWidth={460} minDesktopWidth={380} maxDesktopWidth={640}>
+        <SheetHeader>
+          <SheetTitle>Cambiar Contraseña</SheetTitle>
+          <SheetDescription>
             Ingresa tu contraseña actual y la nueva contraseña que deseas utilizar.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 px-6 py-5">
           <div className="space-y-2">
@@ -181,7 +190,7 @@ export function ChangePasswordDialog({ isOpen, onClose }: ChangePasswordDialogPr
           </div>
         </div>
 
-          <DialogFooter className="px-6 py-4 border-t bg-muted/72 rounded-b-[calc(var(--radius-2xl)-1px)] gap-2 sm:gap-2">
+          <SheetFooter>
             <Button type="button" variant="outline" onClick={handleClose} disabled={saving} className="w-full sm:w-auto">
               <XIcon data-icon="inline-start" />
               Cancelar
@@ -190,9 +199,9 @@ export function ChangePasswordDialog({ isOpen, onClose }: ChangePasswordDialogPr
               {saving ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
               Guardar Contraseña
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveSheetContent>
+    </Sheet>
   )
 }

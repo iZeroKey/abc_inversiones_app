@@ -1,5 +1,11 @@
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  ResponsiveSheetContent,
+  Sheet,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/responsive-sheet"
 import { Slider } from "@/components/ui/slider"
 import { CheckIcon, XIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -205,19 +211,27 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="h-auto max-h-[calc(100dvh-2rem)] max-w-[95vw] gap-0 overflow-hidden p-0 sm:max-w-[500px] [@media(max-height:620px)]:sm:h-[min(470px,calc(100dvh-2rem))] [@media(max-height:620px)]:sm:max-w-[min(900px,calc(100vw-2rem))]">
-        <DialogHeader className="flex-shrink-0 border-b bg-background px-6 py-4 [@media(max-height:620px)]:sm:px-5 [@media(max-height:620px)]:sm:py-3">
-          <DialogTitle className="text-xl [@media(max-height:620px)]:sm:text-lg">Ajustar Foto de Perfil</DialogTitle>
-          <DialogDescription className="[@media(max-height:620px)]:sm:text-xs">
+    <Sheet open={isOpen} onOpenChange={(open) => {
+      if (!open) onClose()
+    }}>
+      <ResponsiveSheetContent
+        className="gap-0 overflow-hidden p-0 [@media(max-height:620px)]:md:h-[min(520px,calc(100dvh-2rem))]"
+        contentKey={image ?? "avatar-cropper"}
+        defaultDesktopWidth={560}
+        maxDesktopWidth={920}
+        minDesktopWidth={500}
+      >
+        <SheetHeader className="flex-shrink-0 border-b bg-background px-6 py-4 [@media(max-height:620px)]:md:px-5 [@media(max-height:620px)]:md:py-3">
+          <SheetTitle className="text-xl [@media(max-height:620px)]:md:text-lg">Ajustar Foto de Perfil</SheetTitle>
+          <SheetDescription className="[@media(max-height:620px)]:md:text-xs">
             Encuadra tu rostro perfectamente para el avatar
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
         
-        <div className="flex-1 flex flex-col [@media(max-height:620px)]:sm:flex-row min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col [@media(max-height:620px)]:md:flex-row min-h-0 overflow-hidden">
           <div
             ref={cropperContainerRef}
-            className="relative min-h-[320px] w-full border-b border-border/50 bg-[#0a0a0a] shadow-inner aspect-square [@media(max-height:620px)]:sm:h-full [@media(max-height:620px)]:sm:min-h-0 [@media(max-height:620px)]:sm:flex-[1_1_auto] [@media(max-height:620px)]:sm:border-b-0 [@media(max-height:620px)]:sm:border-r"
+            className="relative min-h-[320px] w-full border-b border-border/50 bg-[#0a0a0a] shadow-inner aspect-square [@media(max-height:620px)]:md:h-full [@media(max-height:620px)]:md:min-h-0 [@media(max-height:620px)]:md:flex-[1_1_auto] [@media(max-height:620px)]:md:border-b-0 [@media(max-height:620px)]:md:border-r"
           >
             {image && (
               <FixedCropper
@@ -250,8 +264,8 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
             )}
           </div>
 
-          <div className="flex w-full flex-shrink-0 flex-col justify-center bg-background p-6 [@media(max-height:620px)]:sm:w-[300px] [@media(max-height:620px)]:sm:p-5">
-            <div className="flex flex-col gap-8 [@media(max-height:620px)]:sm:gap-5">
+          <div className="flex w-full flex-shrink-0 flex-col justify-center bg-background p-6 [@media(max-height:620px)]:md:w-[300px] [@media(max-height:620px)]:md:p-5">
+            <div className="flex flex-col gap-8 [@media(max-height:620px)]:md:gap-5">
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">Zoom</p>
@@ -283,7 +297,7 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 border-t pt-4 [@media(max-height:620px)]:sm:pt-4">
+              <div className="flex flex-col gap-2 border-t pt-4 [@media(max-height:620px)]:md:pt-4">
                 <Button className="w-full shadow-md shadow-primary/10" onClick={handleCrop}>
                   <CheckIcon data-icon="inline-start" />
                   Guardar foto
@@ -296,7 +310,7 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
             </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveSheetContent>
+    </Sheet>
   )
 }

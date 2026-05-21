@@ -21,6 +21,17 @@ export function getInstallmentsPaidAmount(installments: Installment[] = []) {
   return installments.reduce((total, installment) => total + toNumber(installment.paidAmount), 0)
 }
 
+export function getInstallmentDisplayStatus(installment: Installment) {
+  const amount = toNumber(installment.amount)
+  const paidAmount = toNumber(installment.paidAmount)
+
+  if (installment.status !== "paid" && paidAmount > 0 && paidAmount < amount) {
+    return "partial"
+  }
+
+  return installment.status ?? "pending"
+}
+
 export function formatDate(value?: string | null) {
   if (!value) return "Sin fecha"
 

@@ -63,5 +63,5 @@ export function canRegisterPayment(loan: Loan | null, user: AuthUser) {
 }
 
 export function canUploadVoucher(loan: Loan | null, user: AuthUser) {
-  return user?.role === "client" && (loan?.status === "active" || loan?.status === "defaulted")
+  return user?.role === "client" && loan?.status === "active"
 }

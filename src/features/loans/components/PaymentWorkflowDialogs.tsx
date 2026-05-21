@@ -10,25 +10,17 @@ import {
   XIcon,
 } from "lucide-react"
 
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveSheetContent,
+  Sheet,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetPanel,
+  SheetTitle,
+} from "@/components/ui/responsive-sheet"
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Fieldset, FieldsetLegend } from "@/components/ui/fieldset"
@@ -147,14 +139,14 @@ export function PaymentDialog({
   const isPanel = presentation === "panel"
   const content = (
     <>
-        <DialogHeader className={cn(isPanel && "p-0 pb-4")}>
-          <DialogTitle>{editing ? "Editar pago" : "Registrar pago"}</DialogTitle>
-          <DialogDescription>
+        <SheetHeader className={cn(isPanel && "p-0 pb-4")}>
+          <SheetTitle>{editing ? "Editar pago" : "Registrar pago"}</SheetTitle>
+          <SheetDescription>
             El sistema aplicará el monto al cronograma y recalculará el préstamo.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-          <DialogPanel className={cn("flex flex-col gap-4", isPanel && "p-0")}>
+          <SheetPanel className={cn("flex flex-col gap-4", isPanel && "p-0")}>
             {!editing && (
               <EvidenceSection
                 file={form.evidence}
@@ -265,8 +257,8 @@ export function PaymentDialog({
                 placeholder="Detalle administrativo opcional"
               />
             </Field>
-          </DialogPanel>
-          <DialogFooter
+          </SheetPanel>
+          <SheetFooter
             variant={isPanel ? "bare" : "default"}
             className={cn(isPanel && "mt-4 border-t bg-transparent px-0 pb-0 pt-4")}
           >
@@ -277,7 +269,7 @@ export function PaymentDialog({
               {submitting ? <Spinner /> : <ReceiptTextIcon data-icon="inline-start" />}
               {editing ? "Guardar pago" : "Registrar pago"}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
     </>
   )
@@ -287,11 +279,11 @@ export function PaymentDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100vh-2rem)] max-w-xl overflow-hidden">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <ResponsiveSheetContent contentKey={editing ? "payment-edit" : "payment-create"} defaultDesktopWidth={620}>
         {content}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveSheetContent>
+    </Sheet>
   )
 }
 
@@ -351,16 +343,16 @@ export function VoucherDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100vh-2rem)] max-w-2xl overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>{editing ? "Editar voucher" : "Subir voucher"}</DialogTitle>
-          <DialogDescription>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <ResponsiveSheetContent contentKey={editing ? "voucher-edit" : "voucher-create"} defaultDesktopWidth={720} minDesktopWidth={520}>
+        <SheetHeader>
+          <SheetTitle>{editing ? "Editar voucher" : "Subir voucher"}</SheetTitle>
+          <SheetDescription>
             Confirma los datos del comprobante antes de enviarlo a revisión.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-          <DialogPanel className="flex flex-col gap-4">
+          <SheetPanel className="flex flex-col gap-4">
             {!editing && (
               <EvidenceSection
                 file={form.evidence}
@@ -437,8 +429,8 @@ export function VoucherDialog({
                 placeholder="Comentario opcional para revisión"
               />
             </Field>
-          </DialogPanel>
-          <DialogFooter>
+          </SheetPanel>
+          <SheetFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
@@ -446,10 +438,10 @@ export function VoucherDialog({
               {submitting ? <Spinner /> : <UploadIcon data-icon="inline-start" />}
               {editing ? "Guardar voucher" : "Enviar voucher"}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveSheetContent>
+    </Sheet>
   )
 }
 
@@ -476,16 +468,16 @@ export function ProcessVoucherDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{mode === "approve" ? "Aprobar voucher" : "Rechazar voucher"}</DialogTitle>
-          <DialogDescription>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <ResponsiveSheetContent contentKey={mode} defaultDesktopWidth={520} minDesktopWidth={420} maxDesktopWidth={720}>
+        <SheetHeader>
+          <SheetTitle>{mode === "approve" ? "Aprobar voucher" : "Rechazar voucher"}</SheetTitle>
+          <SheetDescription>
             {voucher?.operationId ? `Operación ${voucher.operationId}` : "La decisión quedará registrada en auditoría."}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
         <form onSubmit={handleSubmit}>
-          <DialogPanel>
+          <SheetPanel>
             <Field>
               <FieldLabel htmlFor="process-observation">Observación</FieldLabel>
               <Textarea
@@ -495,8 +487,8 @@ export function ProcessVoucherDialog({
                 placeholder={mode === "approve" ? "Comentario opcional" : "Motivo del rechazo"}
               />
             </Field>
-          </DialogPanel>
-          <DialogFooter>
+          </SheetPanel>
+          <SheetFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
@@ -504,10 +496,10 @@ export function ProcessVoucherDialog({
               {submitting ? <Spinner /> : mode === "approve" ? <CheckIcon data-icon="inline-start" /> : <XIcon data-icon="inline-start" />}
               {mode === "approve" ? "Aprobar" : "Rechazar"}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveSheetContent>
+    </Sheet>
   )
 }
 
@@ -527,13 +519,13 @@ export function DeleteWorkflowDialog({
   onConfirm: () => void
 }) {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <ResponsiveSheetContent contentKey={title} defaultDesktopWidth={480} minDesktopWidth={380} maxDesktopWidth={640}>
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>{description}</SheetDescription>
+        </SheetHeader>
+        <SheetFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
@@ -541,9 +533,9 @@ export function DeleteWorkflowDialog({
             {submitting ? <Spinner /> : <Trash2Icon data-icon="inline-start" />}
             Eliminar
           </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+        </SheetFooter>
+      </ResponsiveSheetContent>
+    </Sheet>
   )
 }
 

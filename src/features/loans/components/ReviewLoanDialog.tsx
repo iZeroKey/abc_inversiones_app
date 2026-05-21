@@ -5,14 +5,14 @@ import {
 
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveSheetContent,
+  Sheet,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetPanel,
+  SheetTitle,
+} from "@/components/ui/responsive-sheet"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
@@ -41,17 +41,17 @@ export function ReviewLoanDialog({
   const approving = mode === "approve"
 
   return (
-    <Dialog open={mode !== null} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{approving ? "Aprobar préstamo" : "Rechazar préstamo"}</DialogTitle>
-          <DialogDescription>
+    <Sheet open={mode !== null} onOpenChange={onOpenChange}>
+      <ResponsiveSheetContent contentKey={mode} defaultDesktopWidth={520} minDesktopWidth={420} maxDesktopWidth={720}>
+        <SheetHeader>
+          <SheetTitle>{approving ? "Aprobar préstamo" : "Rechazar préstamo"}</SheetTitle>
+          <SheetDescription>
             {approving
               ? "Confirma que el préstamo puede avanzar al siguiente estado operativo."
               : "Puedes añadir una observación para dejar el motivo de rechazo."}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogPanel className="flex flex-col gap-4">
+          </SheetDescription>
+        </SheetHeader>
+        <SheetPanel className="flex flex-col gap-4">
           <div className="flex gap-3 rounded-xl border bg-muted/35 p-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               {approving ? <CheckCircleIcon /> : <XCircleIcon />}
@@ -67,8 +67,8 @@ export function ReviewLoanDialog({
               <Textarea id="reject-observation" value={observation} onChange={(event) => onObservationChange(event.target.value)} placeholder="Motivo del rechazo..." />
             </Field>
           )}
-        </DialogPanel>
-        <DialogFooter>
+        </SheetPanel>
+        <SheetFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
@@ -76,8 +76,8 @@ export function ReviewLoanDialog({
             {submitting ? <Spinner /> : approving ? <CheckCircleIcon data-icon="inline-start" /> : <XCircleIcon data-icon="inline-start" />}
             {approving ? "Aprobar" : "Rechazar"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </ResponsiveSheetContent>
+    </Sheet>
   )
 }

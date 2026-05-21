@@ -11,7 +11,7 @@ export type LoanStatus =
   | "rejected"
   | "cancelled"
 
-export type InstallmentStatus = "pending" | "paid" | "overdue" | "partial" | string
+export type InstallmentStatus = "pending" | "paid" | "overdue" | string
 export type PaymentMethod = "cash" | "transfer" | "deposit" | "other"
 export type PaymentStatus = "confirmed" | "reversed"
 export type VoucherStatus =
