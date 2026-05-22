@@ -1,5 +1,5 @@
 import type React from "react"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { useIsMobile } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
@@ -47,37 +47,50 @@ export function ResponsiveSheetContent({
   const [desktopWidth, setDesktopWidth] = useState(() =>
     clamp(defaultDesktopWidth, minDesktopWidth, maxDesktopWidth),
   )
-  const dragRef = useRef<{ startWidth: number; startX: number } | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStartRef = useRef<{ startWidth: number; startX: number } | null>(null)
   const resizeEnabled = resizable && !isMobile && (resolvedSide === "left" || resolvedSide === "right")
   const resolvedDesktopWidth = clamp(desktopWidth, minDesktopWidth, maxDesktopWidth)
-
-  const handleResizeMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    const dragState = dragRef.current
-    if (!dragState) return
-
-    const delta =
-      horizontalSide === "right"
-        ? dragState.startX - event.clientX
-        : event.clientX - dragState.startX
-    setDesktopWidth(clamp(dragState.startWidth + delta, minDesktopWidth, maxDesktopWidth))
-  }
-
-  const stopResize = (event: React.PointerEvent<HTMLDivElement>) => {
-    dragRef.current = null
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    }
-  }
 
   const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!resizeEnabled) return
     event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
-    dragRef.current = {
+    dragStartRef.current = {
       startWidth: resolvedDesktopWidth,
       startX: event.clientX,
     }
+    setIsDragging(true)
   }
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const dragState = dragStartRef.current
+      if (!dragState) return
+
+      const delta =
+        horizontalSide === "right"
+          ? dragState.startX - event.clientX
+          : event.clientX - dragState.startX
+      setDesktopWidth(clamp(dragState.startWidth + delta, minDesktopWidth, maxDesktopWidth))
+    }
+
+    const handlePointerUp = () => {
+      setIsDragging(false)
+      dragStartRef.current = null
+    }
+
+    document.addEventListener("pointermove", handlePointerMove)
+    document.addEventListener("pointerup", handlePointerUp)
+    document.addEventListener("pointercancel", handlePointerUp)
+
+    return () => {
+      document.removeEventListener("pointermove", handlePointerMove)
+      document.removeEventListener("pointerup", handlePointerUp)
+      document.removeEventListener("pointercancel", handlePointerUp)
+    }
+  }, [isDragging, horizontalSide, minDesktopWidth, maxDesktopWidth])
 
   const handleResizeKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (!resizeEnabled) return
@@ -117,25 +130,6 @@ export function ResponsiveSheetContent({
       }
       {...props}
     >
-      {resizeEnabled ? (
-        <div
-          aria-label="Redimensionar panel"
-          aria-orientation="vertical"
-          className={cn(
-            "absolute inset-y-0 hidden w-3 cursor-col-resize items-center justify-center outline-none md:flex",
-            horizontalSide === "right" ? "left-0" : "right-0",
-          )}
-          onKeyDown={handleResizeKeyDown}
-          onPointerDown={startResize}
-          onPointerCancel={stopResize}
-          onPointerMove={handleResizeMove}
-          onPointerUp={stopResize}
-          role="separator"
-          tabIndex={0}
-        >
-          <span className="h-12 w-1 rounded-full bg-border transition-colors hover:bg-muted-foreground/50" />
-        </div>
-      ) : null}
       <div
         key={contentKey}
         className={cn(
@@ -145,6 +139,22 @@ export function ResponsiveSheetContent({
       >
         {children}
       </div>
+      {resizeEnabled ? (
+        <div
+          aria-label="Redimensionar panel"
+          aria-orientation="vertical"
+          className={cn(
+            "group absolute inset-y-0 z-[100] hidden w-6 cursor-col-resize items-center outline-none md:flex",
+            horizontalSide === "right" ? "-left-3 justify-end pr-1.5" : "-right-3 justify-start pl-1.5",
+          )}
+          onKeyDown={handleResizeKeyDown}
+          onPointerDown={startResize}
+          role="separator"
+          tabIndex={0}
+        >
+          <span className="h-16 w-1 rounded-full bg-muted-foreground/20 transition-colors group-hover:bg-muted-foreground/40" />
+        </div>
+      ) : null}
     </SheetContent>
   )
 }

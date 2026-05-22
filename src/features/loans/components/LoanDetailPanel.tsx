@@ -1,4 +1,4 @@
-import { useMemo, useState, type ElementType, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ElementType, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import {
   AlertCircleIcon,
@@ -170,8 +170,10 @@ export function LoanDetailPanel({
   perspective = "admin",
   sticky = true,
   hideBackButton = false,
+  onSubViewChange,
   onDataChanged,
   paymentPresentation = "dialog",
+  resetTrigger,
 }: {
   loan: Loan | null
   relatedData: RelatedData
@@ -187,6 +189,8 @@ export function LoanDetailPanel({
   hideBackButton?: boolean
   onDataChanged?: () => Promise<void> | void
   paymentPresentation?: "dialog" | "panel"
+  onSubViewChange?: (subView: string | null) => void
+  resetTrigger?: number
 }) {
   const { user, session, fetchWithAuth } = useAuth()
   const [paymentDialogPayment, setPaymentDialogPayment] = useState<Payment | null | undefined>()
@@ -198,9 +202,27 @@ export function LoanDetailPanel({
   const [deleteTarget, setDeleteTarget] = useState<{
     type: "payment" | "voucher"
     item: Payment | PaymentVoucher
+    source?: "list" | "gallery"
   } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+
+  const currentSubView = useMemo(() => {
+    if (paymentPresentation !== "panel") return null
+    if (paymentDialogPayment === null) return "payment-create"
+    if (paymentDialogPayment) return "payment-edit"
+    return null
+  }, [paymentPresentation, paymentDialogPayment])
+
+  useEffect(() => {
+    onSubViewChange?.(currentSubView)
+  }, [currentSubView, onSubViewChange])
+
+  useEffect(() => {
+    if (resetTrigger !== undefined && resetTrigger > 0) {
+      setPaymentDialogPayment(undefined)
+    }
+  }, [resetTrigger])
 
   if (loading) {
     return (
@@ -415,22 +437,7 @@ export function LoanDetailPanel({
 
   if (paymentPresentation === "panel" && paymentDialogPayment !== undefined) {
     return (
-      <section className="flex min-h-0 flex-col">
-        <div className="mb-4 flex items-center gap-2 border-b pb-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setPaymentDialogPayment(undefined)}
-            aria-label="Volver al detalle del préstamo"
-          >
-            <ArrowLeftIcon />
-          </Button>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{loanPublicCode(loan)}</p>
-            <p className="text-xs text-muted-foreground">Volver al detalle operativo</p>
-          </div>
-        </div>
+      <section className="flex min-h-0 flex-col transition-all duration-300 animate-in fade-in slide-in-from-right-6">
         <PaymentDialog
           open
           payment={paymentDialogPayment}
@@ -454,21 +461,10 @@ export function LoanDetailPanel({
     )
   }
 
-  if (paymentPresentation === "panel" && deleteTarget) {
-    return (
-      <InlineDeleteConfirmation
-        target={deleteTarget}
-        submitting={submitting}
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={() => void handleDeleteTarget()}
-      />
-    )
-  }
-
   return (
     <section
       className={cn(
-        "min-w-0",
+        "min-w-0 transition-all duration-300 animate-in fade-in slide-in-from-left-6",
         sticky && "lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-auto",
       )}
     >
@@ -596,9 +592,9 @@ export function LoanDetailPanel({
                 canEditVoucher(voucher, perspective, user?.id) || canDeleteVoucher(voucher, perspective, user?.id)
               }
               onEdit={setPaymentDialogPayment}
-              onDelete={(payment) => setDeleteTarget({ type: "payment", item: payment })}
+              onDelete={(payment) => setDeleteTarget({ type: "payment", item: payment, source: "list" })}
               onEditVoucher={setVoucherDialogVoucher}
-              onDeleteVoucher={(voucher) => setDeleteTarget({ type: "voucher", item: voucher })}
+              onDeleteVoucher={(voucher) => setDeleteTarget({ type: "voucher", item: voucher, source: "list" })}
             />
           </TabsContent>
           <TabsContent value="vouchers">
@@ -610,10 +606,14 @@ export function LoanDetailPanel({
               canDelete={(voucher) => canDeleteVoucher(voucher, perspective, user?.id)}
               canProcess={(voucher) => canProcessVoucher(voucher, loan, perspective, user?.id)}
               onEdit={setVoucherDialogVoucher}
-              onDelete={(voucher) => setDeleteTarget({ type: "voucher", item: voucher })}
-              onDeletePayment={(payment) => setDeleteTarget({ type: "payment", item: payment })}
+              onDelete={(voucher) => setDeleteTarget({ type: "voucher", item: voucher, source: "gallery" })}
+              onDeletePayment={(payment) => setDeleteTarget({ type: "payment", item: payment, source: "gallery" })}
               onApprove={(voucher) => setProcessDialog({ voucher, mode: "approve" })}
               onReject={(voucher) => setProcessDialog({ voucher, mode: "reject" })}
+              deleteTarget={deleteTarget}
+              submitting={submitting}
+              onCancelDelete={() => setDeleteTarget(null)}
+              onConfirmDelete={handleDeleteTarget}
             />
           </TabsContent>
         </Tabs>
@@ -664,12 +664,12 @@ export function LoanDetailPanel({
           onSubmit={(form) => void handleProcessVoucher(form)}
         />
       )}
-      {paymentPresentation !== "panel" && (
+      {deleteTarget && deleteTarget.source !== "gallery" && (
         <DeleteWorkflowDialog
-          open={Boolean(deleteTarget)}
-          title={deleteTarget?.type === "payment" ? "Eliminar pago" : "Eliminar voucher"}
+          open={true}
+          title={deleteTarget.type === "payment" ? "Eliminar pago" : "Eliminar voucher"}
           description={
-            deleteTarget?.type === "payment"
+            deleteTarget.type === "payment"
               ? "El pago se eliminará lógicamente y el préstamo se recalculará."
               : "El voucher se eliminará lógicamente. Si ya generó un pago, el sistema lo revertirá."
           }
@@ -680,84 +680,6 @@ export function LoanDetailPanel({
           onConfirm={() => void handleDeleteTarget()}
         />
       )}
-    </section>
-  )
-}
-
-function InlineDeleteConfirmation({
-  target,
-  submitting,
-  onCancel,
-  onConfirm,
-}: {
-  target: {
-    type: "payment" | "voucher"
-    item: Payment | PaymentVoucher
-  }
-  submitting: boolean
-  onCancel: () => void
-  onConfirm: () => void
-}) {
-  const isPayment = target.type === "payment"
-  const title = isPayment ? "Eliminar pago" : "Eliminar voucher"
-  const description = isPayment
-    ? "El pago se eliminará lógicamente y el préstamo se recalculará."
-    : "El voucher se eliminará lógicamente. Si ya generó un pago, el sistema lo revertirá."
-  const reference = isPayment
-    ? (target.item as Payment).reference
-    : (target.item as PaymentVoucher).operationId
-
-  return (
-    <section className="flex min-h-0 flex-col">
-      <div className="mb-4 flex items-center gap-2 border-b pb-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={onCancel}
-          aria-label="Volver al detalle del préstamo"
-          disabled={submitting}
-        >
-          <ArrowLeftIcon />
-        </Button>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">Confirmar eliminación</p>
-          <p className="text-xs text-muted-foreground">Volver sin abrir otra ventana</p>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-            <Trash2Icon className="size-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold">{title}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-            <div className="mt-3 grid gap-2 rounded-md border bg-background/80 p-3 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Monto</span>
-                <span className="font-medium">{formatCurrency(target.item.amount)}</span>
-              </div>
-              {reference && (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Referencia</span>
-                  <span className="truncate font-mono text-xs">{reference}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
-            Cancelar
-          </Button>
-          <Button type="button" variant="destructive" onClick={onConfirm} disabled={submitting}>
-            {submitting ? <Spinner /> : <Trash2Icon data-icon="inline-start" />}
-            Eliminar
-          </Button>
-        </div>
-      </div>
     </section>
   )
 }
@@ -972,6 +894,10 @@ function VouchersTable({
   onDeletePayment,
   onApprove,
   onReject,
+  deleteTarget,
+  submitting,
+  onCancelDelete,
+  onConfirmDelete,
 }: {
   vouchers: PaymentVoucher[]
   payments: Payment[]
@@ -984,6 +910,10 @@ function VouchersTable({
   onDeletePayment: (payment: Payment) => void
   onApprove: (voucher: PaymentVoucher) => void
   onReject: (voucher: PaymentVoucher) => void
+  deleteTarget: { type: "payment" | "voucher"; item: Payment | PaymentVoucher; source?: "list" | "gallery" } | null
+  submitting: boolean
+  onCancelDelete: () => void
+  onConfirmDelete: () => void
 }) {
   type GalleryAction = {
     label: string
@@ -1053,11 +983,53 @@ function VouchersTable({
     <PhotoProvider>
       <div className="columns-1 gap-3 sm:columns-2 xl:columns-3">
         {galleryItems.map((item, index) => {
+          const isDeleting = Boolean(
+            deleteTarget &&
+              deleteTarget.source === "gallery" &&
+              deleteTarget.type === (item.id.startsWith("voucher-") ? "voucher" : "payment") &&
+              String(deleteTarget.item.id) === (item.id.startsWith("voucher-") ? item.id.replace("voucher-", "") : item.id.replace("payment-", ""))
+          )
+
           return (
             <Card
               key={item.id}
-              className="mb-3 break-inside-avoid overflow-hidden rounded-[8px] before:rounded-[7px]"
+              className="relative mb-3 break-inside-avoid overflow-hidden rounded-[8px] before:rounded-[7px]"
             >
+              {isDeleting && (
+                <div className="absolute inset-0 z-20 flex flex-col justify-between bg-background/95 p-4 text-center animate-in fade-in duration-200">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex size-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                      <Trash2Icon className="size-4" />
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">¿Confirmar eliminación?</p>
+                    <p className="text-xs text-muted-foreground leading-normal">
+                      Esta acción es irreversible y podría deshacer cálculos asociados.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="w-full h-8"
+                      disabled={submitting}
+                      onClick={onConfirmDelete}
+                    >
+                      {submitting ? <Spinner /> : "Confirmar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-8"
+                      disabled={submitting}
+                      onClick={onCancelDelete}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              )}
               <CardContent className="p-0">
                 {item.imageUrl ? (
                   <PhotoView src={item.imageUrl}>

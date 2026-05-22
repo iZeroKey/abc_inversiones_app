@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import {
+  ArrowLeftIcon,
   CalendarIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -309,6 +310,8 @@ export function AdminLoansOperationsPanel({
   const [focus, setFocus] = useState<OperationsFocus>(() => readOperationsPreferences().focus ?? "all")
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [detailOpen, setDetailOpen] = useState(false)
+  const [sheetSubView, setSheetSubView] = useState<string | null>(null)
+  const [resetTrigger, setResetTrigger] = useState(0)
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<ColumnKey[]>(() => {
     const savedColumns = readOperationsPreferences().visibleColumns?.filter((key) =>
       columns.some((column) => column.key === key),
@@ -648,19 +651,51 @@ export function AdminLoansOperationsPanel({
         </div>
       )}
 
-      <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
+      <Sheet open={detailOpen} onOpenChange={(open) => {
+        setDetailOpen(open)
+        if (!open) {
+          setSheetSubView(null)
+        }
+      }}>
         <ResponsiveSheetContent
-          contentKey={selectedLoan?.id ?? "loan-detail"}
+          contentKey={selectedLoan ? selectedLoan.id : "loan-detail"}
           defaultDesktopWidth={760}
           minDesktopWidth={560}
           maxDesktopWidth={1080}
           showCloseButton
         >
           <SheetHeader>
-            <SheetTitle>Detalle operativo</SheetTitle>
-            <SheetDescription>
-              Revisa cronograma, pagos, vouchers y acciones del préstamo seleccionado.
-            </SheetDescription>
+            <div className="flex items-center gap-3 pr-8">
+              {sheetSubView && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => {
+                    setResetTrigger((prev) => prev + 1)
+                    setSheetSubView(null)
+                  }}
+                  aria-label="Volver al detalle del préstamo"
+                >
+                  <ArrowLeftIcon className="h-4 w-4" />
+                </Button>
+              )}
+              <div className="min-w-0 flex-1">
+                <SheetTitle>
+                  {sheetSubView === "payment-create"
+                    ? "Registrar pago"
+                    : sheetSubView === "payment-edit"
+                      ? "Editar pago"
+                      : "Detalle operativo"}
+                </SheetTitle>
+                <SheetDescription>
+                  {sheetSubView
+                    ? "El sistema aplicará el monto al cronograma y recalculará el préstamo."
+                    : "Revisa cronograma, pagos, vouchers y acciones del préstamo seleccionado."}
+                </SheetDescription>
+              </div>
+            </div>
           </SheetHeader>
           <SheetPanel className="px-4 pb-4 pt-2 sm:px-5 sm:pb-5">
             <LoanDetailPanel
@@ -677,6 +712,8 @@ export function AdminLoansOperationsPanel({
               sticky={false}
               hideBackButton
               paymentPresentation="panel"
+              onSubViewChange={setSheetSubView}
+              resetTrigger={resetTrigger}
             />
           </SheetPanel>
         </ResponsiveSheetContent>

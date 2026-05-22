@@ -47,6 +47,14 @@ import {
   SheetPanel,
   SheetTitle,
 } from "@/components/ui/responsive-sheet"
+import {
+  Autocomplete,
+  AutocompleteEmpty,
+  AutocompleteInput,
+  AutocompleteItem,
+  AutocompleteList,
+  AutocompletePopup,
+} from "@/components/ui/autocomplete"
 import { useAuth } from "@/contexts/auth-context"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
@@ -382,6 +390,30 @@ export default function AuditPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedUser, setSelectedUser] = useState<AuditUser | null>(null)
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
+  const [moduleQuery, setModuleQuery] = useState("")
+  const [actionQuery, setActionQuery] = useState("")
+
+  const filteredModuleKeys = useMemo(() => {
+    const query = moduleQuery.trim().toLowerCase()
+    const keys = Object.keys(moduleLabels)
+    if (!query) return keys
+    return keys.filter(
+      (key) =>
+        key.toLowerCase().includes(query) ||
+        moduleLabels[key].toLowerCase().includes(query)
+    )
+  }, [moduleQuery])
+
+  const filteredActionKeys = useMemo(() => {
+    const query = actionQuery.trim().toLowerCase()
+    const keys = Object.keys(actionLabels)
+    if (!query) return keys
+    return keys.filter(
+      (key) =>
+        key.toLowerCase().includes(query) ||
+        actionLabels[key].toLowerCase().includes(query)
+    )
+  }, [actionQuery])
 
   const isAdmin = user?.role === "admin" || Boolean(user?.isOwner)
 
@@ -529,7 +561,49 @@ export default function AuditPage() {
   }, [logs, pagination.total])
 
   const applyFilters = () => {
-    setAppliedFilters(filters)
+    let finalModule = filters.module
+    if (!finalModule && moduleQuery.trim()) {
+      const match = Object.keys(moduleLabels).find(
+        (key) =>
+          key.toLowerCase() === moduleQuery.trim().toLowerCase() ||
+          moduleLabels[key].toLowerCase() === moduleQuery.trim().toLowerCase()
+      )
+      if (match) {
+        finalModule = match
+      } else {
+        finalModule = moduleQuery.trim().toUpperCase()
+      }
+    }
+
+    let finalAction = filters.action
+    if (!finalAction && actionQuery.trim()) {
+      const match = Object.keys(actionLabels).find(
+        (key) =>
+          key.toLowerCase() === actionQuery.trim().toLowerCase() ||
+          actionLabels[key].toLowerCase() === actionQuery.trim().toLowerCase()
+      )
+      if (match) {
+        finalAction = match
+      } else {
+        finalAction = actionQuery.trim().toUpperCase()
+      }
+    }
+
+    const updatedFilters = {
+      ...filters,
+      module: finalModule,
+      action: finalAction,
+    }
+
+    if (finalModule) {
+      setModuleQuery(moduleLabels[finalModule] ?? finalModule)
+    }
+    if (finalAction) {
+      setActionQuery(actionLabels[finalAction] ?? finalAction)
+    }
+
+    setFilters(updatedFilters)
+    setAppliedFilters(updatedFilters)
     setPage(1)
     if (page === 1) {
       void loadLogs({ keepContent: true })
@@ -539,6 +613,8 @@ export default function AuditPage() {
   const clearFilters = () => {
     setFilters(emptyFilters)
     setAppliedFilters(emptyFilters)
+    setModuleQuery("")
+    setActionQuery("")
     setPage(1)
   }
 
@@ -600,31 +676,89 @@ export default function AuditPage() {
       >
         <Field>
           <FieldLabel htmlFor="audit-module">Módulo</FieldLabel>
-          <InputGroup>
-            <InputGroupAddon align="inline-start">
-              <DatabaseIcon />
-            </InputGroupAddon>
-            <InputGroupInput
+          <Autocomplete>
+            <AutocompleteInput
               id="audit-module"
-              value={filters.module}
-              placeholder="LOANS, AUTH, PAYMENTS"
-              onChange={(event) => setFilters((current) => ({ ...current, module: event.target.value }))}
+              placeholder="Ej. Préstamos"
+              value={moduleQuery || (filters.module ? (moduleLabels[filters.module] ?? filters.module) : "")}
+              onChange={(event) => {
+                const nextQuery = event.target.value
+                setModuleQuery(nextQuery)
+                if (filters.module && nextQuery !== (moduleLabels[filters.module] ?? filters.module)) {
+                  setFilters((current) => ({ ...current, module: "" }))
+                }
+              }}
+              showClear={Boolean(filters.module || moduleQuery)}
+              clearProps={{
+                onClick: () => {
+                  setFilters((current) => ({ ...current, module: "" }))
+                  setModuleQuery("")
+                },
+              }}
+              startAddon={<DatabaseIcon />}
             />
-          </InputGroup>
+            <AutocompletePopup className="w-[var(--anchor-width)]">
+              <AutocompleteList>
+                {filteredModuleKeys.map((key) => (
+                  <AutocompleteItem
+                    key={key}
+                    onClick={() => {
+                      setFilters((current) => ({ ...current, module: key }))
+                      setModuleQuery(moduleLabels[key] ?? key)
+                    }}
+                  >
+                    {moduleLabels[key]} ({key})
+                  </AutocompleteItem>
+                ))}
+                {filteredModuleKeys.length === 0 && (
+                  <AutocompleteEmpty>No hay coincidencias.</AutocompleteEmpty>
+                )}
+              </AutocompleteList>
+            </AutocompletePopup>
+          </Autocomplete>
         </Field>
         <Field>
           <FieldLabel htmlFor="audit-action">Acción</FieldLabel>
-          <InputGroup>
-            <InputGroupAddon align="inline-start">
-              <ActivityIcon />
-            </InputGroupAddon>
-            <InputGroupInput
+          <Autocomplete>
+            <AutocompleteInput
               id="audit-action"
-              value={filters.action}
-              placeholder="LOGIN, CREATE_LOAN"
-              onChange={(event) => setFilters((current) => ({ ...current, action: event.target.value }))}
+              placeholder="Ej. Inicio de sesión"
+              value={actionQuery || (filters.action ? (actionLabels[filters.action] ?? filters.action) : "")}
+              onChange={(event) => {
+                const nextQuery = event.target.value
+                setActionQuery(nextQuery)
+                if (filters.action && nextQuery !== (actionLabels[filters.action] ?? filters.action)) {
+                  setFilters((current) => ({ ...current, action: "" }))
+                }
+              }}
+              showClear={Boolean(filters.action || actionQuery)}
+              clearProps={{
+                onClick: () => {
+                  setFilters((current) => ({ ...current, action: "" }))
+                  setActionQuery("")
+                },
+              }}
+              startAddon={<ActivityIcon />}
             />
-          </InputGroup>
+            <AutocompletePopup className="w-[var(--anchor-width)]">
+              <AutocompleteList>
+                {filteredActionKeys.map((key) => (
+                  <AutocompleteItem
+                    key={key}
+                    onClick={() => {
+                      setFilters((current) => ({ ...current, action: key }))
+                      setActionQuery(actionLabels[key] ?? key)
+                    }}
+                  >
+                    {actionLabels[key]} ({key})
+                  </AutocompleteItem>
+                ))}
+                {filteredActionKeys.length === 0 && (
+                  <AutocompleteEmpty>No hay coincidencias.</AutocompleteEmpty>
+                )}
+              </AutocompleteList>
+            </AutocompletePopup>
+          </Autocomplete>
         </Field>
         <Field>
           <FieldLabel htmlFor="audit-user">Usuario</FieldLabel>

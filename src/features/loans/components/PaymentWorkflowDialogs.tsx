@@ -139,12 +139,14 @@ export function PaymentDialog({
   const isPanel = presentation === "panel"
   const content = (
     <>
-        <SheetHeader className={cn(isPanel && "p-0 pb-4")}>
-          <SheetTitle>{editing ? "Editar pago" : "Registrar pago"}</SheetTitle>
-          <SheetDescription>
-            El sistema aplicará el monto al cronograma y recalculará el préstamo.
-          </SheetDescription>
-        </SheetHeader>
+        {!isPanel && (
+          <SheetHeader className={cn(isPanel && "p-0 pb-4")}>
+            <SheetTitle>{editing ? "Editar pago" : "Registrar pago"}</SheetTitle>
+            <SheetDescription>
+              El sistema aplicará el monto al cronograma y recalculará el préstamo.
+            </SheetDescription>
+          </SheetHeader>
+        )}
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <SheetPanel className={cn("flex flex-col gap-4", isPanel && "p-0")}>
             {!editing && (

@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Spinner } from "@/components/ui/spinner"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
@@ -30,7 +31,7 @@ import {
   UserIcon,
 } from "lucide-react"
 import type { FormEvent } from "react"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { useLocation, useNavigate } from "react-router-dom"
 import { z } from "zod"
@@ -126,6 +127,20 @@ export default function LoginPage() {
   const [accessSubmitting, setAccessSubmitting] = useState(false)
   const [accessSubmitted, setAccessSubmitted] = useState(false)
   const clearAuthErrorTimer = useRef<number | undefined>(undefined)
+
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [contentHeight, setContentHeight] = useState<number | undefined>(undefined)
+
+  useEffect(() => {
+    if (!contentRef.current) return
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (entries[0]) {
+        setContentHeight(entries[0].target.getBoundingClientRect().height)
+      }
+    })
+    resizeObserver.observe(contentRef.current)
+    return () => resizeObserver.disconnect()
+  }, [])
 
   const {
     register,
@@ -317,21 +332,28 @@ export default function LoginPage() {
   const { onChange: onPasswordChange, ...passwordRest } = register("password")
 
   return (
-    <div className="flex min-h-svh w-full flex-col items-center justify-center bg-linear-to-b from-[#09152E] via-[#192541] to-[#1F2A44] p-4 md:p-8">
-      <div className="mb-10 w-full max-w-xs md:max-w-sm">
-        <img
-          src={iconNameAbc}
-          alt="ABC Inversiones"
-          className="mx-auto h-20 w-auto md:h-24"
-        />
-      </div>
+    <ScrollArea className="h-svh w-full bg-linear-to-b from-[#09152E] via-[#192541] to-[#1F2A44]">
+      <div className="flex min-h-full w-full flex-col items-center justify-center p-4 md:p-8">
+        <div className="mb-10 w-full max-w-xs md:max-w-sm">
+          <img
+            src={iconNameAbc}
+            alt="ABC Inversiones"
+            className="mx-auto h-20 w-auto md:h-24"
+          />
+        </div>
 
-      <Card className="w-full max-w-xs overflow-hidden md:max-w-md">
-        <CardContent className="p-0">
-          <div
-            key={cardMode}
-            className="w-full space-y-4 px-6 py-6 duration-300 animate-in fade-in slide-in-from-right-2"
-          >
+        <Card className="w-full max-w-xs overflow-hidden md:max-w-md flex flex-col">
+          <CardContent className="p-0 flex flex-col min-h-0">
+            <div
+              style={{ height: contentHeight ? `${contentHeight}px` : "auto" }}
+              className="transition-[height] duration-300 ease-in-out overflow-hidden flex flex-col min-h-0"
+            >
+              <div className="overflow-hidden min-h-0 w-full flex-1">
+                <div ref={contentRef}>
+                <div
+                  key={cardMode}
+                  className="w-full space-y-4 px-6 py-6 duration-300 animate-in fade-in slide-in-from-right-2"
+                >
             {cardMode === "login" ? (
               <>
                 <div className="space-y-1">
@@ -464,10 +486,17 @@ export default function LoginPage() {
                     )}
                   </Button>
                 </form>
-                <div className="border-t pt-4">
-                  <Button type="button" variant="link" className="w-full" onClick={showAccessForm}>
-                    Solicitar acceso
-                  </Button>
+                <div className="border-t border-border/50 pt-4 text-center">
+                  <p className="text-xs text-muted-foreground">
+                    ¿No tienes una cuenta?{" "}
+                    <button
+                      type="button"
+                      onClick={showAccessForm}
+                      className="font-semibold text-primary underline underline-offset-4 decoration-primary/30 hover:decoration-primary hover:text-primary/80 transition-all duration-200 bg-transparent border-0 p-0 cursor-pointer inline-block"
+                    >
+                      Solicita tu acceso aquí
+                    </button>
+                  </p>
                 </div>
               </>
             ) : accessSubmitted ? (
@@ -497,63 +526,68 @@ export default function LoginPage() {
                   <CardDescription>Completa tus datos para que administración revise tu cuenta.</CardDescription>
                 </div>
                 <form className="space-y-4" onSubmit={handleAccessSubmit} aria-busy={accessSubmitting}>
-                  <Field>
-                    <FieldLabel htmlFor="first-name">Nombre</FieldLabel>
-                    <InputGroup>
-                      <InputGroupAddon align="inline-start">
-                        <UserIcon className="size-4" />
-                      </InputGroupAddon>
-                      <InputGroupInput
-                        id="first-name"
-                        required
-                        value={accessForm.firstName}
-                        onChange={(event) => updateAccessForm({ firstName: event.target.value })}
-                      />
-                    </InputGroup>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="last-name">Apellido</FieldLabel>
-                    <InputGroup>
-                      <InputGroupAddon align="inline-start">
-                        <UserIcon className="size-4" />
-                      </InputGroupAddon>
-                      <InputGroupInput
-                        id="last-name"
-                        required
-                        value={accessForm.lastName}
-                        onChange={(event) => updateAccessForm({ lastName: event.target.value })}
-                      />
-                    </InputGroup>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="request-email">Correo</FieldLabel>
-                    <InputGroup>
-                      <InputGroupAddon align="inline-start">
-                        <MailIcon className="size-4" />
-                      </InputGroupAddon>
-                      <InputGroupInput
-                        id="request-email"
-                        type="email"
-                        required
-                        value={accessForm.email}
-                        onChange={(event) => updateAccessForm({ email: event.target.value })}
-                      />
-                    </InputGroup>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="request-phone">Teléfono</FieldLabel>
-                    <InputGroup>
-                      <InputGroupAddon align="inline-start">
-                        <PhoneIcon className="size-4" />
-                      </InputGroupAddon>
-                      <InputGroupInput
-                        id="request-phone"
-                        required
-                        value={accessForm.phone}
-                        onChange={(event) => updateAccessForm({ phone: event.target.value })}
-                      />
-                    </InputGroup>
-                  </Field>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Field>
+                      <FieldLabel htmlFor="first-name">Nombre</FieldLabel>
+                      <InputGroup>
+                        <InputGroupAddon align="inline-start">
+                          <UserIcon className="size-4" />
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          id="first-name"
+                          required
+                          value={accessForm.firstName}
+                          onChange={(event) => updateAccessForm({ firstName: event.target.value })}
+                        />
+                      </InputGroup>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="last-name">Apellido</FieldLabel>
+                      <InputGroup>
+                        <InputGroupAddon align="inline-start">
+                          <UserIcon className="size-4" />
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          id="last-name"
+                          required
+                          value={accessForm.lastName}
+                          onChange={(event) => updateAccessForm({ lastName: event.target.value })}
+                        />
+                      </InputGroup>
+                    </Field>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Field>
+                      <FieldLabel htmlFor="request-email">Correo</FieldLabel>
+                      <InputGroup>
+                        <InputGroupAddon align="inline-start">
+                          <MailIcon className="size-4" />
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          id="request-email"
+                          type="email"
+                          required
+                          value={accessForm.email}
+                          onChange={(event) => updateAccessForm({ email: event.target.value })}
+                        />
+                      </InputGroup>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="request-phone">Teléfono</FieldLabel>
+                      <InputGroup>
+                        <InputGroupAddon align="inline-start">
+                          <PhoneIcon className="size-4" />
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          id="request-phone"
+                          required
+                          value={accessForm.phone}
+                          onChange={(event) => updateAccessForm({ phone: event.target.value })}
+                        />
+                      </InputGroup>
+                    </Field>
+                  </div>
                   <Field>
                     <FieldLabel>Tipo de acceso</FieldLabel>
                     <Select
@@ -589,13 +623,17 @@ export default function LoginPage() {
                 </form>
               </>
             )}
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      <p className="mt-6 text-center text-xs text-muted-foreground">
-        &copy; 2026 ABC Inversiones. Todos los derechos reservados.
-      </p>
-    </div>
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          &copy; 2026 ABC Inversiones. Todos los derechos reservados.
+        </p>
+      </div>
+    </ScrollArea>
   )
 }
