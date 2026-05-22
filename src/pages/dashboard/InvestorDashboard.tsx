@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { CheckSquareIcon, TrendingUpIcon, WalletIcon } from "lucide-react"
-import { formatCurrencyPrecise, formatPercent } from "@/lib/formatters"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/contexts/auth-context"
+import { formatCurrencyPrecise, formatPercent } from "@/lib/formatters"
+import { CheckSquareIcon, TrendingUpIcon, WalletIcon } from "lucide-react"
+import { useEffect, useState } from "react"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
@@ -78,7 +78,6 @@ export default function InvestorDashboard() {
   const totalReturn = parseFloat(summary.totalReturn || "0")
   const activeLoans = summary.activeLoans || 0
 
-  // Calculate ROI
   const roi = totalInvested > 0 ? ((totalReturn - totalInvested) / totalInvested) * 100 : 0
 
   const progressPercent = totalReturn > 0 ? (collectedAmount / totalReturn) * 100 : 0

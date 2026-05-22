@@ -1,5 +1,3 @@
-import { useState } from "react"
-import { ArrowUpIcon } from "lucide-react"
 import {
   flexRender,
   getCoreRowModel,
@@ -9,9 +7,11 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table"
+import { ArrowUpIcon } from "lucide-react"
+import { useState } from "react"
 
-import { CardFrame } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { CardFrame } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -85,7 +85,6 @@ export function DataTableCard<TData, TValue>({
     }
   }
 
-  // TanStack Table intentionally exposes imperative helpers from its hook.
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,

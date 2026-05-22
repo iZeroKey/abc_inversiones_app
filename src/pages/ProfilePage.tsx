@@ -111,7 +111,6 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
   const [removingAvatar, setRemovingAvatar] = useState(false)
 
-  // Form states
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
   const [phone, setPhone] = useState("")
@@ -121,7 +120,6 @@ export default function ProfilePage() {
   const [bankAccounts, setBankAccounts] = useState<string[]>([""])
   const [maritalStatus, setMaritalStatus] = useState("none")
 
-  // Image states
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isCropperOpen, setIsCropperOpen] = useState(false)
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
@@ -427,7 +425,7 @@ export default function ProfilePage() {
 
                 <div className="space-y-3 text-center md:text-left flex-1 min-w-0">
                   <div className="flex flex-col items-center gap-2 md:flex-row md:items-center">
-                    <h1 className="text-3xl font-semibold tracking-tight break-words text-balance leading-tight">{firstName} {lastName}</h1>
+                    <h1 className="text-3xl font-semibold tracking-tight wrap-break-word text-balance leading-tight">{firstName} {lastName}</h1>
                     <Badge variant="secondary" className="w-fit font-semibold shrink-0">{roleMap[roleKey] || profileData?.role}</Badge>
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground md:justify-start">
@@ -810,7 +808,7 @@ function ProfileInfoTile({
       <Icon className="mt-0.5 size-4 text-muted-foreground" />
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="break-words text-sm font-medium">{value}</p>
+        <p className="wrap-break-word text-sm font-medium">{value}</p>
       </div>
     </div>
   )

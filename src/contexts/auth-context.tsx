@@ -291,11 +291,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setState((prev) => {
         if (!prev.user) return prev
         const newUser = { ...prev.user, ...userData }
-        
-        // Update storage
+
         const storage = localStorage.getItem(STORAGE_KEYS.session) ? localStorage : sessionStorage
         storage.setItem(STORAGE_KEYS.user, JSON.stringify(newUser))
-        
+
         return { ...prev, user: newUser }
       })
     }

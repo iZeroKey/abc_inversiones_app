@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Sidebar,
   SidebarContent,
@@ -17,8 +18,9 @@ import {
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 import { BellIcon, ChevronRightIcon, LogOutIcon } from "lucide-react"
-import { Link, useLocation, useNavigate } from "react-router-dom"
 import type { ElementType, MouseEvent, ReactNode } from "react"
+import { useEffect, useRef } from "react"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
@@ -82,9 +84,21 @@ function AppLayoutContent({
   headerTitle,
 }: AppLayoutProps) {
   const { isMobile } = useSidebar()
+  const location = useLocation()
+  const viewportRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (viewportRef.current) {
+        viewportRef.current.scrollTop = 0
+      }
+    }, 140) // 140ms coincide con EXIT_DURATION_MS de PageTransitionRoutes
+
+    return () => clearTimeout(timer)
+  }, [location.pathname])
 
   return (
-    <div className={cn("flex min-h-svh w-full overflow-x-hidden", isMobile ? "bg-muted/10" : "bg-transparent")}>
+    <div className={cn("flex h-svh w-full overflow-hidden", isMobile ? "bg-muted/10" : "bg-transparent")}>
       <AppSidebar 
         navigationItems={navigationItems} 
         user={user} 
@@ -92,15 +106,23 @@ function AppLayoutContent({
         notificationsCount={notificationsCount}
         headerTitle={headerTitle}
       />
-      <SidebarInset className="bg-transparent">
+      <SidebarInset className="bg-transparent h-full overflow-hidden flex flex-col">
         <AppHeader
           onLogout={onLogout}
           onBack={onBack}
           notificationsCount={notificationsCount}
           headerTitle={headerTitle}
         />
-        <main className={cn("flex-1 min-w-0 overflow-x-hidden relative", isMobile ? "pb-28 px-4" : "")}>
-          {children}
+        <main className="flex-1 min-w-0 relative flex flex-col min-h-0">
+          <ScrollArea
+            viewportRef={viewportRef}
+            className="flex-1 min-h-0"
+            scrollbarGutter
+          >
+            <div className={cn(isMobile ? "pb-28 px-4" : "")}>
+              {children}
+            </div>
+          </ScrollArea>
         </main>
       </SidebarInset>
       <AppBottomNav navigationItems={navigationItems} />
