@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState, type ElementType, type ReactNode } from "react"
-import { Link } from "react-router-dom"
+import type { Column, ColumnDef } from "@tanstack/react-table"
 import {
   AlertCircleIcon,
   ArrowLeftIcon,
@@ -10,14 +9,15 @@ import {
   FileImageIcon,
   MoreHorizontalIcon,
   ReceiptTextIcon,
-  TrendingUpIcon,
   Trash2Icon,
+  TrendingUpIcon,
   UploadIcon,
   UserRoundIcon,
   XIcon,
 } from "lucide-react"
-import type { Column, ColumnDef } from "@tanstack/react-table"
+import { useEffect, useMemo, useState, type ElementType, type ReactNode } from "react"
 import { PhotoProvider, PhotoView } from "react-photo-view"
+import { Link } from "react-router-dom"
 
 import {
   DataTableCard,
@@ -39,7 +39,6 @@ import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
-import { formatCurrency } from "@/lib/formatters"
 import { InstallmentBadge, LoanStatusBadge, VoucherStatusBadge } from "@/features/loans/components/LoanBadges"
 import { AmountBlock, InfoRow } from "@/features/loans/components/LoanMetricBits"
 import {
@@ -49,16 +48,25 @@ import {
   relatedEmptyIcons,
 } from "@/features/loans/components/LoanPageStates"
 import {
+  DeleteWorkflowDialog,
+  EvidenceButton,
+  PaymentDialog,
+  ProcessVoucherDialog,
+  VoucherDialog,
+  compactPayload,
+  toIsoOrUndefined,
+} from "@/features/loans/components/PaymentWorkflowDialogs"
+import {
   frequencyLabels,
-  interestPeriodLabels,
   installmentStatusLabels,
+  interestPeriodLabels,
   paymentMethodLabels,
   voucherStatusLabels,
 } from "@/features/loans/loan-constants"
 import {
   formatDate,
-  getInstallmentDisplayStatus,
   formatPreciseCurrencyWithSymbol,
+  getInstallmentDisplayStatus,
   getLoanPaidAmount,
   getLoanProgress,
   getNextInstallment,
@@ -68,15 +76,7 @@ import {
   loanPublicCode,
   normalizeStatus,
 } from "@/features/loans/loan-utils"
-import {
-  DeleteWorkflowDialog,
-  EvidenceButton,
-  PaymentDialog,
-  ProcessVoucherDialog,
-  VoucherDialog,
-  compactPayload,
-  toIsoOrUndefined,
-} from "@/features/loans/components/PaymentWorkflowDialogs"
+import { formatCurrency } from "@/lib/formatters"
 import {
   analyzeVoucherEvidence,
   checkOperationIdExists,
@@ -220,13 +220,14 @@ export function LoanDetailPanel({
 
   useEffect(() => {
     if (resetTrigger !== undefined && resetTrigger > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPaymentDialogPayment(undefined)
     }
   }, [resetTrigger])
 
   if (loading) {
     return (
-      <section className="min-h-[420px]">
+      <section className="min-h-105">
         <DetailSkeleton />
       </section>
     )
@@ -234,7 +235,7 @@ export function LoanDetailPanel({
 
   if (!loan) {
     return (
-      <section className="min-h-[420px] rounded-lg border border-dashed">
+      <section className="min-h-105 rounded-lg border border-dashed">
         <EmptyDetail />
       </section>
     )
@@ -993,7 +994,7 @@ function VouchersTable({
           return (
             <Card
               key={item.id}
-              className="relative mb-3 break-inside-avoid overflow-hidden rounded-[8px] before:rounded-[7px]"
+              className="relative mb-3 break-inside-avoid overflow-hidden rounded-xl before:rounded-[7px]"
             >
               {isDeleting && (
                 <div className="absolute inset-0 z-20 flex flex-col justify-between bg-background/95 p-4 text-center animate-in fade-in duration-200">

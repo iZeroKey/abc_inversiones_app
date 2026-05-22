@@ -1,13 +1,13 @@
 export type LoanFormState = {
-  clientId: string
-  investorId: string
-  principal: string
-  interestRate: string
-  installmentsCount: string
-  frequency: string
-  startDate: string
-  observation: string
-}
+  clientId: string;
+  investorId: string;
+  principal: string;
+  interestRate: string;
+  installmentsCount: string;
+  frequency: string;
+  startDate: string;
+  observation: string;
+};
 
 export const defaultLoanForm: LoanFormState = {
   clientId: "",
@@ -18,4 +18,4 @@ export const defaultLoanForm: LoanFormState = {
   frequency: "monthly",
   startDate: new Date().toISOString().slice(0, 10),
   observation: "",
-}
+};

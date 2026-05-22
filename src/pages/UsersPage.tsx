@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { ColumnDef } from "@tanstack/react-table"
 import {
   BadgeCheckIcon,
   BanknoteIcon,
@@ -24,7 +24,7 @@ import {
   UsersIcon,
   XIcon,
 } from "lucide-react"
-import type { ColumnDef } from "@tanstack/react-table"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import {
   DataTableCard,
@@ -57,14 +57,6 @@ import {
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   ResponsiveSheetContent,
   Sheet,
   SheetDescription,
@@ -73,6 +65,14 @@ import {
   SheetPanel,
   SheetTitle,
 } from "@/components/ui/responsive-sheet"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
@@ -800,7 +800,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   if (!isAdmin) {
     return (
       <main className="mx-auto flex max-w-5xl flex-col gap-6 px-3 py-4 md:px-8 md:py-8">
-        <Empty className="min-h-[420px] rounded-lg border bg-card">
+        <Empty className="min-h-105 rounded-lg border bg-card">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <ShieldIcon />
@@ -1298,7 +1298,7 @@ function UsersWorkspace({
             onChange={(event) => onSearchQueryChange(event.target.value)}
           />
         </InputGroup>
-        <div className="grid gap-2 sm:grid-cols-3 lg:w-[560px]">
+        <div className="grid gap-2 sm:grid-cols-3 lg:w-140">
           <Select items={roleItems} value={roleFilter} onValueChange={onRoleFilterChange}>
             <SelectTrigger>
               <SelectValue />
@@ -1361,7 +1361,7 @@ function UsersWorkspace({
       ) : loading ? (
         <UsersSkeleton />
       ) : users.length === 0 ? (
-        <Empty className="min-h-[360px] rounded-lg border bg-card">
+        <Empty className="min-h-90 rounded-lg border bg-card">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <UsersIcon />
@@ -1591,7 +1591,7 @@ function RequestsWorkspace({
             onChange={(event) => onSearchQueryChange(event.target.value)}
           />
         </InputGroup>
-        <div className="grid gap-2 sm:grid-cols-2 lg:w-[400px]">
+        <div className="grid gap-2 sm:grid-cols-2 lg:w-100">
           <Select items={requestRoleItems} value={roleFilter} onValueChange={onRoleFilterChange}>
             <SelectTrigger>
               <SelectValue />
@@ -1640,7 +1640,7 @@ function RequestsWorkspace({
           ]}
         />
       ) : requests.length === 0 ? (
-        <Empty className="min-h-[360px] rounded-lg border bg-card">
+        <Empty className="min-h-90 rounded-lg border bg-card">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <UserIcon />
@@ -1652,7 +1652,7 @@ function RequestsWorkspace({
           </EmptyHeader>
         </Empty>
       ) : filteredRequests.length === 0 ? (
-        <Empty className="min-h-[360px] rounded-lg border bg-card">
+        <Empty className="min-h-90 rounded-lg border bg-card">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <SearchIcon />
@@ -2440,7 +2440,7 @@ function RequestDetailItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border bg-muted/20 p-4">
       <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
-      <p className="mt-2 break-words text-sm font-medium">{value}</p>
+      <p className="mt-2 wrap-break-word text-sm font-medium">{value}</p>
     </div>
   )
 }
@@ -2576,7 +2576,7 @@ function MetricTile({
   loading?: boolean
 }) {
   return (
-    <Card className={cn(emphasis && "border-primary/30 bg-primary/[0.03]")}>
+    <Card className={cn(emphasis && "border-primary/30 bg-primary/3")}>
       <CardContent className="p-4">
         {loading ? (
           <Skeleton className="h-8 w-16" />
@@ -2609,7 +2609,7 @@ function UsersSkeleton() {
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <Empty className="min-h-[320px] rounded-lg border bg-card">
+    <Empty className="min-h-80 rounded-lg border bg-card">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <CircleAlertIcon />

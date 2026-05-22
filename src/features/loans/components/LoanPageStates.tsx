@@ -1,4 +1,3 @@
-import type { ElementType } from "react"
 import {
   AlertCircleIcon,
   CalendarClockIcon,
@@ -8,9 +7,10 @@ import {
   SearchIcon,
   ShieldCheckIcon,
 } from "lucide-react"
+import type { ElementType } from "react"
 
-import { Button } from "@/components/ui/button"
 import { DataTableSkeleton } from "@/components/data-table-card"
+import { Button } from "@/components/ui/button"
 import {
   Empty,
   EmptyContent,

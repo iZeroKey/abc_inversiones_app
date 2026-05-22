@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
-import type { ElementType } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
   ActivityIcon,
@@ -18,12 +16,22 @@ import {
   ShieldAlertIcon,
   UserIcon,
 } from "lucide-react"
+import type { ElementType } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import {
   DataTableCard,
   DataTableSkeleton,
   DataTableStaticHeader,
 } from "@/components/data-table-card"
+import {
+  Autocomplete,
+  AutocompleteEmpty,
+  AutocompleteInput,
+  AutocompleteItem,
+  AutocompleteList,
+  AutocompletePopup,
+} from "@/components/ui/autocomplete"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,7 +46,6 @@ import {
 } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
-import { Separator } from "@/components/ui/separator"
 import {
   ResponsiveSheetContent,
   Sheet,
@@ -47,14 +54,7 @@ import {
   SheetPanel,
   SheetTitle,
 } from "@/components/ui/responsive-sheet"
-import {
-  Autocomplete,
-  AutocompleteEmpty,
-  AutocompleteInput,
-  AutocompleteItem,
-  AutocompleteList,
-  AutocompletePopup,
-} from "@/components/ui/autocomplete"
+import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/contexts/auth-context"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
@@ -697,7 +697,7 @@ export default function AuditPage() {
               }}
               startAddon={<DatabaseIcon />}
             />
-            <AutocompletePopup className="w-[var(--anchor-width)]">
+            <AutocompletePopup className="w-(--anchor-width)">
               <AutocompleteList>
                 {filteredModuleKeys.map((key) => (
                   <AutocompleteItem
@@ -740,7 +740,7 @@ export default function AuditPage() {
               }}
               startAddon={<ActivityIcon />}
             />
-            <AutocompletePopup className="w-[var(--anchor-width)]">
+            <AutocompletePopup className="w-(--anchor-width)">
               <AutocompleteList>
                 {filteredActionKeys.map((key) => (
                   <AutocompleteItem
@@ -802,7 +802,7 @@ export default function AuditPage() {
           ]}
         />
       ) : error ? (
-        <Empty className="min-h-[320px] rounded-lg border bg-card">
+        <Empty className="min-h-80 rounded-lg border bg-card">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <AlertCircleIcon />
@@ -1019,7 +1019,7 @@ function InfoList({
             <Icon className="size-4" />
             {label}
           </dt>
-          <dd className="min-w-0 break-words text-sm font-medium">{value}</dd>
+          <dd className="min-w-0 wrap-break-word text-sm font-medium">{value}</dd>
         </div>
       ))}
     </div>
@@ -1038,7 +1038,7 @@ function AuditValue({
   const parsed = parseMaybeJson(value)
 
   if (parsed === null || parsed === undefined || typeof parsed !== "object") {
-    return <span className="break-words text-sm">{formatScalarValue(parsed, fieldKey)}</span>
+    return <span className="wrap-break-word text-sm">{formatScalarValue(parsed, fieldKey)}</span>
   }
 
   if (Array.isArray(parsed)) {

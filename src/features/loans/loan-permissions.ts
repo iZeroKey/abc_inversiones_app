@@ -1,67 +1,75 @@
-import type { Loan } from "@/types/loans"
+import type { Loan } from "@/types/loans";
 
 type AuthUser = {
-  id?: string
-  role?: string
-  isOwner?: boolean
-} | null
+  id?: string;
+  role?: string;
+  isOwner?: boolean;
+} | null;
 
-export type LoanRole = "admin" | "client" | "investor"
+export type LoanRole = "admin" | "client" | "investor";
 
 export function isAdminUser(user: AuthUser) {
-  return user?.role === "admin" || Boolean(user?.isOwner)
+  return user?.role === "admin" || Boolean(user?.isOwner);
 }
 
 export function getLoanRole(user: AuthUser): LoanRole {
-  if (isAdminUser(user)) return "admin"
-  if (user?.role === "investor") return "investor"
-  return "client"
+  if (isAdminUser(user)) return "admin";
+  if (user?.role === "investor") return "investor";
+  return "client";
 }
 
 export function getRoleCopy(role: LoanRole) {
   if (role === "admin") {
     return {
       title: "Préstamos",
-      description: "Gestiona la cartera completa, crea préstamos y revisa acciones operativas.",
+      description:
+        "Gestiona la cartera completa, crea préstamos y revisa acciones operativas.",
       empty: "Crea un préstamo o cambia los filtros para revisar la cartera.",
-    }
+    };
   }
 
   if (role === "investor") {
     return {
       title: "Inversiones",
-      description: "Consulta préstamos asignados y revisa solicitudes pendientes cuando corresponda.",
-      empty: "Tus préstamos asignados aparecerán aquí cuando el backend los entregue.",
-    }
+      description:
+        "Consulta préstamos asignados y revisa solicitudes pendientes cuando corresponda.",
+      empty:
+        "Tus préstamos asignados aparecerán aquí cuando el backend los entregue.",
+    };
   }
 
   return {
     title: "Mis préstamos",
-    description: "Consulta tu deuda, cronograma, pagos registrados y vouchers vinculados.",
+    description:
+      "Consulta tu deuda, cronograma, pagos registrados y vouchers vinculados.",
     empty: "Cuando tengas préstamos asignados, aparecerán en esta vista.",
-  }
+  };
 }
 
 export function canCreateLoan(user: AuthUser) {
-  return isAdminUser(user)
+  return isAdminUser(user);
 }
 
 export function canReviewLoan(loan: Loan | null, user: AuthUser) {
-  if (!loan) return false
+  if (!loan) return false;
   const isReviewable =
     loan.status === "pending" ||
     loan.status === "pending_investor_review" ||
-    loan.status === "pending_admin_review"
+    loan.status === "pending_admin_review";
 
-  if (!isReviewable) return false
-  if (isAdminUser(user)) return true
-  return user?.role === "investor" && Boolean(loan.investorId) && loan.investorId === user.id
+  if (!isReviewable) return false;
+  if (isAdminUser(user)) return true;
+  return (
+    user?.role === "investor" &&
+    Boolean(loan.investorId) &&
+    loan.investorId === user.id
+  );
 }
 
 export function canRegisterPayment(loan: Loan | null, user: AuthUser) {
-  return isAdminUser(user) && loan?.status === "active"
+  return isAdminUser(user) && loan?.status === "active";
 }
 
 export function canUploadVoucher(loan: Loan | null, user: AuthUser) {
-  return user?.role === "client" && loan?.status === "active"
+  return user?.role === "client" && loan?.status === "active";
 }

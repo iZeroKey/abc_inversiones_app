@@ -1,8 +1,6 @@
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
 
-import { useIsMobile } from "@/hooks/use-media-query"
-import { cn } from "@/lib/utils"
 import {
   Sheet,
   SheetContent,
@@ -13,6 +11,8 @@ import {
   SheetPrimitive,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { useIsMobile } from "@/hooks/use-media-query"
+import { cn } from "@/lib/utils"
 
 type HorizontalSide = "left" | "right"
 
@@ -144,7 +144,7 @@ export function ResponsiveSheetContent({
           aria-label="Redimensionar panel"
           aria-orientation="vertical"
           className={cn(
-            "group absolute inset-y-0 z-[100] hidden w-6 cursor-col-resize items-center outline-none md:flex",
+            "group absolute inset-y-0 z-100 hidden w-6 cursor-col-resize items-center outline-none md:flex",
             horizontalSide === "right" ? "-left-3 justify-end pr-1.5" : "-right-3 justify-start pl-1.5",
           )}
           onKeyDown={handleResizeKeyDown}
@@ -166,5 +166,5 @@ export {
   SheetHeader,
   SheetPanel,
   SheetPrimitive,
-  SheetTitle,
+  SheetTitle
 }

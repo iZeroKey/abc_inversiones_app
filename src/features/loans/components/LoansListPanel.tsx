@@ -20,13 +20,13 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Spinner } from "@/components/ui/spinner"
-import { statusFilters, frequencyLabels } from "@/features/loans/loan-constants"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import {
   EmptyLoanList,
   ErrorState,
   LoanListSkeleton,
 } from "@/features/loans/components/LoanPageStates"
+import { frequencyLabels, statusFilters } from "@/features/loans/loan-constants"
 import {
   formatDate,
   getLoanProgress,
@@ -36,8 +36,8 @@ import {
   loanPublicCode,
   normalizeStatus,
 } from "@/features/loans/loan-utils"
-import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/formatters"
+import { cn } from "@/lib/utils"
 import type { Loan, LoanStatus, PaginationMeta } from "@/types/loans"
 
 export function LoansListPanel({

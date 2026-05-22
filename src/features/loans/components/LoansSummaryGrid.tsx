@@ -7,9 +7,9 @@ import {
   TrendingUpIcon,
 } from "lucide-react"
 
-import { formatCurrency } from "@/lib/formatters"
 import { SummaryMetricCard } from "@/features/loans/components/LoanMetricBits"
 import { getLoanPaidAmount, toNumber } from "@/features/loans/loan-utils"
+import { formatCurrency } from "@/lib/formatters"
 import type { Loan, LoanSummary } from "@/types/loans"
 
 export function LoansSummaryGrid({

@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState, type Dispatch, type DragEvent, type FormEvent, type SetStateAction } from "react"
 import {
   CalendarIcon,
   CheckIcon,
@@ -9,18 +8,10 @@ import {
   UploadIcon,
   XIcon,
 } from "lucide-react"
+import { useEffect, useRef, useState, type Dispatch, type DragEvent, type FormEvent, type SetStateAction } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
-import {
-  ResponsiveSheetContent,
-  Sheet,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetPanel,
-  SheetTitle,
-} from "@/components/ui/responsive-sheet"
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Fieldset, FieldsetLegend } from "@/components/ui/fieldset"
@@ -34,18 +25,27 @@ import {
 } from "@/components/ui/number-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Progress } from "@/components/ui/progress"
-import { Separator } from "@/components/ui/separator"
+import {
+  ResponsiveSheetContent,
+  Sheet,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetPanel,
+  SheetTitle,
+} from "@/components/ui/responsive-sheet"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { PhotoProvider, PhotoView } from "react-photo-view"
 import type {
   Payment,
   PaymentMethod,
   PaymentVoucher,
 } from "@/types/loans"
+import { PhotoProvider, PhotoView } from "react-photo-view"
 
 const methodItems: Array<{ value: PaymentMethod; label: string }> = [
   { value: "cash", label: "Efectivo" },
@@ -864,7 +864,7 @@ function ImagePreview({ file }: { file: File }) {
       <PhotoView src={previewUrl}>
         <button
           type="button"
-          className="group relative flex aspect-[16/10] min-h-40 w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-md border bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="group relative flex aspect-16/10 min-h-40 w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-md border bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="Ver imagen en pantalla completa"
         >
           <img src={previewUrl} alt="Vista previa del voucher" className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105" />
@@ -876,7 +876,7 @@ function ImagePreview({ file }: { file: File }) {
 
 function LoadingImagePreview() {
   return (
-    <div className="flex aspect-[16/10] min-h-40 w-full items-center justify-center overflow-hidden rounded-md border bg-background">
+    <div className="flex aspect-16/10 min-h-40 w-full items-center justify-center overflow-hidden rounded-md border bg-background">
       <Skeleton className="h-full w-full rounded-none" />
     </div>
   )

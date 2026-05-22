@@ -1,5 +1,7 @@
 "use client";
 
+import { type Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import {
@@ -8,8 +10,6 @@ import {
   MoreHorizontalIcon,
 } from "lucide-react";
 import type * as React from "react";
-import { cn } from "@/lib/utils";
-import { type Button, buttonVariants } from "@/components/ui/button";
 
 export function Pagination({
   className,

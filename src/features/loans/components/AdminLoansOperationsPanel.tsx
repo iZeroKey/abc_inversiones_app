@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react"
+import type { ColumnDef } from "@tanstack/react-table"
 import {
   ArrowLeftIcon,
   CalendarIcon,
@@ -10,7 +10,7 @@ import {
   ReceiptTextIcon,
   Settings2Icon,
 } from "lucide-react"
-import type { ColumnDef } from "@tanstack/react-table"
+import { useCallback, useMemo, useState } from "react"
 
 import { DataTableCard, DataTableColumnHeader } from "@/components/data-table-card"
 import { Button } from "@/components/ui/button"
@@ -25,7 +25,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   ResponsiveSheetContent,
   Sheet,
@@ -34,6 +33,7 @@ import {
   SheetPanel,
   SheetTitle,
 } from "@/components/ui/responsive-sheet"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
@@ -860,7 +860,7 @@ function OperationKpi({
       {loading ? (
         <Skeleton className="mt-2 h-8 w-28 max-w-full" />
       ) : (
-        <p className="mt-2 break-words text-xl font-semibold tracking-normal tabular-nums lg:text-2xl">{value}</p>
+        <p className="mt-2 wrap-break-word text-xl font-semibold tracking-normal tabular-nums lg:text-2xl">{value}</p>
       )}
     </div>
   )

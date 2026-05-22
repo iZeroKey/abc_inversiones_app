@@ -1,47 +1,47 @@
+import { PlusIcon } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useNavigate, useParams } from "react-router-dom"
-import { PlusIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
+import { useAuth } from "@/contexts/auth-context"
 import { AdminLoansOperationsPanel } from "@/features/loans/components/AdminLoansOperationsPanel"
 import { CreateLoanDialog } from "@/features/loans/components/CreateLoanDialog"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
 import { LoansListPanel, RefreshButton } from "@/features/loans/components/LoansListPanel"
 import { ReviewLoanDialog } from "@/features/loans/components/ReviewLoanDialog"
+import { PAGE_SIZE } from "@/features/loans/loan-constants"
 import { defaultLoanForm, type LoanFormState } from "@/features/loans/loan-form"
 import {
-  canCreateLoan,
-  canReviewLoan,
-  getLoanRole,
-  getRoleCopy,
+    canCreateLoan,
+    canReviewLoan,
+    getLoanRole,
+    getRoleCopy,
 } from "@/features/loans/loan-permissions"
-import { PAGE_SIZE } from "@/features/loans/loan-constants"
 import {
-  createLoanSearchText,
-  getErrorMessage,
-  getLoanPaidAmount,
+    createLoanSearchText,
+    getErrorMessage,
+    getLoanPaidAmount,
 } from "@/features/loans/loan-utils"
-import { useAuth } from "@/contexts/auth-context"
-import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import {
-  approveLoan,
-  createLoan,
-  fetchLoanDetail,
-  fetchLoanInstallments,
-  fetchLoanPayments,
-  fetchLoanVouchers,
-  fetchLoans,
-  fetchUsersByRole,
-  rejectLoan,
+    approveLoan,
+    createLoan,
+    fetchLoanDetail,
+    fetchLoanInstallments,
+    fetchLoanPayments,
+    fetchLoanVouchers,
+    fetchLoans,
+    fetchUsersByRole,
+    rejectLoan,
 } from "@/lib/loans-api"
+import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import type {
-  Loan,
-  LoanCreatePayload,
-  LoanStatus,
-  PaginationMeta,
-  RelatedUser,
+    Loan,
+    LoanCreatePayload,
+    LoanStatus,
+    PaginationMeta,
+    RelatedUser,
 } from "@/types/loans"
 
 const emptyRelatedData: RelatedData = {

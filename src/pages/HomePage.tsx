@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/auth-context"
 import AdminDashboard from "./dashboard/AdminDashboard"
-import InvestorDashboard from "./dashboard/InvestorDashboard"
 import ClientDashboard from "./dashboard/ClientDashboard"
+import InvestorDashboard from "./dashboard/InvestorDashboard"
 
 export default function HomePage() {
   const { user } = useAuth()

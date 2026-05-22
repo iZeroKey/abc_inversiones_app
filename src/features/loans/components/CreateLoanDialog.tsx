@@ -1,4 +1,4 @@
-import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react"
+import type { ColumnDef } from "@tanstack/react-table"
 import {
   CalendarIcon,
   ChevronDownIcon,
@@ -7,7 +7,7 @@ import {
   SearchIcon,
   UserRoundIcon,
 } from "lucide-react"
-import type { ColumnDef } from "@tanstack/react-table"
+import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react"
 
 import { DataTableCard, DataTableColumnHeader } from "@/components/data-table-card"
 import {
@@ -23,14 +23,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@/components/ui/collapsible"
-import {
-  ResponsiveSheetContent,
-  Sheet,
-  SheetFooter,
-  SheetHeader,
-  SheetPanel,
-  SheetTitle,
-} from "@/components/ui/responsive-sheet"
 import { Empty, EmptyDescription, EmptyMedia } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Fieldset, FieldsetLegend } from "@/components/ui/fieldset"
@@ -42,16 +34,24 @@ import {
   NumberFieldIncrement,
   NumberFieldInput,
 } from "@/components/ui/number-field"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  ResponsiveSheetContent,
+  Sheet,
+  SheetFooter,
+  SheetHeader,
+  SheetPanel,
+  SheetTitle,
+} from "@/components/ui/responsive-sheet"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import type { LoanFormState } from "@/features/loans/loan-form"
 import { formatPreciseCurrencyWithSymbol, personName, publicUserCode, toNumber } from "@/features/loans/loan-utils"
 import { cn } from "@/lib/utils"
-import type { LoanFormState } from "@/features/loans/loan-form"
 import type { RelatedUser } from "@/types/loans"
 
 const frequencyItems = [
@@ -542,7 +542,7 @@ function UserSearchSelect({
             },
           }}
         />
-        <AutocompletePopup className="w-[var(--anchor-width)]">
+        <AutocompletePopup className="w-(--anchor-width)">
           <AutocompleteList>
             {allowClear && value && (
               <AutocompleteItem

@@ -1,17 +1,17 @@
-import { useAuth } from "@/contexts/auth-context"
-import { useEffect, useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { WalletIcon, ReceiptTextIcon, CreditCardIcon, ChevronRightIcon } from "lucide-react"
-import { formatCurrency, formatCurrencyPrecise } from "@/lib/formatters"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Link } from "react-router-dom"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useAuth } from "@/contexts/auth-context"
 import {
   getLoanPaidAmount,
   getLoanProgress,
   getRemainingDebt,
   toNumber,
 } from "@/features/loans/loan-utils"
+import { formatCurrency, formatCurrencyPrecise } from "@/lib/formatters"
+import { ChevronRightIcon, CreditCardIcon, ReceiptTextIcon, WalletIcon } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 

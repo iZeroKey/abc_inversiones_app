@@ -1,13 +1,13 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { XIcon } from "lucide-react";
 import type React from "react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const Sheet: typeof SheetPrimitive.Root = SheetPrimitive.Root;
 
@@ -109,7 +109,7 @@ export function SheetPopup({
           {showCloseButton && (
             <SheetPrimitive.Close
               aria-label="Cerrar"
-              className="absolute end-2 top-2"
+              className="absolute inset-e-2 top-2"
               render={<Button size="icon" variant="ghost" />}
               {...closeProps}
             >
@@ -225,7 +225,5 @@ export function SheetPanel({
 }
 
 export {
-  SheetPrimitive,
-  SheetBackdrop as SheetOverlay,
-  SheetPopup as SheetContent,
+  SheetPopup as SheetContent, SheetBackdrop as SheetOverlay, SheetPrimitive
 };

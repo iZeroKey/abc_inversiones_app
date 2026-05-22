@@ -1,4 +1,6 @@
+import { AppLayout as UIAppLayout, type NavItem } from "@/components/ui/app-layout"
 import { useAuth } from "@/contexts/auth-context"
+import { realtimeNotificationsEvent } from "@/lib/realtime"
 import {
   ClipboardListIcon,
   FileTextIcon,
@@ -6,10 +8,8 @@ import {
   UserIcon,
   UsersIcon,
 } from "lucide-react"
-import { useNavigate } from "react-router-dom"
 import React from "react"
-import { AppLayout as UIAppLayout, type NavItem } from "@/components/ui/app-layout"
-import { realtimeNotificationsEvent } from "@/lib/realtime"
+import { useNavigate } from "react-router-dom"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 

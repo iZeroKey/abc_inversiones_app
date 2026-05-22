@@ -221,17 +221,17 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
         maxDesktopWidth={920}
         minDesktopWidth={500}
       >
-        <SheetHeader className="flex-shrink-0 border-b bg-background px-6 py-4 [@media(max-height:620px)]:md:px-5 [@media(max-height:620px)]:md:py-3">
+        <SheetHeader className="shrink-0 border-b bg-background px-6 py-4 [@media(max-height:620px)]:md:px-5 [@media(max-height:620px)]:md:py-3">
           <SheetTitle className="text-xl [@media(max-height:620px)]:md:text-lg">Ajustar Foto de Perfil</SheetTitle>
           <SheetDescription className="[@media(max-height:620px)]:md:text-xs">
             Encuadra tu rostro perfectamente para el avatar
           </SheetDescription>
         </SheetHeader>
-        
+
         <div className="flex-1 flex flex-col [@media(max-height:620px)]:md:flex-row min-h-0 overflow-hidden">
           <div
             ref={cropperContainerRef}
-            className="relative min-h-[320px] w-full border-b border-border/50 bg-[#0a0a0a] shadow-inner aspect-square [@media(max-height:620px)]:md:h-full [@media(max-height:620px)]:md:min-h-0 [@media(max-height:620px)]:md:flex-[1_1_auto] [@media(max-height:620px)]:md:border-b-0 [@media(max-height:620px)]:md:border-r"
+            className="relative min-h-80 w-full border-b border-border/50 bg-[#0a0a0a] shadow-inner aspect-square [@media(max-height:620px)]:md:h-full [@media(max-height:620px)]:md:min-h-0 [@media(max-height:620px)]:md:flex-[1_1_auto] [@media(max-height:620px)]:md:border-b-0 [@media(max-height:620px)]:md:border-r"
           >
             {image && (
               <FixedCropper
@@ -264,7 +264,7 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
             )}
           </div>
 
-          <div className="flex w-full flex-shrink-0 flex-col justify-center bg-background p-6 [@media(max-height:620px)]:md:w-[300px] [@media(max-height:620px)]:md:p-5">
+          <div className="flex w-full shrink-0 flex-col justify-center bg-background p-6 [@media(max-height:620px)]:md:w-75 [@media(max-height:620px)]:md:p-5">
             <div className="flex flex-col gap-8 [@media(max-height:620px)]:md:gap-5">
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
