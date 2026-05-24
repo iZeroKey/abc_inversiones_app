@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom"
+import { HashRouter, Navigate, Route, Routes, useLocation } from "react-router-dom"
 import "./App.css"
 import { PageTransitionRoutes } from "./components/PageTransitionRoutes"
 import ProtectedRoute from "./components/ProtectedRoute"
@@ -75,14 +75,14 @@ function App() {
         <AnchoredToastProvider>
           <AuthProvider>
             <RealtimeProvider>
-              <BrowserRouter>
+              <HashRouter>
                 <AppDocumentTitle />
                 <Routes>
                   <Route path="/" element={<Navigate to="/login" replace />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/*" element={<ProtectedAppRoutes />} />
                 </Routes>
-              </BrowserRouter>
+              </HashRouter>
             </RealtimeProvider>
           </AuthProvider>
         </AnchoredToastProvider>
