@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 
 type AuthSession = {
   access_token: string
@@ -123,6 +123,11 @@ function addExpiry(session: AuthSession): AuthSession {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>(getInitialAuthState)
+  const stateRef = useRef<AuthState>(state)
+
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
 
   useEffect(() => {
     if (!state.session?.expires_at) return
@@ -197,117 +202,120 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.session?.access_token])
 
-  const value = useMemo<AuthContextValue>(() => {
-    const persistSession = (session: AuthSession) => {
-      const sessionWithExpiry = addExpiry(session)
-      getActiveStorage().setItem(STORAGE_KEYS.session, JSON.stringify(sessionWithExpiry))
-      setState((prev) => ({ ...prev, session: sessionWithExpiry, isHydrating: false }))
-      return sessionWithExpiry
+  const persistSession = useCallback((session: AuthSession) => {
+    const sessionWithExpiry = addExpiry(session)
+    getActiveStorage().setItem(STORAGE_KEYS.session, JSON.stringify(sessionWithExpiry))
+    setState((prev) => ({ ...prev, session: sessionWithExpiry, isHydrating: false }))
+    return sessionWithExpiry
+  }, [])
+
+  const logout = useCallback(() => {
+    const currentSession = stateRef.current.session
+    if (currentSession?.access_token && API_BASE_URL) {
+      void fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${currentSession.access_token}`,
+        },
+      }).catch(() => undefined)
+    }
+    clearStoredAuth()
+    setState({ session: null, user: null, isHydrating: false })
+  }, [])
+
+  const refreshSession = useCallback(async () => {
+    const currentSession = stateRef.current.session
+    if (!currentSession?.refresh_token || !API_BASE_URL) {
+      logout()
+      return null
     }
 
-    const logout = () => {
-      if (state.session?.access_token && API_BASE_URL) {
-        void fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${state.session.access_token}`,
-          },
-        }).catch(() => undefined)
-      }
-      clearStoredAuth()
-      setState({ session: null, user: null, isHydrating: false })
-    }
-
-    const refreshSession = async () => {
-      if (!state.session?.refresh_token || !API_BASE_URL) {
-        logout()
-        return null
-      }
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            refresh_token: state.session.refresh_token,
-          }),
-        })
-        const payload = (await response.json().catch(() => null)) as RefreshResponse | null
-
-        if (!response.ok || !payload?.success || !payload.data?.session) {
-          logout()
-          return null
-        }
-
-        return persistSession(payload.data.session)
-      } catch {
-        logout()
-        return null
-      }
-    }
-
-    const fetchWithAuth = async (input: RequestInfo | URL, init: RequestInit = {}) => {
-      const activeSession =
-        state.session?.expires_at && state.session.expires_at <= Date.now() + 30_000
-          ? await refreshSession()
-          : state.session
-      const headers = new Headers(init.headers)
-      if (activeSession?.access_token && !headers.has("Authorization")) {
-        headers.set("Authorization", `Bearer ${activeSession.access_token}`)
-      }
-
-      const response = await fetch(input, { ...init, headers })
-      if (response.status !== 401) return response
-
-      const refreshedSession = await refreshSession()
-      if (!refreshedSession) return response
-
-      const retryHeaders = new Headers(init.headers)
-      retryHeaders.set("Authorization", `Bearer ${refreshedSession.access_token}`)
-      return fetch(input, { ...init, headers: retryHeaders })
-    }
-
-    const login = ({ session, user, remember }: LoginPayload) => {
-      const sessionWithExpiry = addExpiry(session)
-      const storage = remember ? localStorage : sessionStorage
-      const otherStorage = remember ? sessionStorage : localStorage
-
-      storage.setItem(STORAGE_KEYS.session, JSON.stringify(sessionWithExpiry))
-      if (user) {
-        storage.setItem(STORAGE_KEYS.user, JSON.stringify(user))
-      } else {
-        storage.removeItem(STORAGE_KEYS.user)
-      }
-
-      otherStorage.removeItem(STORAGE_KEYS.session)
-      otherStorage.removeItem(STORAGE_KEYS.user)
-
-      setState({ session: sessionWithExpiry, user: user ?? null, isHydrating: false })
-    }
-
-    const updateProfile = (userData: Partial<AuthUser>) => {
-      setState((prev) => {
-        if (!prev.user) return prev
-        const newUser = { ...prev.user, ...userData }
-
-        const storage = localStorage.getItem(STORAGE_KEYS.session) ? localStorage : sessionStorage
-        storage.setItem(STORAGE_KEYS.user, JSON.stringify(newUser))
-
-        return { ...prev, user: newUser }
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          refresh_token: currentSession.refresh_token,
+        }),
       })
+      const payload = (await response.json().catch(() => null)) as RefreshResponse | null
+
+      if (!response.ok || !payload?.success || !payload.data?.session) {
+        logout()
+        return null
+      }
+
+      return persistSession(payload.data.session)
+    } catch {
+      logout()
+      return null
+    }
+  }, [logout, persistSession])
+
+  // fetchWithAuth tiene referencia estable — no cambia aunque cambie el state.
+  // Usa stateRef para leer el token actual en el momento de la llamada.
+  const fetchWithAuth = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const currentSession = stateRef.current.session
+    const activeSession =
+      currentSession?.expires_at && currentSession.expires_at <= Date.now() + 30_000
+        ? await refreshSession()
+        : currentSession
+    const headers = new Headers(init.headers)
+    if (activeSession?.access_token && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${activeSession.access_token}`)
     }
 
-    return {
-      ...state,
-      isAuthenticated: Boolean(state.session?.access_token),
-      fetchWithAuth,
-      login,
-      logout,
-      updateProfile,
+    const response = await fetch(input, { ...init, headers })
+    if (response.status !== 401) return response
+
+    const refreshedSession = await refreshSession()
+    if (!refreshedSession) return response
+
+    const retryHeaders = new Headers(init.headers)
+    retryHeaders.set("Authorization", `Bearer ${refreshedSession.access_token}`)
+    return fetch(input, { ...init, headers: retryHeaders })
+  }, [refreshSession])
+
+  const login = useCallback(({ session, user, remember }: LoginPayload) => {
+    const sessionWithExpiry = addExpiry(session)
+    const storage = remember ? localStorage : sessionStorage
+    const otherStorage = remember ? sessionStorage : localStorage
+
+    storage.setItem(STORAGE_KEYS.session, JSON.stringify(sessionWithExpiry))
+    if (user) {
+      storage.setItem(STORAGE_KEYS.user, JSON.stringify(user))
+    } else {
+      storage.removeItem(STORAGE_KEYS.user)
     }
-  }, [state])
+
+    otherStorage.removeItem(STORAGE_KEYS.session)
+    otherStorage.removeItem(STORAGE_KEYS.user)
+
+    setState({ session: sessionWithExpiry, user: user ?? null, isHydrating: false })
+  }, [])
+
+  const updateProfile = useCallback((userData: Partial<AuthUser>) => {
+    setState((prev) => {
+      if (!prev.user) return prev
+      const newUser = { ...prev.user, ...userData }
+
+      const storage = localStorage.getItem(STORAGE_KEYS.session) ? localStorage : sessionStorage
+      storage.setItem(STORAGE_KEYS.user, JSON.stringify(newUser))
+
+      return { ...prev, user: newUser }
+    })
+  }, [])
+
+  const value = useMemo<AuthContextValue>(() => ({
+    ...state,
+    isAuthenticated: Boolean(state.session?.access_token),
+    fetchWithAuth,
+    login,
+    logout,
+    updateProfile,
+  }), [state, fetchWithAuth, login, logout, updateProfile])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

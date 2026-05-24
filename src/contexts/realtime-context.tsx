@@ -46,6 +46,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     }
 
     let stopped = false
+    let shouldReconnect = true
     let reconnectTimeoutId: number | undefined
     let pingIntervalId: number | undefined
 
@@ -99,6 +100,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (message.type === "auth.error" || message.type === "auth.required") {
+          shouldReconnect = false
           setStatus("error")
           return
         }
@@ -115,7 +117,10 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         if (
           message.type.startsWith("loan.") ||
           message.type.startsWith("payment.") ||
-          message.type.startsWith("voucher.")
+          message.type.startsWith("voucher.") ||
+          message.type.startsWith("user.") ||
+          message.type.startsWith("access-request.") ||
+          message.type.startsWith("audit.")
         ) {
           dispatchDomainUpdated({
             source: "websocket",
@@ -125,8 +130,12 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         }
       })
 
-      socket.addEventListener("close", () => {
+      socket.addEventListener("close", (event) => {
         if (stopped) return
+        if (!shouldReconnect || event.code === 4001 || event.code === 4003) {
+          setStatus("error")
+          return
+        }
         setStatus("disconnected")
         scheduleReconnect()
       })
