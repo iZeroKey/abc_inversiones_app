@@ -2,22 +2,18 @@ import type { ColumnDef } from "@tanstack/react-table"
 import {
   ActivityIcon,
   AlertCircleIcon,
-  AtSignIcon,
-  BadgeCheckIcon,
   CalendarClockIcon,
   DatabaseIcon,
   EyeIcon,
   FingerprintIcon,
-  IdCardIcon,
   InfoIcon,
-  PhoneIcon,
   RefreshCwIcon,
   SearchIcon,
   ShieldAlertIcon,
   UserIcon,
 } from "lucide-react"
 import type { ElementType } from "react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import {
   DataTableCard,
@@ -54,8 +50,10 @@ import {
   SheetPanel,
   SheetTitle,
 } from "@/components/ui/responsive-sheet"
-import { Separator } from "@/components/ui/separator"
+import { UserDetailSheet } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
+import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
+import { cn } from "@/lib/utils"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 const AUDIT_PAGE_SIZE = 25
@@ -392,6 +390,9 @@ export default function AuditPage() {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
   const [moduleQuery, setModuleQuery] = useState("")
   const [actionQuery, setActionQuery] = useState("")
+  const [newLogIds, setNewLogIds] = useState<Set<string>>(() => new Set())
+  const visibleLogIdsRef = useRef<Set<string>>(new Set())
+  const newLogTimeoutRef = useRef<number | undefined>(undefined)
 
   const filteredModuleKeys = useMemo(() => {
     const query = moduleQuery.trim().toLowerCase()
@@ -430,6 +431,24 @@ export default function AuditPage() {
 
       try {
         const result = await fetchAuditLogs(fetchWithAuth, appliedFilters, page)
+        const previousIds = visibleLogIdsRef.current
+        const nextIds = new Set(result.logs.map((log) => log.id))
+        const addedIds =
+          keepContent && previousIds.size > 0
+            ? result.logs.map((log) => log.id).filter((id) => !previousIds.has(id))
+            : []
+
+        visibleLogIdsRef.current = nextIds
+        if (addedIds.length > 0) {
+          if (newLogTimeoutRef.current !== undefined) {
+            window.clearTimeout(newLogTimeoutRef.current)
+          }
+          setNewLogIds(new Set(addedIds))
+          newLogTimeoutRef.current = window.setTimeout(() => {
+            setNewLogIds(new Set())
+            newLogTimeoutRef.current = undefined
+          }, 2200)
+        }
         setLogs(result.logs)
         setPagination(result.meta)
       } catch (loadError) {
@@ -449,6 +468,26 @@ export default function AuditPage() {
 
     return () => window.clearTimeout(timeoutId)
   }, [loadLogs])
+
+  useEffect(() => {
+    const refreshFromRealtime = (event: Event) => {
+      const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
+      if (detail?.type === "audit.created") {
+        void loadLogs({ keepContent: true })
+      }
+    }
+
+    window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
+    return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
+  }, [loadLogs])
+
+  useEffect(() => {
+    return () => {
+      if (newLogTimeoutRef.current !== undefined) {
+        window.clearTimeout(newLogTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const columns = useMemo<ColumnDef<AuditLog>[]>(
     () => [
@@ -668,7 +707,7 @@ export default function AuditPage() {
       </section>
 
       <form
-        className="grid gap-3 rounded-lg border bg-card p-4 md:grid-cols-[1fr_1fr_1.4fr_auto]"
+        className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr_auto]"
         onSubmit={(event) => {
           event.preventDefault()
           applyFilters()
@@ -697,7 +736,7 @@ export default function AuditPage() {
               }}
               startAddon={<DatabaseIcon />}
             />
-            <AutocompletePopup className="w-(--anchor-width)">
+            <AutocompletePopup className="min-w-(--anchor-width) w-auto max-w-[90vw] sm:max-w-md">
               <AutocompleteList>
                 {filteredModuleKeys.map((key) => (
                   <AutocompleteItem
@@ -707,7 +746,7 @@ export default function AuditPage() {
                       setModuleQuery(moduleLabels[key] ?? key)
                     }}
                   >
-                    {moduleLabels[key]} ({key})
+                    {moduleLabels[key]}
                   </AutocompleteItem>
                 ))}
                 {filteredModuleKeys.length === 0 && (
@@ -740,7 +779,7 @@ export default function AuditPage() {
               }}
               startAddon={<ActivityIcon />}
             />
-            <AutocompletePopup className="w-(--anchor-width)">
+            <AutocompletePopup className="min-w-(--anchor-width) w-auto max-w-[90vw] sm:max-w-md">
               <AutocompleteList>
                 {filteredActionKeys.map((key) => (
                   <AutocompleteItem
@@ -750,7 +789,7 @@ export default function AuditPage() {
                       setActionQuery(actionLabels[key] ?? key)
                     }}
                   >
-                    {actionLabels[key]} ({key})
+                    {actionLabels[key]}
                   </AutocompleteItem>
                 ))}
                 {filteredActionKeys.length === 0 && (
@@ -823,6 +862,7 @@ export default function AuditPage() {
           data={logs}
           emptyMessage="No hay logs para los filtros aplicados."
           getRowId={(log) => log.id}
+          getRowClassName={(log) => cn(newLogIds.has(log.id) && "realtime-row-enter")}
           pagination={{
             page: pagination.page,
             pageSize: pagination.limit,
@@ -835,7 +875,7 @@ export default function AuditPage() {
         />
       )}
 
-      <AuditUserSheet
+      <UserDetailSheet
         user={selectedUser}
         onOpenChange={(open) => {
           if (!open) setSelectedUser(null)
@@ -875,58 +915,7 @@ function MetricCard({
   )
 }
 
-function AuditUserSheet({
-  user,
-  onOpenChange,
-}: {
-  user: AuditUser | null
-  onOpenChange: (open: boolean) => void
-}) {
-  return (
-    <Sheet open={Boolean(user)} onOpenChange={onOpenChange}>
-      <ResponsiveSheetContent
-        contentKey={user?.id ?? "audit-user"}
-        defaultDesktopWidth={520}
-        minDesktopWidth={420}
-        maxDesktopWidth={720}
-      >
-        <SheetHeader>
-          <SheetTitle>Usuario</SheetTitle>
-          <SheetDescription>Información asociada al evento de auditoría.</SheetDescription>
-        </SheetHeader>
-        <SheetPanel className="space-y-5">
-          {user ? (
-            <>
-              <div className="flex items-center gap-4">
-                <Avatar className="size-14">
-                  {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="" /> : null}
-                  <AvatarFallback className="text-base">{getUserInitials(user)}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <p className="truncate text-lg font-semibold">{getUserName(user)}</p>
-                  <p className="truncate text-sm text-muted-foreground">{user.publicCode || shortId(user.id)}</p>
-                </div>
-              </div>
-
-              <Separator />
-
-              <InfoList
-                items={[
-                  { icon: AtSignIcon, label: "Correo", value: user.email || "-" },
-                  { icon: PhoneIcon, label: "Teléfono", value: user.phone || "-" },
-                  { icon: IdCardIcon, label: "DNI", value: user.dni || "-" },
-                  { icon: BadgeCheckIcon, label: "Rol", value: user.role ? roleLabels[user.role] ?? user.role : "-" },
-                  { icon: ActivityIcon, label: "Estado", value: user.active ? "Activo" : "Inactivo" },
-                  { icon: FingerprintIcon, label: "ID interno", value: shortId(user.id) },
-                ]}
-              />
-            </>
-          ) : null}
-        </SheetPanel>
-      </ResponsiveSheetContent>
-    </Sheet>
-  )
-}
+// Shared UserDetailSheet is now used instead of AuditUserSheet
 
 function AuditDetailsSheet({
   log,

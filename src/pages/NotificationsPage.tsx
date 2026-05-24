@@ -35,7 +35,7 @@ import { dispatchNotificationsUpdated, realtimeNotificationsEvent } from "@/lib/
 import { cn } from "@/lib/utils"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
-const PAGE_SIZE = 8
+const PAGE_SIZE = 10
 
 type NotificationFilter = "all" | "unread" | "read"
 
@@ -543,28 +543,71 @@ export default function NotificationsPage() {
 
       {!loading && !error && totalPages > 1 && (
         <Pagination>
-          <PaginationContent>
+          <PaginationContent className="flex items-center gap-1.5 justify-center">
             <PaginationItem>
               <Button
-                variant="ghost"
+                variant="outline"
+                size="default"
+                className="rounded-full px-4"
                 disabled={page <= 1}
                 onClick={() => setPage((current) => Math.max(current - 1, 1))}
               >
                 Anterior
               </Button>
             </PaginationItem>
-            <PaginationItem>
-              <Badge variant="outline">
-                {page} de {totalPages}
-              </Badge>
-            </PaginationItem>
+            
+            {(() => {
+              const pages: Array<number | string> = [];
+              const maxVisible = 5;
+              if (totalPages <= maxVisible) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+              } else {
+                pages.push(1);
+                const start = Math.max(2, page - 1);
+                const end = Math.min(totalPages - 1, page + 1);
+                if (start > 2) pages.push("...");
+                for (let i = start; i <= end; i++) pages.push(i);
+                if (end < totalPages - 1) pages.push("...");
+                pages.push(totalPages);
+              }
+              
+              return pages.map((pageVal, index) => {
+                if (pageVal === "...") {
+                  return (
+                    <PaginationItem key={`ellipsis-${index}`}>
+                      <span className="px-2 text-muted-foreground">...</span>
+                    </PaginationItem>
+                  );
+                }
+                
+                const isCurrent = pageVal === page;
+                return (
+                  <PaginationItem key={pageVal}>
+                    <Button
+                      variant={isCurrent ? "default" : "outline"}
+                      size="icon"
+                      className={cn(
+                        "rounded-full",
+                        isCurrent
+                          ? "bg-slate-900 text-white hover:bg-slate-900/90 dark:bg-slate-50 dark:text-slate-900"
+                          : "border-border hover:bg-muted"
+                      )}
+                      onClick={() => setPage(Number(pageVal))}
+                    >
+                      {pageVal}
+                    </Button>
+                  </PaginationItem>
+                );
+              });
+            })()}
+
             <PaginationItem>
               <Button
-                variant="ghost"
+                variant="outline"
+                size="default"
+                className="rounded-full px-4"
                 disabled={page >= totalPages}
-                onClick={() =>
-                  setPage((current) => Math.min(current + 1, totalPages))
-                }
+                onClick={() => setPage((current) => Math.min(current + 1, totalPages))}
               >
                 Siguiente
               </Button>

@@ -80,6 +80,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
+import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import { cn } from "@/lib/utils"
 import type { ApiResponse, MaritalStatus, PaginationMeta, UserRole } from "@/types/loans"
 
@@ -449,6 +450,35 @@ function writeUsersPreferences(nextPreferences: UsersPagePreferences) {
   localStorage.setItem(usersPreferencesKey, JSON.stringify({ ...currentPreferences, ...nextPreferences }))
 }
 
+function rememberVisibleIds<T extends { id: string }>(
+  nextItems: T[],
+  highlightNew: boolean,
+  visibleIdsRef: React.MutableRefObject<Set<string>>,
+  timeoutRef: React.MutableRefObject<number | undefined>,
+  setNewIds: React.Dispatch<React.SetStateAction<Set<string>>>,
+) {
+  const previousIds = visibleIdsRef.current
+  const nextIds = new Set(nextItems.map((item) => item.id))
+  const addedIds =
+    highlightNew && previousIds.size > 0
+      ? nextItems.map((item) => item.id).filter((id) => !previousIds.has(id))
+      : []
+
+  visibleIdsRef.current = nextIds
+
+  if (addedIds.length === 0) return
+
+  if (timeoutRef.current !== undefined) {
+    window.clearTimeout(timeoutRef.current)
+  }
+
+  setNewIds(new Set(addedIds))
+  timeoutRef.current = window.setTimeout(() => {
+    setNewIds(new Set())
+    timeoutRef.current = undefined
+  }, 2200)
+}
+
 export default function UsersPage({ initialTab = "users" }: { initialTab?: UsersTab }) {
   const { user, session, fetchWithAuth } = useAuth()
   const [activeTab, setActiveTab] = useState<UsersTab>(() => readUsersPreferences().activeTab ?? initialTab)
@@ -464,6 +494,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [refreshingUsers, setRefreshingUsers] = useState(false)
   const [loadingRequests, setLoadingRequests] = useState(true)
+  const [refreshingRequests, setRefreshingRequests] = useState(false)
   const [usersError, setUsersError] = useState<string | null>(null)
   const [requestsError, setRequestsError] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
@@ -480,6 +511,12 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   const [requestObservation, setRequestObservation] = useState("")
   const [requestInitialPassword, setRequestInitialPassword] = useState("")
   const [submittingRequest, setSubmittingRequest] = useState(false)
+  const [newUserIds, setNewUserIds] = useState<Set<string>>(() => new Set())
+  const [newRequestIds, setNewRequestIds] = useState<Set<string>>(() => new Set())
+  const visibleUserIdsRef = useRef<Set<string>>(new Set())
+  const visibleRequestIdsRef = useRef<Set<string>>(new Set())
+  const newUserTimeoutRef = useRef<number | undefined>(undefined)
+  const newRequestTimeoutRef = useRef<number | undefined>(undefined)
 
   const isAdmin = user?.role === "admin" || Boolean(user?.isOwner)
 
@@ -576,7 +613,9 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       setUsersError(null)
 
       try {
-        setUsers(await fetchUsers(fetchWithAuth))
+        const nextUsers = await fetchUsers(fetchWithAuth)
+        rememberVisibleIds(nextUsers, keepContent, visibleUserIdsRef, newUserTimeoutRef, setNewUserIds)
+        setUsers(nextUsers)
       } catch (error) {
         setUsersError(getErrorMessage(error, "No se pudieron cargar los usuarios."))
       } finally {
@@ -587,20 +626,30 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
     [fetchWithAuth, isAdmin, session?.access_token],
   )
 
-  const loadRequests = useCallback(async () => {
-    if (!session?.access_token || !isAdmin) return
+  const loadRequests = useCallback(
+    async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
+      if (!session?.access_token || !isAdmin) return
 
-    setLoadingRequests(true)
-    setRequestsError(null)
+      if (keepContent) {
+        setRefreshingRequests(true)
+      } else {
+        setLoadingRequests(true)
+      }
+      setRequestsError(null)
 
-    try {
-      setRequests(await fetchAccessRequests(fetchWithAuth))
-    } catch (error) {
-      setRequestsError(getErrorMessage(error, "No se pudieron cargar las solicitudes."))
-    } finally {
-      setLoadingRequests(false)
-    }
-  }, [fetchWithAuth, isAdmin, session?.access_token])
+      try {
+        const nextRequests = await fetchAccessRequests(fetchWithAuth)
+        rememberVisibleIds(nextRequests, keepContent, visibleRequestIdsRef, newRequestTimeoutRef, setNewRequestIds)
+        setRequests(nextRequests)
+      } catch (error) {
+        setRequestsError(getErrorMessage(error, "No se pudieron cargar las solicitudes."))
+      } finally {
+        setLoadingRequests(false)
+        setRefreshingRequests(false)
+      }
+    },
+    [fetchWithAuth, isAdmin, session?.access_token],
+  )
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -617,6 +666,39 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
     return () => window.clearTimeout(timeoutId)
   }, [loadRequests])
+
+  useEffect(() => {
+    const refreshFromRealtime = (event: Event) => {
+      const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
+      if (!detail?.type) return
+
+      if (detail.type.startsWith("user.")) {
+        void loadUsers({ keepContent: true })
+      }
+
+      if (detail.type.startsWith("access-request.")) {
+        void loadRequests({ keepContent: true })
+      }
+    }
+
+    window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
+    return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
+  }, [loadRequests, loadUsers])
+
+  useEffect(() => {
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const newUserTimeout = newUserTimeoutRef.current
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const newRequestTimeout = newRequestTimeoutRef.current
+      if (newUserTimeout !== undefined) {
+        window.clearTimeout(newUserTimeout)
+      }
+      if (newRequestTimeout !== undefined) {
+        window.clearTimeout(newRequestTimeout)
+      }
+    }
+  }, [])
 
   const openCreateDialog = () => {
     setUserForm(defaultUserForm)
@@ -839,12 +921,12 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             variant="outline"
             size="icon"
             onClick={() => {
-              void Promise.all([loadUsers({ keepContent: true }), loadRequests()])
+              void Promise.all([loadUsers({ keepContent: true }), loadRequests({ keepContent: true })])
             }}
-            disabled={loadingUsers || refreshingUsers || loadingRequests}
+            disabled={loadingUsers || refreshingUsers || loadingRequests || refreshingRequests}
             aria-label="Actualizar usuarios"
           >
-            {refreshingUsers ? <Spinner /> : <RefreshCwIcon />}
+            {refreshingUsers || refreshingRequests ? <Spinner /> : <RefreshCwIcon />}
           </Button>
           <Button className="max-sm:px-2" onClick={openCreateDialog}>
             <PlusIcon data-icon="inline-start" />
@@ -882,6 +964,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         <TabsContent value="users">
           <UsersWorkspace
             users={filteredUsers}
+            highlightedUserIds={newUserIds}
             pagination={usersPagination}
             page={page}
             roleFilter={roleFilter}
@@ -908,12 +991,13 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
           <RequestsWorkspace
             requests={requests}
             filteredRequests={filteredRequests}
+            highlightedRequestIds={newRequestIds}
             searchQuery={requestSearchQuery}
             roleFilter={requestRoleFilter}
             statusFilter={requestStatusFilter}
             loading={loadingRequests}
             error={requestsError}
-            onRetry={() => void loadRequests()}
+            onRetry={() => void loadRequests({ keepContent: true })}
             onSearchQueryChange={setRequestSearchQuery}
             onRoleFilterChange={(value) => setRequestRoleFilter(value ?? "all")}
             onStatusFilterChange={(value) => setRequestStatusFilter(value ?? "all")}
@@ -1007,6 +1091,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
 function UsersWorkspace({
   users,
+  highlightedUserIds,
   pagination,
   page,
   roleFilter,
@@ -1025,6 +1110,7 @@ function UsersWorkspace({
   onStatusFilterChange,
 }: {
   users: ManagedUser[]
+  highlightedUserIds?: Set<string>
   pagination: PaginationMeta
   page: number
   roleFilter: RoleFilter
@@ -1378,6 +1464,7 @@ function UsersWorkspace({
           data={users}
           clientPagination
           getRowId={(item) => item.id}
+          getRowClassName={(item) => cn(highlightedUserIds?.has(item.id) && "realtime-row-enter")}
           tableClassName="min-w-[1080px] table-fixed"
           bodyClassName={cn(refreshing && "opacity-70")}
           initialSorting={[{ id: "createdAt", desc: true }]}
@@ -1398,6 +1485,7 @@ function UsersWorkspace({
 function RequestsWorkspace({
   requests,
   filteredRequests,
+  highlightedRequestIds,
   searchQuery,
   roleFilter,
   statusFilter,
@@ -1412,6 +1500,7 @@ function RequestsWorkspace({
 }: {
   requests: AccessRequest[]
   filteredRequests: AccessRequest[]
+  highlightedRequestIds?: Set<string>
   searchQuery: string
   roleFilter: RequestRoleFilter
   statusFilter: RequestStatusFilter
@@ -1668,6 +1757,7 @@ function RequestsWorkspace({
           columns={requestColumns}
           data={filteredRequests}
           getRowId={(request) => request.id}
+          getRowClassName={(request) => cn(highlightedRequestIds?.has(request.id) && "realtime-row-enter")}
           tableClassName="min-w-[900px] table-fixed"
           initialSorting={[{ id: "createdAt", desc: true }]}
         />
@@ -2089,9 +2179,13 @@ function UserDialog({
               <div className="flex flex-col gap-3">
                 <Alert variant="warning">
                   <CircleAlertIcon />
-                  <AlertTitle>El usuario quedará sin acceso</AlertTitle>
+                  <AlertTitle>
+                    {editingUser?.authUserId ? "El usuario quedará sin acceso" : "El usuario quedará inactivo"}
+                  </AlertTitle>
                   <AlertDescription>
-                    Al desactivarlo no podrá iniciar sesión hasta que vuelva a estar activo.
+                    {editingUser?.authUserId
+                      ? "Al desactivarlo no podrá iniciar sesión hasta que vuelva a estar activo."
+                      : "Al desactivarlo no estará disponible para operaciones en el sistema hasta que vuelva a estar activo."}
                   </AlertDescription>
                 </Alert>
               </div>
