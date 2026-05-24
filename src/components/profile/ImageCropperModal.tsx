@@ -6,6 +6,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/responsive-sheet"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Slider } from "@/components/ui/slider"
 import { CheckIcon, XIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -78,9 +79,7 @@ const canvasToJpegBlob = (canvas: HTMLCanvasElement) =>
 const clampZoom = (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value))
 
 export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: ImageCropperModalProps) {
-  const cropperContainerRef = useRef<HTMLDivElement>(null)
   const cropperRef = useRef<FixedCropperRef>(null)
-  const baseVisibleAreaWidthRef = useRef<number | null>(null)
   const zoomRef = useRef(MIN_ZOOM)
   const [zoom, setZoom] = useState(MIN_ZOOM)
 
@@ -90,27 +89,27 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
   }, [])
 
   const getCropperZoom = useCallback((cropper: FixedCropperRef | null) => {
-    const visibleArea = cropper?.getState()?.visibleArea
+    const state = cropper?.getState()
+    if (!state) return null
 
-    if (!visibleArea) {
+    const { boundary, imageSize, visibleArea } = state
+    if (!boundary || !imageSize || !visibleArea) {
       return null
     }
 
-    if (!baseVisibleAreaWidthRef.current) {
-      baseVisibleAreaWidthRef.current = visibleArea.width
+    const defaultVisibleArea = getDefaultAvatarVisibleArea({ boundary, imageSize })
+    if (!defaultVisibleArea || defaultVisibleArea.width === 0) {
+      return null
     }
 
-    return baseVisibleAreaWidthRef.current / visibleArea.width
+    return defaultVisibleArea.width / visibleArea.width
   }, [])
 
   const initializeZoom = useCallback((cropper: FixedCropperRef | null) => {
-    const visibleArea = cropper?.getState()?.visibleArea
-
-    if (!visibleArea) {
+    const state = cropper?.getState()
+    if (!state?.visibleArea) {
       return
     }
-
-    baseVisibleAreaWidthRef.current = visibleArea.width
     setDisplayZoom(MIN_ZOOM)
   }, [setDisplayZoom])
 
@@ -123,21 +122,37 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
   }, [initializeZoom])
 
   const syncZoom = useCallback((cropper: FixedCropperRef | null) => {
+    if (!cropper) {
+      return
+    }
     const currentZoom = getCropperZoom(cropper)
 
     if (!currentZoom) {
       return
     }
 
-    setDisplayZoom(clampZoom(currentZoom))
+    // Limit zoom factors and snap back programmatically with a tiny tolerance
+    if (currentZoom > MAX_ZOOM + 0.001) {
+      cropper.zoomImage(MAX_ZOOM / currentZoom, {
+        normalize: true,
+        transitions: false,
+      })
+      setDisplayZoom(MAX_ZOOM)
+    } else if (currentZoom < MIN_ZOOM - 0.001) {
+      cropper.zoomImage(MIN_ZOOM / currentZoom, {
+        normalize: true,
+        transitions: false,
+      })
+      setDisplayZoom(MIN_ZOOM)
+    } else {
+      setDisplayZoom(currentZoom)
+    }
   }, [getCropperZoom, setDisplayZoom])
 
   useEffect(() => {
     if (!isOpen) {
       return
     }
-
-    baseVisibleAreaWidthRef.current = null
 
     const frameId = window.requestAnimationFrame(() => {
       setDisplayZoom(MIN_ZOOM)
@@ -167,29 +182,6 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
     setDisplayZoom(clampedZoom)
   }, [getCropperZoom, setDisplayZoom])
 
-  useEffect(() => {
-    const cropperContainer = cropperContainerRef.current
-
-    if (!isOpen || !cropperContainer) {
-      return
-    }
-
-    const handleWheelZoom = (event: WheelEvent) => {
-      event.preventDefault()
-
-      const direction = event.deltaY < 0 ? 1 : -1
-      const step = event.ctrlKey ? 0.08 : 0.16
-
-      updateZoom(zoomRef.current + direction * step, false)
-    }
-
-    cropperContainer.addEventListener("wheel", handleWheelZoom, { passive: false })
-
-    return () => {
-      cropperContainer.removeEventListener("wheel", handleWheelZoom)
-    }
-  }, [isOpen, updateZoom])
-
   const handleCrop = async () => {
     const canvas = cropperRef.current?.getCanvas({
       imageSmoothingEnabled: true,
@@ -215,101 +207,125 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
       if (!open) onClose()
     }}>
       <ResponsiveSheetContent
-        className="gap-0 overflow-hidden p-0 [@media(max-height:620px)]:md:h-[min(520px,calc(100dvh-2rem))]"
+        className="gap-0 overflow-hidden p-0"
         contentKey={image ?? "avatar-cropper"}
-        defaultDesktopWidth={560}
-        maxDesktopWidth={920}
-        minDesktopWidth={500}
+        defaultDesktopWidth={460}
+        resizable={false}
       >
-        <SheetHeader className="shrink-0 border-b bg-background px-6 py-4 [@media(max-height:620px)]:md:px-5 [@media(max-height:620px)]:md:py-3">
-          <SheetTitle className="text-xl [@media(max-height:620px)]:md:text-lg">Ajustar Foto de Perfil</SheetTitle>
-          <SheetDescription className="[@media(max-height:620px)]:md:text-xs">
+        <SheetHeader className="shrink-0 border-b bg-background px-6 py-4">
+          <SheetTitle className="text-xl">Ajustar Foto de Perfil</SheetTitle>
+          <SheetDescription>
             Encuadra tu rostro perfectamente para el avatar
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 flex flex-col [@media(max-height:620px)]:md:flex-row min-h-0 overflow-hidden">
-          <div
-            ref={cropperContainerRef}
-            className="relative min-h-80 w-full border-b border-border/50 bg-[#0a0a0a] shadow-inner aspect-square [@media(max-height:620px)]:md:h-full [@media(max-height:620px)]:md:min-h-0 [@media(max-height:620px)]:md:flex-[1_1_auto] [@media(max-height:620px)]:md:border-b-0 [@media(max-height:620px)]:md:border-r"
-          >
-            {image && (
-              <FixedCropper
-                key={isOpen ? image : "closed"}
-                ref={cropperRef}
-                src={image}
-                stencilComponent={CircleStencil}
-                stencilSize={getAvatarStencilSize}
-                defaultVisibleArea={getDefaultAvatarVisibleArea}
-                imageRestriction={ImageRestriction.stencil}
-                priority={Priority.visibleArea}
-                className="size-full bg-[#0a0a0a]"
-                backgroundWrapperProps={{
-                  scaleImage: {
-                    touch: false,
-                    wheel: false,
-                  },
-                }}
-                stencilProps={{
-                  handlers: HIDDEN_HANDLERS,
-                  lines: HIDDEN_LINES,
-                  movable: false,
-                  resizable: false,
-                  overlayClassName: "[color:rgba(0,0,0,0.72)]",
-                  previewClassName: "border-[3px] border-white/95 shadow-[0_0_0_1px_rgba(17,24,39,0.35)]",
-                }}
-                onReady={queueInitializeZoom}
-                onUpdate={syncZoom}
-              />
-            )}
-          </div>
-
-          <div className="flex w-full shrink-0 flex-col justify-center bg-background p-6 [@media(max-height:620px)]:md:w-75 [@media(max-height:620px)]:md:p-5">
-            <div className="flex flex-col gap-8 [@media(max-height:620px)]:md:gap-5">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Zoom</p>
-                  <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-xs font-bold text-primary shadow-inner">x{zoom.toFixed(1)}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button 
-                    type="button"
-                    className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    onClick={() => updateZoom(Math.max(MIN_ZOOM, zoom - 0.2))}
-                  >
-                    <ZoomOutIcon className="size-5" />
-                  </button>
-                  <Slider
-                    value={zoom}
-                    min={MIN_ZOOM}
-                    max={MAX_ZOOM}
-                    step={0.01}
-                    className="flex-1"
-                    onValueChange={(val) => updateZoom(Array.isArray(val) ? val[0] : (val as unknown as number), false)}
+        <ScrollArea className="flex-1 min-h-0 bg-background">
+          <div className="flex flex-col min-h-0">
+            <div className="relative w-full flex items-center justify-center bg-[#0a0a0a] border-b border-border/50 shrink-0">
+              <div className="w-full aspect-square max-h-[min(460px,calc(100dvh-240px))] max-w-[min(460px,calc(100dvh-240px))] shrink-0">
+                {image && (
+                  <FixedCropper
+                    key={isOpen ? image : "closed"}
+                    ref={cropperRef}
+                    src={image}
+                    stencilComponent={CircleStencil}
+                    stencilSize={getAvatarStencilSize}
+                    defaultVisibleArea={getDefaultAvatarVisibleArea}
+                    imageRestriction={ImageRestriction.stencil}
+                    priority={Priority.visibleArea}
+                    className="size-full bg-[#0a0a0a]"
+                    backgroundWrapperProps={{
+                      scaleImage: {
+                        touch: true,
+                        wheel: true,
+                      },
+                    }}
+                    stencilProps={{
+                      handlers: HIDDEN_HANDLERS,
+                      lines: HIDDEN_LINES,
+                      movable: false,
+                      resizable: false,
+                      overlayClassName: "[color:rgba(0,0,0,0.72)]",
+                      previewClassName: "border-[3px] border-white/95 shadow-[0_0_0_1px_rgba(17,24,39,0.35)]",
+                    }}
+                    onReady={queueInitializeZoom}
+                    onUpdate={syncZoom}
                   />
-                  <button 
-                    type="button"
-                    className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    onClick={() => updateZoom(Math.min(MAX_ZOOM, zoom + 0.2))}
-                  >
-                    <ZoomInIcon className="size-5" />
-                  </button>
-                </div>
+                )}
               </div>
+            </div>
 
-              <div className="flex flex-col gap-2 border-t pt-4 [@media(max-height:620px)]:md:pt-4">
-                <Button className="w-full shadow-md shadow-primary/10" onClick={handleCrop}>
-                  <CheckIcon data-icon="inline-start" />
-                  Guardar foto
-                </Button>
-                <Button variant="ghost" className="w-full text-muted-foreground" onClick={onClose}>
-                  <XIcon data-icon="inline-start" />
-                  Cancelar
-                </Button>
+            <div className="flex w-full shrink-0 flex-col justify-center bg-background p-6">
+              <div className="flex flex-col gap-6">
+                
+                {/* Simplified Zoom Control */}
+                <div className="flex flex-col gap-4">
+                  {/* Header: Zoom Title & Value */}
+                  <div className="flex items-center justify-between text-sm font-medium text-foreground px-1">
+                    <span>Zoom</span>
+                    <span className="text-muted-foreground font-semibold">
+                      {zoom.toFixed(2)}x
+                    </span>
+                  </div>
+
+                  {/* Controls Row */}
+                  <div className="flex items-center gap-3">
+                    {/* Zoom Out Button */}
+                    <button
+                      type="button"
+                      disabled={zoom <= MIN_ZOOM + 0.005}
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-muted hover:text-foreground hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-40 cursor-pointer"
+                      onClick={() => updateZoom(Math.max(MIN_ZOOM, zoom - 0.2))}
+                      title="Alejar"
+                    >
+                      <ZoomOutIcon className="size-4" />
+                    </button>
+
+                    {/* Slider Container with ticks */}
+                    <div className="flex grow flex-col gap-2">
+                      <Slider
+                        value={zoom}
+                        min={MIN_ZOOM}
+                        max={MAX_ZOOM}
+                        step={0.01}
+                        className="cursor-pointer py-1"
+                        onValueChange={(val) => updateZoom(Array.isArray(val) ? val[0] : (val as unknown as number), false)}
+                      />
+                      {/* Zoom Ticks */}
+                      <div className="flex justify-between px-0.5 text-[10px] font-medium text-muted-foreground/70 select-none">
+                        <span className="cursor-pointer transition-colors hover:text-foreground" onClick={() => updateZoom(1.0)}>1.0x</span>
+                        <span className="cursor-pointer transition-colors hover:text-foreground" onClick={() => updateZoom(2.0)}>2.0x</span>
+                        <span className="cursor-pointer transition-colors hover:text-foreground" onClick={() => updateZoom(3.0)}>3.0x</span>
+                      </div>
+                    </div>
+
+                    {/* Zoom In Button */}
+                    <button
+                      type="button"
+                      disabled={zoom >= MAX_ZOOM - 0.005}
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-muted hover:text-foreground hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-40 cursor-pointer"
+                      onClick={() => updateZoom(Math.min(MAX_ZOOM, zoom + 0.2))}
+                      title="Acercar"
+                    >
+                      <ZoomInIcon className="size-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 border-t pt-4">
+                  <Button className="w-full shadow-md shadow-primary/10" onClick={handleCrop}>
+                    <CheckIcon data-icon="inline-start" />
+                    Guardar foto
+                  </Button>
+                  <Button variant="ghost" className="w-full text-muted-foreground animate-none" onClick={onClose}>
+                    <XIcon data-icon="inline-start" />
+                    Cancelar
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </ScrollArea>
       </ResponsiveSheetContent>
     </Sheet>
   )

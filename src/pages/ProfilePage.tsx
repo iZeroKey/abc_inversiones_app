@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useSidebar } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { toastManager } from "@/components/ui/toast"
@@ -17,9 +19,11 @@ import {
   optimizeAvatarImage,
   validateAvatarFile,
 } from "@/lib/avatar-image"
+import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import { cn } from "@/lib/utils"
 import { BanknoteIcon, CalendarIcon, CameraIcon, Edit2Icon, IdCardIcon, MailIcon, MapPinIcon, PhoneIcon, PlusIcon, SaveIcon, ShieldCheckIcon, Trash2Icon, UserIcon, XIcon } from "lucide-react"
-import { type ElementType, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { PhotoProvider, PhotoView } from "react-photo-view"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
@@ -39,6 +43,7 @@ type ProfileData = {
   maritalStatus?: "single" | "married" | "unspecified" | null
   avatarUrl?: string | null
   role?: string
+  isOwner?: boolean
   createdAt?: string
 }
 
@@ -103,11 +108,50 @@ function formatPhoneNumber(value: string) {
   return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`
 }
 
+function uploadAvatarWithProgress(
+  url: string,
+  formData: FormData,
+  accessToken: string,
+  onUploadProgress: (progress: number) => void
+): Promise<ApiResponse<{ avatarUrl: string }>> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open("PATCH", url)
+
+    if (accessToken) {
+      xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`)
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return
+      onUploadProgress(Math.round((event.loaded / event.total) * 100))
+    }
+
+    xhr.onload = () => {
+      onUploadProgress(100)
+      try {
+        const payload = JSON.parse(xhr.responseText) as ApiResponse<{ avatarUrl: string }>
+        if (xhr.status < 200 || xhr.status >= 300 || !payload?.success) {
+          reject(new Error(payload?.message || "No se pudo completar la solicitud."))
+          return
+        }
+        resolve(payload)
+      } catch {
+        reject(new Error("Error al procesar la respuesta del servidor."))
+      }
+    }
+
+    xhr.onerror = () => reject(new Error("No se pudo conectar con el servidor."))
+    xhr.send(formData)
+  })
+}
+
 export default function ProfilePage() {
   const { user, session, updateProfile, fetchWithAuth } = useAuth()
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [removingAvatar, setRemovingAvatar] = useState(false)
 
@@ -124,6 +168,9 @@ export default function ProfilePage() {
   const [isCropperOpen, setIsCropperOpen] = useState(false)
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showStickyHeader, setShowStickyHeader] = useState(false)
+  const sidebarActionsRef = useRef<HTMLDivElement>(null)
+  const { isMobile } = useSidebar()
 
   const applyProfileToForm = (data: ProfileData) => {
     setFirstName(data.firstName || "")
@@ -170,6 +217,61 @@ export default function ProfilePage() {
     }
     fetchProfile()
   }, [fetchWithAuth, session?.access_token, user])
+
+  useEffect(() => {
+    const refreshFromRealtime = (event: Event) => {
+      const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
+      if (!detail?.type?.startsWith("user.") || !session?.access_token || !user?.id || isEditing) return
+
+      const payload = detail.data as { userId?: string } | undefined
+      if (payload?.userId && payload.userId !== user.id) return
+
+      void (async () => {
+        try {
+          if (!API_BASE_URL) return
+          const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/users/me`)
+          const json = (await res.json()) as ApiResponse<ProfileData>
+          if (json.success) {
+            setProfileData(json.data)
+            applyProfileToForm(json.data)
+            updateProfile(json.data)
+          }
+        } catch {
+          // El perfil queda con la última versión visible; el usuario puede refrescar manualmente.
+        }
+      })()
+    }
+
+    window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
+    return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
+  }, [fetchWithAuth, isEditing, session?.access_token, updateProfile, user?.id])
+
+  useEffect(() => {
+    if (!isEditing || !isMobile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowStickyHeader(false)
+      return
+    }
+
+    const element = sidebarActionsRef.current
+    if (!element) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const isBelowHeader = entry.isIntersecting || entry.boundingClientRect.top >= 56
+        setShowStickyHeader(!isBelowHeader)
+      },
+      {
+        rootMargin: "-56px 0px 0px 0px",
+        threshold: 0,
+      }
+    )
+
+    observer.observe(element)
+    return () => {
+      observer.unobserve(element)
+    }
+  }, [isEditing, isMobile])
 
   const handleStartEditing = () => {
     if (profileData) applyProfileToForm(profileData)
@@ -305,27 +407,31 @@ export default function ProfilePage() {
 
   const handleCropComplete = async (croppedImage: Blob) => {
     setSaving(true)
+    setUploadProgress(0)
     try {
       const optimizedImage = await optimizeAvatarImage(croppedImage)
       const formData = new FormData()
       formData.append("avatar", optimizedImage, "avatar.webp")
 
-      const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/users/me/avatar`, {
-        method: "PATCH",
-        body: formData
-      })
+      const payload = await uploadAvatarWithProgress(
+        `${API_BASE_URL}/api/v1/users/me/avatar`,
+        formData,
+        session?.access_token || "",
+        (progress) => {
+          setUploadProgress(progress)
+        }
+      )
 
-      const json = (await res.json()) as ApiResponse<{ avatarUrl: string }>
-      if (json.success) {
+      if (payload.success) {
         toastManager.add({
           type: "success",
           title: "Imagen actualizada",
           description: "Tu foto de perfil ha sido cambiada."
         })
-        setProfileData((prev) => (prev ? { ...prev, avatarUrl: json.data.avatarUrl } : prev))
-        updateProfile({ avatarUrl: json.data.avatarUrl })
+        setProfileData((prev) => (prev ? { ...prev, avatarUrl: payload.data.avatarUrl } : prev))
+        updateProfile({ avatarUrl: payload.data.avatarUrl })
       } else {
-        throw new Error(json.message)
+        throw new Error(payload.message)
       }
     } catch (error: unknown) {
       toastManager.add({
@@ -335,6 +441,7 @@ export default function ProfilePage() {
       })
     } finally {
       setSaving(false)
+      setUploadProgress(null)
       setSelectedImage(null)
     }
   }
@@ -347,134 +454,280 @@ export default function ProfilePage() {
     client: "Cliente",
     investor: "Inversionista",
     admin: "Administrador",
-    owner: "Dueño"
   }
   const roleKey = profileData?.role?.toLowerCase() ?? ""
+  const isOwner = Boolean(profileData?.isOwner) || roleKey === "owner"
+  const isAdmin = roleKey === "admin" || isOwner
+  const isInvestor = roleKey === "investor"
+  const isClient = roleKey === "client"
+
+  let publicCodeLabel = "Código de usuario"
+  if (isAdmin) {
+    publicCodeLabel = "Código de administrador"
+  } else if (isInvestor) {
+    publicCodeLabel = "Código de inversionista"
+  } else if (isClient) {
+    publicCodeLabel = "Código de cliente"
+  }
+
   const memberSinceYear = profileData?.createdAt ? new Date(profileData.createdAt).getFullYear() : "-"
   const avatarSrc = resolveProfileAvatarUrl(profileData?.avatarUrl)
-
   return (
     <>
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 duration-500 animate-in fade-in md:p-8">
-        <Card className="overflow-hidden border-border/60 shadow-sm">
-          <div className="border-b bg-muted/20 px-6 py-6 md:px-8 md:py-7">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="flex flex-col items-center gap-5 md:flex-row md:items-center">
-                <div className="relative w-fit">
+      {typeof document !== "undefined" && createPortal(
+        <div 
+          className={cn(
+            "fixed inset-x-4 z-50 lg:hidden transition-all duration-500 ease-out transform-gpu",
+            isEditing && showStickyHeader
+              ? "top-18 opacity-100 scale-100 translate-y-0 pointer-events-auto"
+              : "top-4 opacity-0 scale-95 -translate-y-4 pointer-events-none"
+          )}
+        >
+          <div className="flex items-center justify-between rounded-4xl bg-background/95 px-5 py-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.15)] border border-border/60 backdrop-blur-md">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+              </span>
+              <span className="text-sm font-medium text-foreground">
+                Editando perfil
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                onClick={handleCancelEditing}
+                variant="ghost"
+                className="text-muted-foreground hover:text-foreground cursor-pointer text-xs h-8 px-3"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                form="profile-form"
+                disabled={saving}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer text-xs h-8 px-3 font-semibold gap-1.5"
+              >
+                {saving ? <Spinner className="size-3 text-primary-foreground" /> : <SaveIcon className="size-3" />}
+                Guardar
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      <div id="profile-container" className="mx-auto flex max-w-6xl flex-col gap-6 p-4 duration-500 animate-in fade-in md:p-8">
+        <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
+          <div className="flex flex-col gap-6">
+            <Card className="overflow-hidden border-border/60 shadow-sm relative transition-all duration-300">
+              <div className="bg-linear-to-br from-amber-500/10 via-primary/10 to-indigo-500/10 h-24 w-full" />
+              <CardContent className="flex flex-col items-center p-6 -mt-12">
+                <div className="relative group select-none">
                   <PhotoProvider>
                     {avatarSrc ? (
                       <PhotoView src={avatarSrc}>
                         <button
                           type="button"
-                          className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-transform hover:scale-[1.02] cursor-zoom-in"
                           aria-label="Ver avatar en tamaño completo"
                         >
-                          <Avatar className="size-32 md:size-28 border border-border/70 shadow-md ring-4 ring-background mx-auto md:mx-0">
+                          <Avatar className="size-28 border-4 border-background shadow-lg bg-background">
                             <AvatarImage key={avatarSrc} src={avatarSrc} />
-                            <AvatarFallback className="bg-primary text-primary-foreground text-4xl md:text-3xl font-bold">
+                            <AvatarFallback className="bg-primary text-primary-foreground text-3xl font-bold">
                               {firstName?.[0] || "U"}
                             </AvatarFallback>
                           </Avatar>
                         </button>
                       </PhotoView>
                     ) : (
-                      <Avatar className="size-32 md:size-28 border border-border/70 shadow-md ring-4 ring-background mx-auto md:mx-0">
-                        <AvatarFallback className="bg-primary text-primary-foreground text-4xl md:text-3xl font-bold">
+                      <Avatar className="size-28 border-4 border-background shadow-lg bg-background">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-3xl font-bold">
                           {firstName?.[0] || "U"}
                         </AvatarFallback>
                       </Avatar>
                     )}
                   </PhotoProvider>
 
-                  {isEditing && (
-                    <div className="absolute -bottom-2 left-1/2 flex -translate-x-1/2 gap-2 rounded-full border bg-background/95 p-1 shadow-lg backdrop-blur">
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="secondary"
-                        className="size-9 rounded-full"
-                        onClick={openAvatarPicker}
-                        disabled={saving}
-                        title="Agregar foto"
-                      >
-                        <CameraIcon className="size-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="size-9 rounded-full text-destructive hover:text-destructive"
-                        onClick={handleRemoveAvatar}
-                        disabled={saving || removingAvatar || !profileData?.avatarUrl}
-                        title="Eliminar foto"
-                      >
-                        {removingAvatar ? <Spinner className="size-4" /> : <Trash2Icon className="size-4" />}
-                      </Button>
+                  {(saving || removingAvatar) && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-xs select-none pointer-events-none">
+                      <Spinner className="size-8 text-white" />
                     </div>
                   )}
-
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept={ACCEPTED_AVATAR_FILE_EXTENSIONS}
-                    onChange={handleImageSelect}
-                    disabled={saving || !isEditing}
-                  />
                 </div>
 
-                <div className="space-y-3 text-center md:text-left flex-1 min-w-0">
-                  <div className="flex flex-col items-center gap-2 md:flex-row md:items-center">
-                    <h1 className="text-3xl font-semibold tracking-tight wrap-break-word text-balance leading-tight">{firstName} {lastName}</h1>
-                    <Badge variant="secondary" className="w-fit font-semibold shrink-0">{roleMap[roleKey] || profileData?.role}</Badge>
+                {uploadProgress !== null && (
+                  <div className="w-full mt-4 px-2 animate-in fade-in-0 duration-300">
+                    <div className="flex items-center justify-between text-[10px] font-semibold text-muted-foreground mb-1">
+                      <span>Subiendo imagen...</span>
+                      <span className="tabular-nums">{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} className="h-1" />
                   </div>
-                  <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground md:justify-start">
-                    <span className="flex items-center gap-1.5 rounded-full border bg-background/80 px-3 py-1">
-                      <CalendarIcon className="size-3.5" />
-                      Miembro desde {memberSinceYear}
-                    </span>
-                    <span className="rounded-full border bg-background/80 px-3 py-1">{profileData?.email || "Sin correo"}</span>
-                    {profileData?.publicCode && (
-                      <span className="rounded-full border bg-background/80 px-3 py-1">{profileData.publicCode}</span>
+                )}
+
+                <div className="text-center mt-4 w-full">
+                  <h2 className="text-xl font-bold tracking-tight text-foreground truncate px-1">
+                    {firstName} {lastName}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-medium truncate px-1">
+                    {profileData?.email}
+                  </p>
+                  <div className="flex flex-wrap justify-center items-center gap-1.5 mt-2.5">
+                    <Badge variant="secondary" className="font-semibold text-xs py-0.5 px-2.5">
+                      {isAdmin ? "Administrador" : (roleMap[roleKey] || profileData?.role || "Usuario")}
+                    </Badge>
+                    {isOwner && (
+                      <Badge variant="outline" className="font-semibold text-xs py-0.5 px-2.5 border-primary/20 bg-primary/5 text-primary">
+                        Propietario
+                      </Badge>
                     )}
                   </div>
                 </div>
-              </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-2 w-full lg:w-[320px] lg:shrink-0 lg:justify-end mt-4 lg:mt-0">
-                {!isEditing ? (
-                  <Button key="edit-btn" onClick={handleStartEditing} className="gap-2 shadow-sm w-full sm:w-auto">
-                    <Edit2Icon className="size-4" />
-                    Editar información
-                  </Button>
-                ) : (
-                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <Button key="cancel-btn" onClick={handleCancelEditing} variant="ghost" className="gap-2 text-muted-foreground w-full sm:w-auto">
-                      <XIcon className="size-4" />
-                      Cancelar
-                    </Button>
-                    <Button key="save-btn" type="submit" form="profile-form" disabled={saving} className="gap-2 w-full sm:w-auto">
-                      {saving ? <Spinner className="size-4" /> : <SaveIcon className="size-4" />}
-                      {saving ? "Guardando..." : "Guardar cambios"}
+                <div className={cn(
+                  "grid w-full transition-[grid-template-rows,opacity,margin] duration-300 ease-in-out",
+                  !isEditing ? "grid-rows-[1fr] opacity-100 mt-5" : "grid-rows-[0fr] opacity-0 mt-0 pointer-events-none"
+                )}>
+                  <div className="overflow-hidden">
+                    <Button
+                      type="button"
+                      onClick={handleStartEditing}
+                      className="w-full gap-2 cursor-pointer"
+                    >
+                      <Edit2Icon className="size-3.5" />
+                      Editar perfil
                     </Button>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </Card>
+                </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="min-w-0">
-            <Card className={cn("transition-all duration-300", isEditing ? "ring-2 ring-primary/20 shadow-lg" : "")}>
-              <CardHeader>
-                <CardTitle>Información Personal</CardTitle>
-                <CardDescription>
-                  {isEditing ? "Edita tus datos de contacto básicos." : "Vista general de tus datos de perfil."}
-                </CardDescription>
+                <div 
+                  ref={sidebarActionsRef}
+                  className={cn(
+                    "grid w-full transition-[grid-template-rows,opacity,margin,padding] duration-300 ease-in-out",
+                    isEditing ? "grid-rows-[1fr] opacity-100 mt-5 pt-4 border-t border-border/50" : "grid-rows-[0fr] opacity-0 mt-0 pt-0 border-t-0 pointer-events-none"
+                  )}
+                >
+                  <div className="overflow-hidden flex flex-col gap-4">
+                    <div className="flex flex-col gap-2 w-full">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full gap-2 cursor-pointer"
+                        onClick={openAvatarPicker}
+                        disabled={saving || removingAvatar}
+                      >
+                        <CameraIcon className="size-3.5 text-muted-foreground" />
+                        Cambiar foto
+                      </Button>
+                      
+                      {profileData?.avatarUrl && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="w-full gap-2 text-destructive hover:bg-destructive/5 hover:text-destructive cursor-pointer"
+                          onClick={handleRemoveAvatar}
+                          disabled={saving || removingAvatar}
+                        >
+                          <Trash2Icon className="size-3.5" />
+                          Eliminar foto
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 w-full border-t border-border/50 pt-4">
+                      <Button
+                        type="button"
+                        onClick={handleCancelEditing}
+                        variant="ghost"
+                        className="flex-1 text-muted-foreground cursor-pointer"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="submit"
+                        form="profile-form"
+                        disabled={saving}
+                        className="flex-1 gap-2 cursor-pointer"
+                      >
+                        {saving ? <Spinner className="size-3.5" /> : <SaveIcon className="size-3.5" />}
+                        Guardar
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept={ACCEPTED_AVATAR_FILE_EXTENSIONS}
+                  onChange={handleImageSelect}
+                  disabled={saving || !isEditing}
+                />
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-sm">
+              <CardContent className="p-5 flex flex-col gap-4 text-sm">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <CalendarIcon className="size-4 shrink-0 text-muted-foreground/80" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider">Miembro desde</p>
+                    <p className="font-semibold text-foreground mt-0.5">{memberSinceYear}</p>
+                  </div>
+                </div>
+
+                {profileData?.publicCode && (
+                  <div className="flex items-center gap-3 text-muted-foreground border-t border-border/40 pt-3">
+                    <IdCardIcon className="size-4 shrink-0 text-muted-foreground/80" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider">{publicCodeLabel}</p>
+                      <p className="font-mono text-xs font-bold text-foreground truncate mt-0.5">{profileData.publicCode}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="p-5 pb-2">
+                <CardTitle className="text-base font-bold">Seguridad</CardTitle>
+                <CardDescription className="text-xs">Gestiona tu contraseña y accesos.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <form id="profile-form" onSubmit={handleUpdate} className="space-y-6">
+              <CardContent className="p-5 pt-2 flex flex-col gap-3">
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/10 bg-primary/5">
+                  <ShieldCheckIcon className="size-5 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-foreground">Cuenta Verificada</p>
+                    <p className="text-[10px] text-muted-foreground">Identidad confirmada con éxito</p>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full cursor-pointer" 
+                  onClick={() => setIsPasswordDialogOpen(true)}
+                >
+                  Cambiar Contraseña
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="min-w-0">
+            <Card className={cn("transition-all duration-300 border-border/60 shadow-sm", isEditing ? "ring-2 ring-primary/20 shadow-md" : "")}>
+              <CardHeader className="border-b border-border/50 pb-4">
+                <div>
+                  <CardTitle className="text-lg font-bold">Información Personal</CardTitle>
+                  <CardDescription className="text-xs mt-0.5">
+                    {isEditing ? "Edita tus datos de contacto y cuentas bancarias." : "Tus datos personales y de facturación."}
+                  </CardDescription>
+                </div>
+              </CardHeader>
+
+              <CardContent className="pt-6 space-y-6">
+                <AnimateHeight>
+                  <form id="profile-form" onSubmit={handleUpdate} className="space-y-6">
                   <div className="grid sm:grid-cols-2 gap-4">
                     <Field>
                       <FieldLabel htmlFor="firstName">Nombres</FieldLabel>
@@ -525,7 +778,7 @@ export default function ProfilePage() {
                   </Field>
 
                   <Field>
-                      <FieldLabel htmlFor="phone">Teléfono</FieldLabel>
+                    <FieldLabel htmlFor="phone">Teléfono</FieldLabel>
                     <InputGroup>
                       <InputGroupAddon align="inline-start">
                         <PhoneIcon className="size-4" />
@@ -619,7 +872,7 @@ export default function ProfilePage() {
                       <FieldLabel>Cuentas bancarias</FieldLabel>
                       <div className="flex w-full flex-col gap-2">
                         {bankAccounts.map((account, index) => (
-                          <InputGroup key={index}>
+                          <InputGroup key={index} className="transition-all duration-300 ease-in-out animate-in fade-in-0 slide-in-from-top-2">
                             <InputGroupAddon align="inline-start">
                               <BanknoteIcon className="size-4" />
                             </InputGroupAddon>
@@ -660,47 +913,8 @@ export default function ProfilePage() {
                       <FieldDescription>Una cuenta por campo.</FieldDescription>
                     </Field>
                   </div>
-
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="flex min-w-0 flex-col gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Cuenta y Seguridad</CardTitle>
-                <CardDescription>Acceso y controles sensibles de tu cuenta.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
-                  <ShieldCheckIcon className="size-5 text-primary" />
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium">Cuenta Verificada</p>
-                    <p className="text-xs text-muted-foreground">Tu identidad está confirmada</p>
-                  </div>
-                </div>
-                <Button variant="outline" className="w-full" onClick={() => setIsPasswordDialogOpen(true)}>
-                  Cambiar Contraseña
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Resumen rápido</CardTitle>
-                <CardDescription>Datos principales usados en operaciones.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3">
-                <ProfileInfoTile icon={PhoneIcon} label="Teléfono" value={phone || "Sin teléfono"} />
-                <ProfileInfoTile icon={IdCardIcon} label="DNI" value={dni || "Sin DNI"} />
-                <ProfileInfoTile icon={MapPinIcon} label="Dirección" value={address || "Sin dirección"} />
-                <ProfileInfoTile icon={BanknoteIcon} label="Banco" value={bank || "Sin banco"} />
-                <ProfileInfoTile
-                  icon={BanknoteIcon}
-                  label="Cuentas"
-                  value={normalizeBankAccounts(bankAccounts).length ? `${normalizeBankAccounts(bankAccounts).length} registradas` : "Sin cuentas"}
-                />
+                  </form>
+                </AnimateHeight>
               </CardContent>
             </Card>
           </div>
@@ -794,22 +1008,45 @@ function ProfileFieldSkeleton({ wide = false }: { wide?: boolean }) {
   )
 }
 
-function ProfileInfoTile({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: ElementType
-  label: string
-  value: string
-}) {
+function AnimateHeight({ children, className }: { children: React.ReactNode; className?: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | "auto">("auto");
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const rectHeight = entry.contentRect.height;
+        if (isFirstRender.current) {
+          setHeight(rectHeight);
+          requestAnimationFrame(() => {
+            isFirstRender.current = false;
+          });
+        } else {
+          setHeight(rectHeight);
+        }
+      }
+    });
+
+    resizeObserver.observe(element);
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   return (
-    <div className="flex items-start gap-3 rounded-lg border bg-muted/20 p-3">
-      <Icon className="mt-0.5 size-4 text-muted-foreground" />
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="wrap-break-word text-sm font-medium">{value}</p>
-      </div>
+    <div
+      style={{
+        height: height === "auto" ? "auto" : `${height}px`,
+        // eslint-disable-next-line react-hooks/refs
+        transition: isFirstRender.current ? "none" : "height 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+      }}
+      className={cn("overflow-hidden", className)}
+    >
+      <div ref={containerRef}>{children}</div>
     </div>
-  )
+  );
 }
