@@ -1,14 +1,16 @@
 import { FileTextIcon, PieChartIcon, ReceiptIcon, TrendingUpIcon, UsersIcon, WalletIcon } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
+import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/contexts/auth-context"
-import { formatCurrency, formatCurrencyPrecise } from "@/lib/formatters"
+
+import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
@@ -47,8 +49,9 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
-  useEffect(() => {
-    async function fetchData() {
+  const fetchData = useCallback(
+    async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
+      if (!keepContent) setLoading(true)
       try {
         const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/reports/dashboard`)
         const json = (await res.json()) as ApiResponse<AdminDashboardData>
@@ -60,11 +63,35 @@ export default function AdminDashboard() {
       } finally {
         setLoading(false)
       }
-    }
+    },
+    [fetchWithAuth],
+  )
+
+  useEffect(() => {
     if (session?.access_token) {
-      fetchData()
+      Promise.resolve().then(() => {
+        void fetchData()
+      })
     }
-  }, [fetchWithAuth, session?.access_token])
+  }, [fetchData, session?.access_token])
+
+  useEffect(() => {
+    const refreshFromRealtime = (event: Event) => {
+      const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
+      if (
+        detail?.type?.startsWith("loan.") ||
+        detail?.type?.startsWith("payment.") ||
+        detail?.type?.startsWith("voucher.") ||
+        detail?.type?.startsWith("user.") ||
+        detail?.type?.startsWith("access-request.")
+      ) {
+        void fetchData({ keepContent: true })
+      }
+    }
+
+    window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
+    return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
+  }, [fetchData])
 
   if (loading) {
     return <AdminDashboardSkeleton />
@@ -126,14 +153,14 @@ export default function AdminDashboard() {
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Capital activo prestado</p>
               <div className="text-4xl md:text-5xl font-black tracking-tight">
-                S/ {formatCurrencyPrecise(capital)}
+                <AnimatedNumber value={capital} isCurrency />
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-bold">
                 <span className="opacity-70">Capital vs deuda activa</span>
-                <span>{avance}%</span>
+                <span><AnimatedNumber value={avance} decimals={0} suffix="%" /></span>
               </div>
               <div className="w-full bg-white/20 h-3 rounded-full overflow-hidden">
                 <div className="bg-white h-full rounded-full transition-all duration-1000" style={{ width: `${avance}%` }} />
@@ -143,15 +170,15 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
               <div className="bg-white/10 p-4 rounded-2xl">
                 <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Activos</div>
-                <div className="text-2xl font-bold">{loansActive}</div>
+                <div className="text-2xl font-bold"><AnimatedNumber value={loansActive} /></div>
               </div>
               <div className="bg-white/10 p-4 rounded-2xl">
                 <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Mora</div>
-                <div className="text-2xl font-bold">{loansMora}</div>
+                <div className="text-2xl font-bold"><AnimatedNumber value={loansMora} /></div>
               </div>
               <div className="bg-white/10 p-4 rounded-2xl">
                 <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Pendientes</div>
-                <div className="text-2xl font-bold">{pendingLoans}</div>
+                <div className="text-2xl font-bold"><AnimatedNumber value={pendingLoans} /></div>
               </div>
             </div>
           </CardContent>
@@ -163,22 +190,22 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricCard
             icon={<UsersIcon className="size-5 md:size-6 text-primary" />}
-            value={usersCount}
+            value={<AnimatedNumber value={usersCount} />}
             label="Usuarios"
           />
           <MetricCard
             icon={<FileTextIcon className="size-5 md:size-6 text-primary" />}
-            value={loansCount}
+            value={<AnimatedNumber value={loansCount} />}
             label="Préstamos"
           />
           <MetricCard
             icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />}
-            value={formatCurrency(totalDebt)}
+            value={<AnimatedNumber value={totalDebt} isCurrency />}
             label="Deuda activa"
           />
           <MetricCard
             icon={<WalletIcon className="size-5 md:size-6 text-primary" />}
-            value={`${avance}%`}
+            value={<AnimatedNumber value={avance} decimals={0} suffix="%" />}
             label="Eficiencia"
           />
         </div>
@@ -254,7 +281,7 @@ function MetricCardSkeleton() {
   )
 }
 
-function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: string | number, label: string }) {
+function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: React.ReactNode, label: string }) {
   return (
     <Card className="border-border shadow-sm overflow-hidden">
       <CardContent className="p-5 flex flex-col space-y-4">

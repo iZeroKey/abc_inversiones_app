@@ -1,10 +1,12 @@
+import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/contexts/auth-context"
-import { formatCurrencyPrecise, formatPercent } from "@/lib/formatters"
+import { formatPercent } from "@/lib/formatters"
+import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import { CheckSquareIcon, TrendingUpIcon, WalletIcon } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
@@ -35,8 +37,9 @@ export default function InvestorDashboard() {
   const [collectedAmount, setCollectedAmount] = useState(0)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    async function fetchData() {
+  const fetchData = useCallback(
+    async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
+      if (!keepContent) setLoading(true)
       try {
         const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/reports/portfolio`)
         const json = (await res.json()) as ApiResponse<InvestorPortfolio>
@@ -63,11 +66,33 @@ export default function InvestorDashboard() {
       } finally {
         setLoading(false)
       }
-    }
+    },
+    [fetchWithAuth],
+  )
+
+  useEffect(() => {
     if (session?.access_token) {
-      fetchData()
+      Promise.resolve().then(() => {
+        void fetchData()
+      })
     }
-  }, [fetchWithAuth, session?.access_token])
+  }, [fetchData, session?.access_token])
+
+  useEffect(() => {
+    const refreshFromRealtime = (event: Event) => {
+      const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
+      if (
+        detail?.type?.startsWith("loan.") ||
+        detail?.type?.startsWith("payment.") ||
+        detail?.type?.startsWith("voucher.")
+      ) {
+        void fetchData({ keepContent: true })
+      }
+    }
+
+    window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
+    return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
+  }, [fetchData])
 
   if (loading) {
     return <InvestorDashboardSkeleton />
@@ -105,12 +130,12 @@ export default function InvestorDashboard() {
               <div className="space-y-2">
                 <p className="text-primary-foreground/70 font-semibold uppercase tracking-widest text-[10px]">Capital Invertido</p>
                 <p className="text-4xl md:text-5xl font-black tabular-nums tracking-tight">
-                  S/ {formatCurrencyPrecise(totalInvested)}
+                  <AnimatedNumber value={totalInvested} isCurrency />
                 </p>
                 <div className="flex items-center gap-2 pt-2">
                   <Badge variant="secondary" className="bg-white/20 text-white border-none">
                     <TrendingUpIcon className="size-3 mr-1" />
-                    ROI {formatPercent(roi)}
+                    ROI <AnimatedNumber value={roi} isPercent />
                   </Badge>
                 </div>
               </div>
@@ -118,11 +143,11 @@ export default function InvestorDashboard() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
                   <p className="text-[10px] text-primary-foreground/60 font-bold uppercase mb-1">Activos</p>
-                  <p className="text-xl font-bold">{activeLoans}</p>
+                  <p className="text-xl font-bold"><AnimatedNumber value={activeLoans} /></p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
                   <p className="text-[10px] text-primary-foreground/60 font-bold uppercase mb-1">Cobrado</p>
-                  <p className="text-xl font-bold">S/ {formatCurrencyPrecise(collectedAmount)}</p>
+                  <p className="text-xl font-bold"><AnimatedNumber value={collectedAmount} isCurrency /></p>
                 </div>
               </div>
             </div>
@@ -136,19 +161,19 @@ export default function InvestorDashboard() {
           <MetricCard
             icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />}
             label="Retorno Total"
-            value={`S/ ${formatCurrencyPrecise(totalReturn)}`}
+            value={<AnimatedNumber value={totalReturn} isCurrency />}
             subValue={`${formatPercent(roi)} ROI`}
           />
           <MetricCard
             icon={<CheckSquareIcon className="size-5 md:size-6 text-primary" />}
             label="Préstamos Activos"
-            value={activeLoans.toString()}
+            value={<AnimatedNumber value={activeLoans} />}
             subValue="En curso"
           />
           <MetricCard
             icon={<WalletIcon className="size-5 md:size-6 text-primary" />}
             label="Cobrado"
-            value={`S/ ${formatCurrencyPrecise(collectedAmount)}`}
+            value={<AnimatedNumber value={collectedAmount} isCurrency />}
             subValue={`${progressPercent.toFixed(1)}% del total`}
           />
         </div>
@@ -222,7 +247,7 @@ function MetricCard({
 }: {
   icon: React.ReactNode
   label: string
-  value: string
+  value: React.ReactNode
   subValue?: string
 }) {
   return (

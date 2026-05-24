@@ -1,3 +1,4 @@
+import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -8,9 +9,10 @@ import {
   getRemainingDebt,
   toNumber,
 } from "@/features/loans/loan-utils"
-import { formatCurrency, formatCurrencyPrecise } from "@/lib/formatters"
+
+import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import { ChevronRightIcon, CreditCardIcon, ReceiptTextIcon, WalletIcon } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
@@ -52,8 +54,9 @@ export default function ClientDashboard() {
   const [pendingInstallments, setPendingInstallments] = useState(0)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    async function fetchData() {
+  const fetchData = useCallback(
+    async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
+      if (!keepContent) setLoading(true)
       try {
         const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/reports/statement`)
         const json = (await res.json()) as ApiResponse<ClientStatement>
@@ -99,11 +102,33 @@ export default function ClientDashboard() {
       } finally {
         setLoading(false)
       }
-    }
+    },
+    [fetchWithAuth],
+  )
+
+  useEffect(() => {
     if (session?.access_token) {
-      fetchData()
+      Promise.resolve().then(() => {
+        void fetchData()
+      })
     }
-  }, [fetchWithAuth, session?.access_token])
+  }, [fetchData, session?.access_token])
+
+  useEffect(() => {
+    const refreshFromRealtime = (event: Event) => {
+      const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
+      if (
+        detail?.type?.startsWith("loan.") ||
+        detail?.type?.startsWith("payment.") ||
+        detail?.type?.startsWith("voucher.")
+      ) {
+        void fetchData({ keepContent: true })
+      }
+    }
+
+    window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
+    return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
+  }, [fetchData])
 
   if (loading) {
     return (
@@ -178,17 +203,17 @@ export default function ClientDashboard() {
       <div className="grid grid-cols-3 gap-3 md:gap-5">
         <MetricCard 
           icon={<WalletIcon className="size-5 md:size-6 text-primary" />} 
-          value={loans.length} 
+          value={<AnimatedNumber value={loans.length} />} 
           label="Préstamos" 
         />
         <MetricCard 
           icon={<ReceiptTextIcon className="size-5 md:size-6 text-primary" />} 
-          value={formatCurrency(remainingDebt)} 
+          value={<AnimatedNumber value={remainingDebt} isCurrency />} 
           label="Por pagar" 
         />
         <MetricCard 
           icon={<CreditCardIcon className="size-5 md:size-6 text-primary" />} 
-          value={pendingInstallments} 
+          value={<AnimatedNumber value={pendingInstallments} />} 
           label="Cuotas" 
         />
       </div>
@@ -226,7 +251,7 @@ export default function ClientDashboard() {
   )
 }
 
-function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: string | number, label: string }) {
+function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: React.ReactNode, label: string }) {
   return (
     <Card className="border-border shadow-sm overflow-hidden">
       <CardContent className="p-4 md:p-5 flex flex-col items-center justify-center text-center space-y-3">
@@ -268,7 +293,6 @@ function MainLoanCard({ loan }: { loan: Loan }) {
     monthly: "Mensual"
   }
   const cuotas = loan.installmentsCount || 0
-  const tasa = loan.interestRate ? `${loan.interestRate}%` : "0%"
   const normalizedFrequency = loan.frequency?.toLowerCase()
   const frecuencia = normalizedFrequency
     ? frequencyMap[normalizedFrequency] || loan.frequency || "N/A"
@@ -283,7 +307,7 @@ function MainLoanCard({ loan }: { loan: Loan }) {
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Saldo Restante</p>
               <div className="text-4xl md:text-5xl font-black tracking-tight">
-                S/ {formatCurrencyPrecise(remainingDebt)}
+                <AnimatedNumber value={remainingDebt} isCurrency />
               </div>
             </div>
             <div className="size-10 rounded-full bg-white/10 flex items-center justify-center">
@@ -294,21 +318,23 @@ function MainLoanCard({ loan }: { loan: Loan }) {
           <div className="space-y-2">
             <div className="flex justify-between text-xs font-bold">
               <span className="opacity-70">Progreso de pago</span>
-              <span>{progressPercent.toFixed(0)}%</span>
+              <span><AnimatedNumber value={progressPercent} decimals={0} suffix="%" /></span>
             </div>
             <div className="w-full bg-white/20 h-2.5 rounded-full overflow-hidden">
                <div className="bg-white h-full rounded-full transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
             </div>
-            <p className="text-xs opacity-70">Pagado: S/ {formatCurrencyPrecise(totalPaid)}</p>
+            <p className="text-xs opacity-70">Pagado: <AnimatedNumber value={totalPaid} isCurrency /></p>
           </div>
 
           <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
             <div>
-              <div className="text-xl font-bold">{cuotas}</div>
+              <div className="text-xl font-bold"><AnimatedNumber value={cuotas} /></div>
               <div className="text-[10px] font-bold uppercase opacity-60">Cuotas</div>
             </div>
             <div>
-              <div className="text-xl font-bold">{tasa}</div>
+              <div className="text-xl font-bold">
+                <AnimatedNumber value={parseFloat(String(loan.interestRate || 0))} decimals={1} suffix="%" />
+              </div>
               <div className="text-[10px] font-bold uppercase opacity-60">Tasa</div>
             </div>
             <div>
@@ -346,8 +372,10 @@ function OtherLoanCard({ loan }: { loan: Loan }) {
                <ReceiptTextIcon className="size-6 text-primary" />
              </div>
              <div>
-               <div className="font-bold tracking-tight">S/ {formatCurrencyPrecise(remainingDebt)}</div>
-               <div className="text-xs text-muted-foreground font-medium mt-0.5">{frequency} • <span className="text-success font-bold">{progressPercent.toFixed(0)}% pagado</span></div>
+               <div className="font-bold tracking-tight">
+                 <AnimatedNumber value={remainingDebt} isCurrency />
+               </div>
+               <div className="text-xs text-muted-foreground font-medium mt-0.5">{frequency} • <span className="text-success font-bold"><AnimatedNumber value={progressPercent} decimals={0} suffix="% pagado" /></span></div>
              </div>
           </div>
           <ChevronRightIcon className="size-4 text-muted-foreground" />
