@@ -49,7 +49,8 @@ export function ResponsiveSheetContent({
   )
   const [isDragging, setIsDragging] = useState(false)
   const dragStartRef = useRef<{ startWidth: number; startX: number } | null>(null)
-  const resizeEnabled = resizable && !isMobile && (resolvedSide === "left" || resolvedSide === "right")
+  const isDesktop = !isMobile && (resolvedSide === "left" || resolvedSide === "right")
+  const resizeEnabled = resizable && isDesktop
   const resolvedDesktopWidth = clamp(desktopWidth, minDesktopWidth, maxDesktopWidth)
 
   const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -120,7 +121,7 @@ export function ResponsiveSheetContent({
         className,
       )}
       style={
-        resizeEnabled
+        isDesktop
           ? {
               ...style,
               width: resolvedDesktopWidth,

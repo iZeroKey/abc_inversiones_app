@@ -59,6 +59,7 @@ type DataTableSkeletonProps = {
     cellClassName?: string
     headerWidth?: string
     cellWidth?: string
+    cellRender?: () => React.ReactNode
   }>
   rows?: number
   tableClassName?: string
@@ -200,7 +201,9 @@ export function DataTableSkeleton({
             <TableRow key={rowIndex}>
               {columns.map((column, columnIndex) => (
                 <TableCell key={columnIndex} className={column.cellClassName}>
-                  <Skeleton className={cn("h-5", column.cellWidth ?? column.headerWidth ?? "w-24")} />
+                  {column.cellRender ? column.cellRender() : (
+                    <Skeleton className={cn("h-5", column.cellWidth ?? column.headerWidth ?? "w-24")} />
+                  )}
                 </TableCell>
               ))}
             </TableRow>
