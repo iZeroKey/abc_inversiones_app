@@ -34,8 +34,30 @@ export function LoanListSkeleton({
         columns={[
           { className: "w-10", headerWidth: "w-4", cellWidth: "w-4" },
           { headerWidth: "w-24", cellWidth: "w-28" },
-          { headerWidth: "w-20", cellWidth: "w-36" },
-          { headerWidth: "w-28", cellWidth: "w-36" },
+          {
+            headerWidth: "w-20",
+            cellRender: () => (
+              <div className="flex items-center gap-2">
+                <Skeleton className="size-7 shrink-0 rounded-full" />
+                <div className="min-w-0 flex-1">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="mt-1 h-3 w-16" />
+                </div>
+              </div>
+            ),
+          },
+          {
+            headerWidth: "w-28",
+            cellRender: () => (
+              <div className="flex items-center gap-2">
+                <Skeleton className="size-7 shrink-0 rounded-full" />
+                <div className="min-w-0 flex-1">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="mt-1 h-3 w-16" />
+                </div>
+              </div>
+            ),
+          },
           { headerWidth: "w-16", cellWidth: "w-20" },
           { headerWidth: "w-24", cellWidth: "w-24" },
           { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },

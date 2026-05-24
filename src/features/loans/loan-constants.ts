@@ -1,6 +1,6 @@
 import type { LoanStatus } from "@/types/loans";
 
-export const PAGE_SIZE = 8;
+export const PAGE_SIZE = 10;
 
 export const statusFilters: Array<{
   value: "all" | LoanStatus;

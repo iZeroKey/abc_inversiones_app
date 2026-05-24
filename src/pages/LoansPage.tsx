@@ -5,6 +5,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
+import { UserDetailSheet, type UserDetailProfile } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
 import { AdminLoansOperationsPanel } from "@/features/loans/components/AdminLoansOperationsPanel"
 import { CreateLoanDialog } from "@/features/loans/components/CreateLoanDialog"
@@ -14,34 +15,35 @@ import { ReviewLoanDialog } from "@/features/loans/components/ReviewLoanDialog"
 import { PAGE_SIZE } from "@/features/loans/loan-constants"
 import { defaultLoanForm, type LoanFormState } from "@/features/loans/loan-form"
 import {
-    canCreateLoan,
-    canReviewLoan,
-    getLoanRole,
-    getRoleCopy,
+  canCreateLoan,
+  canReviewLoan,
+  getLoanRole,
+  getRoleCopy,
 } from "@/features/loans/loan-permissions"
 import {
-    createLoanSearchText,
-    getErrorMessage,
-    getLoanPaidAmount,
+  createLoanSearchText,
+  getErrorMessage,
+  getLoanPaidAmount,
 } from "@/features/loans/loan-utils"
 import {
-    approveLoan,
-    createLoan,
-    fetchLoanDetail,
-    fetchLoanInstallments,
-    fetchLoanPayments,
-    fetchLoanVouchers,
-    fetchLoans,
-    fetchUsersByRole,
-    rejectLoan,
+  approveLoan,
+  createLoan,
+  fetchLoanDetail,
+  fetchLoanInstallments,
+  fetchLoanPayments,
+  fetchLoanVouchers,
+  fetchLoans,
+  fetchUserById,
+  fetchUsersByRole,
+  rejectLoan,
 } from "@/lib/loans-api"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import type {
-    Loan,
-    LoanCreatePayload,
-    LoanStatus,
-    PaginationMeta,
-    RelatedUser,
+  Loan,
+  LoanCreatePayload,
+  LoanStatus,
+  PaginationMeta,
+  RelatedUser,
 } from "@/types/loans"
 
 const emptyRelatedData: RelatedData = {
@@ -72,7 +74,6 @@ export default function LoansPage() {
   const isDetailRoute = Boolean(loanId)
 
   const [loans, setLoans] = useState<Loan[]>([])
-  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, totalPages: 1 })
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<"all" | LoanStatus>("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -96,10 +97,14 @@ export default function LoansPage() {
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [loanUsersLoaded, setLoanUsersLoaded] = useState(false)
   const [adminView, setAdminView] = useState(() => routeState?.adminView === "advanced" ? "advanced" : "simple")
+  const [selectedUserForSheet, setSelectedUserForSheet] = useState<UserDetailProfile | null>(null)
+  const [newLoanIds, setNewLoanIds] = useState<Set<string>>(() => new Set())
 
   const activeLoanLookup = loanId ?? manualSelectedLoanId
   const activeLoanIdRef = useRef<string | null>(loanId ?? null)
   const pendingDetailIdRef = useRef<string | null>(null)
+  const visibleLoanIdsRef = useRef<Set<string>>(new Set())
+  const newLoanTimeoutRef = useRef<number | undefined>(undefined)
   const selectedLoanFromList = useMemo(
     () =>
       loans.find(
@@ -125,11 +130,61 @@ export default function LoansPage() {
   const isAdminView = role === "admin"
 
   const filteredLoans = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
-    if (!query) return loans
+    let result = loans
 
-    return loans.filter((loan) => createLoanSearchText(loan).includes(query))
-  }, [loans, searchQuery])
+    if (statusFilter !== "all") {
+      result = result.filter((loan) => loan.status === statusFilter)
+    }
+
+    const query = searchQuery.trim().toLowerCase()
+    if (query) {
+      result = result.filter((loan) => createLoanSearchText(loan).includes(query))
+    }
+
+    return result
+  }, [loans, statusFilter, searchQuery])
+
+  const paginatedLoans = useMemo(() => {
+    const startIndex = (page - 1) * PAGE_SIZE
+    return filteredLoans.slice(startIndex, startIndex + PAGE_SIZE)
+  }, [filteredLoans, page])
+
+  const pagination = useMemo(() => {
+    const total = filteredLoans.length
+    const limit = PAGE_SIZE
+    const totalPages = Math.max(Math.ceil(total / limit), 1)
+    return {
+      page,
+      limit,
+      total,
+      totalPages,
+    }
+  }, [filteredLoans.length, page])
+
+  const rememberVisibleLoans = useCallback((nextLoans: Loan[], highlightNew: boolean) => {
+    const previousIds = visibleLoanIdsRef.current
+    const nextIds = new Set(nextLoans.map((loan) => loan.id))
+    const addedIds =
+      highlightNew && previousIds.size > 0
+        ? nextLoans
+            .map((loan) => loan.id)
+            .filter((id) => !previousIds.has(id))
+        : []
+
+    visibleLoanIdsRef.current = nextIds
+
+    if (addedIds.length === 0) return
+
+    if (newLoanTimeoutRef.current !== undefined) {
+      window.clearTimeout(newLoanTimeoutRef.current)
+    }
+
+    setNewLoanIds(new Set(addedIds))
+    newLoanTimeoutRef.current = window.setTimeout(() => {
+      setNewLoanIds(new Set())
+      newLoanTimeoutRef.current = undefined
+    }, 2200)
+  }, [])
 
   const loadLoans = useCallback(
     async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
@@ -143,15 +198,10 @@ export default function LoansPage() {
       setListError(null)
 
       try {
-        const loansResult = await fetchLoans(fetchWithAuth, {
-          page,
-          limit: PAGE_SIZE,
-          status: statusFilter === "all" ? undefined : statusFilter,
-          search: searchQuery.trim() || (loanId && !isUuid(loanId) ? loanId : undefined),
-        })
+        const loansResult = await fetchLoans(fetchWithAuth)
 
+        rememberVisibleLoans(loansResult.loans, keepContent)
         setLoans(loansResult.loans)
-        setPagination(loansResult.meta)
 
         if (adminView === "advanced" && !activeLoanIdRef.current && loansResult.loans[0]) {
           activeLoanIdRef.current = loansResult.loans[0].id
@@ -164,20 +214,32 @@ export default function LoansPage() {
         setRefreshingList(false)
       }
     },
-    [adminView, fetchWithAuth, loanId, page, searchQuery, session?.access_token, statusFilter],
+    [adminView, fetchWithAuth, rememberVisibleLoans, session?.access_token],
   )
 
+  useEffect(() => {
+    return () => {
+      if (newLoanTimeoutRef.current !== undefined) {
+        window.clearTimeout(newLoanTimeoutRef.current)
+      }
+    }
+  }, [])
+
   const loadDetail = useCallback(
-    async (id: string, fallbackLoan?: Loan | null) => {
+    async (id: string, fallbackLoan?: Loan | null, options?: { silent?: boolean }) => {
       if (!session?.access_token) return
 
       pendingDetailIdRef.current = id
-      setLoadingDetail(true)
-      setDetailError(null)
-      setRelatedDataLoanId(null)
-      setRelatedData(emptyRelatedData)
-      if (fallbackLoan) {
-        setSelectedLoan(fallbackLoan)
+      const silent = options?.silent ?? false
+
+      if (!silent) {
+        setLoadingDetail(true)
+        setDetailError(null)
+        setRelatedDataLoanId(null)
+        setRelatedData(emptyRelatedData)
+        if (fallbackLoan) {
+          setSelectedLoan(fallbackLoan)
+        }
       }
 
       try {
@@ -210,11 +272,13 @@ export default function LoansPage() {
         setRelatedDataLoanId(id)
       } catch (error) {
         if (pendingDetailIdRef.current !== id) return
-        setSelectedLoan(fallbackLoan ?? null)
-        setRelatedDataLoanId(null)
-        setDetailError(getErrorMessage(error, "No se pudo cargar el detalle del préstamo."))
+        if (!silent) {
+          setSelectedLoan(fallbackLoan ?? null)
+          setRelatedDataLoanId(null)
+          setDetailError(getErrorMessage(error, "No se pudo cargar el detalle del préstamo."))
+        }
       } finally {
-        if (pendingDetailIdRef.current === id) {
+        if (!silent) {
           setLoadingDetail(false)
         }
       }
@@ -356,31 +420,12 @@ export default function LoansPage() {
       setLoanForm(defaultLoanForm)
 
       if (createdLoan?.id) {
-        const matchesCurrentView =
-          page === 1 &&
-          (statusFilter === "all" || createdLoan.status === statusFilter) &&
-          (!searchQuery.trim() || createLoanSearchText(createdLoan).includes(searchQuery.trim().toLowerCase()))
-
-        if (matchesCurrentView) {
-          setLoans((currentLoans) => [
-            createdLoan,
-            ...currentLoans.filter((loan) => loan.id !== createdLoan.id),
-          ].slice(0, PAGE_SIZE))
-          setPagination((currentPagination) => {
-            const total = (currentPagination.total ?? loans.length) + 1
-            const limit = currentPagination.limit ?? PAGE_SIZE
-
-            return {
-              ...currentPagination,
-              page: 1,
-              total,
-              totalPages: Math.max(currentPagination.totalPages ?? 1, Math.ceil(total / limit)),
-            }
-          })
-        } else {
-          await loadLoans({ keepContent: true })
-        }
-
+        setLoans((prevLoans) => [
+          createdLoan,
+          ...prevLoans.filter((loan) => loan.id !== createdLoan.id),
+        ])
+        setPage(1)
+        rememberVisibleLoans([createdLoan], true)
         handleSelectLoan(createdLoan)
       } else {
         await loadLoans({ keepContent: true })
@@ -435,7 +480,7 @@ export default function LoansPage() {
 
     await Promise.all([
       loadLoans({ keepContent: true }),
-      loadDetail(id, visibleSelectedLoan),
+      loadDetail(id, visibleSelectedLoan, { silent: true }),
     ])
   }, [detailLoanId, loadDetail, loadLoans, visibleSelectedLoan])
 
@@ -443,6 +488,14 @@ export default function LoansPage() {
     const refreshFromRealtime = (event: Event) => {
       const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
       if (!detail?.type) return
+
+      if (
+        !detail.type.startsWith("loan.") &&
+        !detail.type.startsWith("payment.") &&
+        !detail.type.startsWith("voucher.")
+      ) {
+        return
+      }
 
       const payload = detail.data as { loanId?: string } | undefined
       const eventLoanId = payload?.loanId
@@ -501,6 +554,7 @@ export default function LoansPage() {
           onReject={() => setReviewDialog("reject")}
           onRetryDetail={() => detailLoanId && void loadDetail(detailLoanId, visibleSelectedLoan)}
           onDataChanged={refreshSelectedLoanData}
+          onUserClick={setSelectedUserForSheet}
         />
       ) : isAdminView ? (
         <Tabs value={adminView} onValueChange={setAdminView} className="gap-5">
@@ -514,7 +568,8 @@ export default function LoansPage() {
           </TabsList>
           <TabsContent value="simple">
             <SimpleLoansWorkspace
-              loans={filteredLoans}
+              loans={paginatedLoans}
+              highlightedLoanIds={newLoanIds}
               pagination={pagination}
               page={page}
               statusFilter={statusFilter}
@@ -533,6 +588,7 @@ export default function LoansPage() {
           <TabsContent value="advanced">
             <AdminLoansOperationsPanel
               loans={filteredLoans}
+              highlightedLoanIds={newLoanIds}
               selectedLoan={visibleSelectedLoan}
               pagination={pagination}
               page={page}
@@ -555,12 +611,14 @@ export default function LoansPage() {
               onReject={() => setReviewDialog("reject")}
               onRetryDetail={() => visibleSelectedLoan && void loadDetail(visibleSelectedLoan.id, visibleSelectedLoan)}
               onDataChanged={refreshSelectedLoanData}
+              onUserClick={setSelectedUserForSheet}
             />
           </TabsContent>
         </Tabs>
       ) : (
         <SimpleLoansWorkspace
-          loans={filteredLoans}
+          loans={paginatedLoans}
+          highlightedLoanIds={newLoanIds}
           pagination={pagination}
           page={page}
           statusFilter={statusFilter}
@@ -600,6 +658,14 @@ export default function LoansPage() {
         }}
         onConfirm={() => void handleReviewAction()}
       />
+
+      <UserDetailSheet
+        user={selectedUserForSheet}
+        onOpenChange={(open) => {
+          if (!open) setSelectedUserForSheet(null)
+        }}
+        fetchUserById={(id) => fetchUserById(fetchWithAuth, id)}
+      />
     </div>
   )
 }
@@ -616,6 +682,7 @@ function LoanDetailRoute({
   onReject,
   onRetryDetail,
   onDataChanged,
+  onUserClick,
 }: {
   selectedLoan: Loan | null
   relatedData: RelatedData
@@ -628,6 +695,7 @@ function LoanDetailRoute({
   onReject: () => void
   onRetryDetail: () => void
   onDataChanged: () => Promise<void> | void
+  onUserClick?: (user: UserDetailProfile) => void
 }) {
   return (
     <section className="mx-auto w-full max-w-7xl">
@@ -644,6 +712,7 @@ function LoanDetailRoute({
         onRetry={onRetryDetail}
         onDataChanged={onDataChanged}
         sticky={false}
+        onUserClick={onUserClick}
       />
     </section>
   )
@@ -651,6 +720,7 @@ function LoanDetailRoute({
 
 function SimpleLoansWorkspace({
   loans,
+  highlightedLoanIds,
   pagination,
   page,
   statusFilter,
@@ -666,6 +736,7 @@ function SimpleLoansWorkspace({
   onSearchQueryChange,
 }: {
   loans: Loan[]
+  highlightedLoanIds?: Set<string>
   pagination: PaginationMeta
   page: number
   statusFilter: "all" | LoanStatus
@@ -684,6 +755,7 @@ function SimpleLoansWorkspace({
     <section className="w-full">
       <LoansListPanel
         loans={loans}
+        highlightedLoanIds={highlightedLoanIds}
         selectedLoan={null}
         pagination={pagination}
         page={page}

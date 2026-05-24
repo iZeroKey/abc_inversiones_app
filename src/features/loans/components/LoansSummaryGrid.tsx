@@ -7,9 +7,9 @@ import {
   TrendingUpIcon,
 } from "lucide-react"
 
+import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { SummaryMetricCard } from "@/features/loans/components/LoanMetricBits"
 import { getLoanPaidAmount, toNumber } from "@/features/loans/loan-utils"
-import { formatCurrency } from "@/lib/formatters"
 import type { Loan, LoanSummary } from "@/types/loans"
 
 export function LoansSummaryGrid({
@@ -36,12 +36,12 @@ export function LoansSummaryGrid({
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-      <SummaryMetricCard icon={FileTextIcon} label="Total" value={totalLoans} detail="Préstamos" />
-      <SummaryMetricCard icon={TrendingUpIcon} label="Activos" value={activeLoans} detail="En cronograma" />
-      <SummaryMetricCard icon={LandmarkIcon} label="Deuda" value={formatCurrency(debt)} detail="Cartera total" />
-      <SummaryMetricCard icon={BanknoteIcon} label="Pagado" value={formatCurrency(paid)} detail="Capital cobrado" />
-      <SummaryMetricCard icon={CalendarClockIcon} label="Próximo pago" value={formatCurrency(nextPayment)} detail="Según rol" />
-      <SummaryMetricCard icon={AlertCircleIcon} label="Vencidos" value={overdue} detail="Requieren atención" />
+      <SummaryMetricCard icon={FileTextIcon} label="Total" value={<AnimatedNumber value={totalLoans} />} detail="Préstamos" />
+      <SummaryMetricCard icon={TrendingUpIcon} label="Activos" value={<AnimatedNumber value={activeLoans} />} detail="En cronograma" />
+      <SummaryMetricCard icon={LandmarkIcon} label="Deuda" value={<AnimatedNumber value={debt} isCurrency />} detail="Cartera total" />
+      <SummaryMetricCard icon={BanknoteIcon} label="Pagado" value={<AnimatedNumber value={paid} isCurrency />} detail="Capital cobrado" />
+      <SummaryMetricCard icon={CalendarClockIcon} label="Próximo pago" value={<AnimatedNumber value={nextPayment} isCurrency />} detail="Según rol" />
+      <SummaryMetricCard icon={AlertCircleIcon} label="Vencidos" value={<AnimatedNumber value={overdue} />} detail="Requieren atención" />
     </div>
   )
 }

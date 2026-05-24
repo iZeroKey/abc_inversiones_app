@@ -189,7 +189,7 @@ function safeParseJson<T>(value: string): T | null {
 
 export async function fetchLoans(
   fetchWithAuth: FetchWithAuth,
-  params: { page: number; limit: number; status?: string; search?: string },
+  params?: { page?: number; limit?: number; status?: string; search?: string },
 ): Promise<{ loans: Loan[]; meta: PaginationMeta }> {
   const payload = await readApiUrl<Loan[] | LoanListEnvelope>(
     fetchWithAuth,
@@ -200,28 +200,16 @@ export async function fetchLoans(
   const loans = Array.isArray(data)
     ? data
     : (data?.loans ?? data?.items ?? data?.results ?? []);
-  const serverMeta =
-    payload.meta?.pagination ??
-    (typeof payload.meta?.total === "number" ? payload.meta : undefined);
-  const hasServerPagination = Boolean(
-    serverMeta &&
-    typeof serverMeta.page === "number" &&
-    typeof serverMeta.limit === "number" &&
-    typeof serverMeta.total === "number" &&
-    typeof serverMeta.totalPages === "number",
-  );
-  const clientStart = (params.page - 1) * params.limit;
-  const clientPaginatedLoans = hasServerPagination
-    ? loans
-    : loans.slice(clientStart, clientStart + params.limit);
 
   return {
-    loans: clientPaginatedLoans,
-    meta: serverMeta ?? {
-      page: params.page,
-      limit: params.limit,
+    loans,
+    meta: {
+      page: params?.page ?? 1,
+      limit: params?.limit ?? loans.length,
       total: loans.length,
-      totalPages: Math.max(Math.ceil(loans.length / params.limit), 1),
+      totalPages: params?.limit
+        ? Math.max(Math.ceil(loans.length / params.limit), 1)
+        : 1,
     },
   };
 }
@@ -486,6 +474,21 @@ export async function deleteVoucher(
       method: "DELETE",
     },
   );
+}
+
+export async function fetchUserById(
+  fetchWithAuth: FetchWithAuth,
+  userId: string,
+): Promise<RelatedUser | null> {
+  try {
+    const payload = await readApiResponse<RelatedUser>(
+      fetchWithAuth,
+      `/api/v1/users/${userId}`,
+    );
+    return payload.data ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchUsersByRole(

@@ -12,6 +12,7 @@ import {
   Trash2Icon,
   TrendingUpIcon,
   UploadIcon,
+  UserIcon,
   UserRoundIcon,
   XIcon,
 } from "lucide-react"
@@ -19,6 +20,7 @@ import { useEffect, useMemo, useState, type ElementType, type ReactNode } from "
 import { PhotoProvider, PhotoView } from "react-photo-view"
 import { Link } from "react-router-dom"
 
+import { AnimatedNumber } from "@/components/AnimatedNumber"
 import {
   DataTableCard,
   DataTableColumnHeader,
@@ -38,6 +40,7 @@ import { Progress } from "@/components/ui/progress"
 import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
+import type { UserDetailProfile } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
 import { InstallmentBadge, LoanStatusBadge, VoucherStatusBadge } from "@/features/loans/components/LoanBadges"
 import { AmountBlock, InfoRow } from "@/features/loans/components/LoanMetricBits"
@@ -65,7 +68,6 @@ import {
 } from "@/features/loans/loan-constants"
 import {
   formatDate,
-  formatPreciseCurrencyWithSymbol,
   getInstallmentDisplayStatus,
   getLoanPaidAmount,
   getLoanProgress,
@@ -76,7 +78,6 @@ import {
   loanPublicCode,
   normalizeStatus,
 } from "@/features/loans/loan-utils"
-import { formatCurrency } from "@/lib/formatters"
 import {
   analyzeVoucherEvidence,
   checkOperationIdExists,
@@ -116,13 +117,13 @@ const scheduleColumns: ColumnDef<Installment>[] = [
     id: "amount",
     accessorFn: (installment) => Number(installment.amount ?? 0),
     header: sortableHeader("Monto"),
-    cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.amount),
+    cell: ({ row }) => <AnimatedNumber value={row.original.amount} isCurrency />,
   },
   {
     id: "paid",
     accessorFn: (installment) => Number(installment.paidAmount ?? 0),
     header: sortableHeader("Pagado"),
-    cell: ({ row }) => formatPreciseCurrencyWithSymbol(row.original.paidAmount),
+    cell: ({ row }) => <AnimatedNumber value={row.original.paidAmount} isCurrency />,
   },
   {
     id: "status",
@@ -174,6 +175,7 @@ export function LoanDetailPanel({
   onDataChanged,
   paymentPresentation = "dialog",
   resetTrigger,
+  onUserClick,
 }: {
   loan: Loan | null
   relatedData: RelatedData
@@ -191,6 +193,7 @@ export function LoanDetailPanel({
   paymentPresentation?: "dialog" | "panel"
   onSubViewChange?: (subView: string | null) => void
   resetTrigger?: number
+  onUserClick?: (user: UserDetailProfile) => void
 }) {
   const { user, session, fetchWithAuth } = useAuth()
   const [paymentDialogPayment, setPaymentDialogPayment] = useState<Payment | null | undefined>()
@@ -529,27 +532,63 @@ export function LoanDetailPanel({
         )}
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <AmountBlock label="Principal" value={formatCurrency(loan.principal)} />
-          <AmountBlock label="Deuda total" value={formatCurrency(loan.totalDebt)} />
-          <AmountBlock label="Pendiente" value={formatCurrency(getRemainingDebt(loan, relatedData.installments))} />
+          <AmountBlock label="Principal" value={<AnimatedNumber value={loan.principal} isCurrency />} />
+          <AmountBlock label="Deuda total" value={<AnimatedNumber value={loan.totalDebt} isCurrency />} />
+          <AmountBlock label="Pendiente" value={<AnimatedNumber value={getRemainingDebt(loan, relatedData.installments)} isCurrency />} />
         </div>
 
         <div className="flex flex-col gap-4 rounded-lg border bg-muted/20 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium">Avance de pago</p>
-              <p className="text-xs text-muted-foreground">
-                Pagado {formatPreciseCurrencyWithSymbol(paidAmount)} de{" "}
-                {formatPreciseCurrencyWithSymbol(loan.totalDebt)}
-              </p>
+              <div className="text-xs text-muted-foreground">
+                Pagado <AnimatedNumber value={paidAmount} isCurrency /> de{" "}
+                <AnimatedNumber value={loan.totalDebt} isCurrency />
+              </div>
             </div>
-            <Badge variant="success">{Math.round(progress)}%</Badge>
+            <Badge variant="success"><AnimatedNumber value={progress} decimals={0} suffix="%" /></Badge>
           </div>
           <Progress value={progress} />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <InfoRow icon={UserRoundIcon} label="Inversionista" value={loanInvestorName(loan)} />
+          {perspective !== "client" && (() => {
+            const clientUser: UserDetailProfile | null = loan.client ?? (loan.clientId || loan.clientName ? {
+              id: loan.clientId ?? "",
+              publicCode: loan.clientCode ?? null,
+              firstName: loan.clientName?.split(/\s+/)[0] ?? loan.clientName ?? undefined,
+              lastName: loan.clientName?.split(/\s+/).slice(1).join(" ") || undefined,
+              role: "client",
+            } : null)
+            return (
+              <InfoRow
+                icon={UserIcon}
+                label="Cliente"
+                value={loanClientName(loan)}
+                onClick={clientUser ? () => onUserClick?.(clientUser) : undefined}
+              />
+            )
+          })()}
+          {perspective !== "investor" && (() => {
+            const isCompanyFunded = loan.isCompanyFunded || (!loan.investorId && !loan.investorName && !loan.investor)
+            const investorUser: UserDetailProfile | null = isCompanyFunded
+              ? { id: "__company__", isCompany: true }
+              : loan.investor ?? (loan.investorId || loan.investorName ? {
+                  id: loan.investorId ?? "",
+                  publicCode: loan.investorCode ?? null,
+                  firstName: loan.investorName?.split(/\s+/)[0] ?? loan.investorName ?? undefined,
+                  lastName: loan.investorName?.split(/\s+/).slice(1).join(" ") || undefined,
+                  role: "investor",
+                } : null)
+            return (
+              <InfoRow
+                icon={UserRoundIcon}
+                label="Inversionista"
+                value={isCompanyFunded ? "ABC Inversiones" : loanInvestorName(loan)}
+                onClick={investorUser ? () => onUserClick?.(investorUser) : undefined}
+              />
+            )
+          })()}
           <InfoRow
             icon={CalendarClockIcon}
             label="Próxima cuota"
@@ -558,12 +597,12 @@ export function LoanDetailPanel({
           <InfoRow
             icon={TrendingUpIcon}
             label="Tasa"
-            value={`${loan.interestRate ?? 0}% ${interestPeriodLabels[String(loan.interestPeriod)] ?? ""}`}
+            value={<span className="flex items-center gap-1"><AnimatedNumber value={loan.interestRate ?? 0} decimals={1} suffix="%" /> {interestPeriodLabels[String(loan.interestPeriod)] ?? ""}</span>}
           />
           <InfoRow
             icon={ReceiptTextIcon}
             label="Regla"
-            value={`${loan.installmentsCount ?? 0} cuotas · ${frequencyLabels[String(loan.frequency)] ?? loan.frequency ?? "-"}`}
+            value={<span className="flex items-center gap-1"><AnimatedNumber value={loan.installmentsCount ?? 0} /> cuotas · {frequencyLabels[String(loan.frequency)] ?? loan.frequency ?? "-"}</span>}
           />
         </div>
 
@@ -770,7 +809,7 @@ function PaymentsTable({
         header: sortableHeader("Monto"),
         cell: ({ row }) => (
           <span className="font-medium">
-            {formatCurrency(row.original.kind === "payment" ? row.original.payment.amount : row.original.voucher.amount)}
+            <AnimatedNumber value={row.original.kind === "payment" ? row.original.payment.amount : row.original.voucher.amount} isCurrency />
           </span>
         ),
       },
@@ -997,8 +1036,8 @@ function VouchersTable({
               className="relative mb-3 break-inside-avoid overflow-hidden rounded-xl before:rounded-[7px]"
             >
               {isDeleting && (
-                <div className="absolute inset-0 z-20 flex flex-col justify-between bg-background/95 p-4 text-center animate-in fade-in duration-200">
-                  <div className="flex flex-col items-center gap-2">
+                <div className="absolute inset-0 z-20 flex flex-col bg-background/95 text-center animate-in fade-in duration-200">
+                  <div className={cn("flex flex-col items-center justify-center gap-2 px-4", getVoucherImageClassName(index))}>
                     <div className="flex size-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
                       <Trash2Icon className="size-4" />
                     </div>
@@ -1007,7 +1046,7 @@ function VouchersTable({
                       Esta acción es irreversible y podría deshacer cálculos asociados.
                     </p>
                   </div>
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-1 flex-col justify-center gap-2 px-4 pb-4">
                     <Button
                       type="button"
                       variant="destructive"
@@ -1065,7 +1104,7 @@ function VouchersTable({
                 </div>
               </CardHeader>
               <CardFooter className="flex-row items-center justify-between gap-2 p-2.5 pt-0">
-                <span className="font-medium">{formatCurrency(item.amount)}</span>
+                <span className="font-medium"><AnimatedNumber value={item.amount} isCurrency /></span>
                 <div className="flex min-w-0 items-center gap-1.5">
                   {item.badge}
                   {item.actions.length > 0 ? <RowActions items={item.actions} /> : null}

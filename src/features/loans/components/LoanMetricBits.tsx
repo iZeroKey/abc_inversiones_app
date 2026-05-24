@@ -21,20 +21,40 @@ export function InfoRow({
   icon: Icon,
   label,
   value,
+  onClick,
 }: {
   icon: ElementType
   label: string
   value: ReactNode
+  onClick?: () => void
 }) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border p-3">
+  const content = (
+    <>
       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
         <Icon />
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 text-left">
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className="truncate text-sm font-medium">{value}</p>
       </div>
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className="flex items-center gap-3 rounded-xl border p-3 hover:bg-muted/50 transition-colors w-full cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
+        onClick={onClick}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl border p-3">
+      {content}
     </div>
   )
 }
@@ -47,7 +67,7 @@ export function SummaryMetricCard({
 }: {
   icon: ElementType
   label: string
-  value: string | number
+  value: ReactNode
   detail: string
 }) {
   return (
@@ -57,7 +77,7 @@ export function SummaryMetricCard({
           <Icon />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-xl font-bold tabular-nums tracking-normal">{value}</p>
+          <div className="truncate text-xl font-bold tabular-nums tracking-normal">{value}</div>
           <p className="text-sm font-medium leading-tight">{label}</p>
           <p className="text-xs text-muted-foreground">{detail}</p>
         </div>

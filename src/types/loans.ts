@@ -72,6 +72,7 @@ export type Loan = {
   endDate?: string | null;
   status?: LoanStatus | string;
   observation?: string | null;
+  isCompanyFunded?: boolean;
   createdAt?: string;
   updatedAt?: string;
   approvedAt?: string | null;

@@ -10,9 +10,12 @@ import {
   ReceiptTextIcon,
   Settings2Icon,
 } from "lucide-react"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 
+import iconAbc from "@/assets/icon-abc.png"
+import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { DataTableCard, DataTableColumnHeader } from "@/components/data-table-card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -24,6 +27,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+} from "@/components/ui/pagination"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   ResponsiveSheetContent,
@@ -35,6 +43,7 @@ import {
 } from "@/components/ui/responsive-sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { UserDetailProfile } from "@/components/UserDetailSheet"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
 import { ErrorState, LoanListSkeleton } from "@/features/loans/components/LoanPageStates"
@@ -51,9 +60,8 @@ import {
   normalizeStatus,
   toNumber,
 } from "@/features/loans/loan-utils"
-import { formatCurrencyPrecise } from "@/lib/formatters"
 import { cn } from "@/lib/utils"
-import type { Loan, LoanStatus, PaginationMeta } from "@/types/loans"
+import type { Loan, LoanStatus, PaginationMeta, RelatedUser } from "@/types/loans"
 
 type OperationsFocus = "all" | "review" | "active" | "risk" | "company"
 type OperationsView = "table" | "cards"
@@ -86,8 +94,9 @@ type ColumnDefinition = {
 
 type AdminLoansOperationsPanelProps = {
   loans: Loan[]
+  highlightedLoanIds?: Set<string>
   selectedLoan: Loan | null
-  pagination: PaginationMeta
+  pagination?: PaginationMeta
   page: number
   statusFilter: "all" | LoanStatus
   searchQuery: string
@@ -108,6 +117,7 @@ type AdminLoansOperationsPanelProps = {
   onReject: () => void
   onRetryDetail: () => void
   onDataChanged?: () => Promise<void> | void
+  onUserClick?: (user: UserDetailProfile) => void
 }
 
 const focusOptions: Array<{ value: OperationsFocus; label: string }> = [
@@ -184,7 +194,7 @@ const columns: ColumnDefinition[] = [
     defaultVisible: true,
     group: "Importes",
     align: "right",
-    render: (loan) => formatPreciseCurrencyWithSymbol(loan.principal),
+    render: (loan) => <AnimatedNumber value={loan.principal} isCurrency />,
     exportValue: (loan) => toNumber(loan.principal),
     sortValue: (loan) => toNumber(loan.principal),
   },
@@ -194,7 +204,7 @@ const columns: ColumnDefinition[] = [
     defaultVisible: false,
     group: "Importes",
     align: "right",
-    render: (loan) => formatPreciseCurrencyWithSymbol(loan.totalDebt),
+    render: (loan) => <AnimatedNumber value={loan.totalDebt} isCurrency />,
     exportValue: (loan) => toNumber(loan.totalDebt),
     sortValue: (loan) => toNumber(loan.totalDebt),
   },
@@ -204,7 +214,7 @@ const columns: ColumnDefinition[] = [
     defaultVisible: true,
     group: "Importes",
     align: "right",
-    render: (loan) => formatPreciseCurrencyWithSymbol(getRemainingDebt(loan)),
+    render: (loan) => <AnimatedNumber value={getRemainingDebt(loan)} isCurrency />,
     exportValue: (loan) => getRemainingDebt(loan),
     sortValue: (loan) => getRemainingDebt(loan),
   },
@@ -214,7 +224,7 @@ const columns: ColumnDefinition[] = [
     defaultVisible: false,
     group: "Importes",
     align: "right",
-    render: (loan) => formatPreciseCurrencyWithSymbol(getLoanPaidAmount(loan)),
+    render: (loan) => <AnimatedNumber value={getLoanPaidAmount(loan)} isCurrency />,
     exportValue: (loan) => getLoanPaidAmount(loan),
     sortValue: (loan) => getLoanPaidAmount(loan),
   },
@@ -281,10 +291,65 @@ function writeOperationsPreferences(nextPreferences: OperationsPreferences) {
   localStorage.setItem(operationsPreferencesKey, JSON.stringify({ ...currentPreferences, ...nextPreferences }))
 }
 
+function getUserName(user?: RelatedUser | null) {
+  if (!user) return "Usuario"
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim()
+  return fullName || user.email || user.publicCode || "Usuario"
+}
+
+function getUserInitials(user?: RelatedUser | null) {
+  const name = getUserName(user)
+  const parts = name.split(/\s+/).filter(Boolean)
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U"
+}
+
+function shortId(value?: string | null) {
+  if (!value) return "-"
+  return value.length > 12 ? `${value.slice(0, 8)}...${value.slice(-4)}` : value
+}
+
+function getInitialsFromName(name: string) {
+  const parts = name.split(/\s+/).filter(Boolean)
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U"
+}
+
+function resolveClientUser(loan: Loan): RelatedUser | null {
+  if (loan.client) return loan.client
+  const name = loanClientName(loan)
+  if (!name) return null
+  const parts = name.split(/\s+/).filter(Boolean)
+  return {
+    id: loan.clientId ?? "",
+    publicCode: loan.clientCode ?? null,
+    firstName: parts[0] ?? name,
+    lastName: parts.slice(1).join(" ") || undefined,
+    role: "client",
+  }
+}
+
+/** Returns null for company-funded loans (no real investor), investor object otherwise */
+function resolveInvestorUser(loan: Loan): RelatedUser | UserDetailProfile | null {
+  // Company-funded: show ABC Inversiones entity
+  if (loan.isCompanyFunded || (!loan.investorId && !loan.investorName && !loan.investor)) {
+    return { id: "__company__", isCompany: true } as UserDetailProfile
+  }
+  if (loan.investor) return loan.investor
+  const name = loanInvestorName(loan)
+  if (!name) return null
+  const parts = name.split(/\s+/).filter(Boolean)
+  return {
+    id: loan.investorId ?? "",
+    publicCode: loan.investorCode ?? null,
+    firstName: parts[0] ?? name,
+    lastName: parts.slice(1).join(" ") || undefined,
+    role: "investor",
+  }
+}
+
 export function AdminLoansOperationsPanel({
   loans,
+  highlightedLoanIds,
   selectedLoan,
-  pagination,
   page,
   statusFilter,
   searchQuery,
@@ -305,6 +370,7 @@ export function AdminLoansOperationsPanel({
   onReject,
   onRetryDetail,
   onDataChanged,
+  onUserClick,
 }: AdminLoansOperationsPanelProps) {
   const [view, setView] = useState<OperationsView>(() => readOperationsPreferences().view ?? "table")
   const [focus, setFocus] = useState<OperationsFocus>(() => readOperationsPreferences().focus ?? "all")
@@ -364,7 +430,19 @@ export function AdminLoansOperationsPanel({
     [operationRows],
   )
 
-  const totalPages = Math.max(pagination.totalPages ?? 1, 1)
+  const localTotalPages = Math.max(Math.ceil(operationRows.length / 10), 1)
+
+  useEffect(() => {
+    if (page > localTotalPages) {
+      onPageChange(1)
+    }
+  }, [localTotalPages, page, onPageChange])
+
+  const paginatedCards = useMemo(() => {
+    const startIndex = (page - 1) * 10
+    return operationRows.slice(startIndex, startIndex + 10)
+  }, [operationRows, page])
+
   const allVisibleSelected = operationRows.length > 0 && selectedRows.length === operationRows.length
 
   const handleToggleColumn = (key: ColumnKey, checked: boolean) => {
@@ -433,12 +511,125 @@ export function AdminLoansOperationsPanel({
             onSort={(context as { toggleSorting?: () => void }).toggleSorting}
           />
         ),
-        cell: ({ row }) =>
-          column.key === "publicCode" ? (
-            <LoanCodeCell loan={row.original} onInspect={handleInspectLoan} />
-          ) : (
-            column.render(row.original)
-          ),
+        cell: ({ row }) => {
+          if (column.key === "publicCode") {
+            return <LoanCodeCell loan={row.original} onInspect={handleInspectLoan} />
+          }
+          if (column.key === "client") {
+            const client = resolveClientUser(row.original)
+            const name = loanClientName(row.original)
+            if (client && onUserClick) {
+              return (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-2 h-auto max-w-64 justify-start px-2 py-1 text-left"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onUserClick(client)
+                  }}
+                >
+                  <Avatar className="size-7">
+                    {client.avatarUrl ? <AvatarImage src={client.avatarUrl} alt="" /> : null}
+                    <AvatarFallback>{getUserInitials(client)}</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{getUserName(client)}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {client.publicCode || client.email || shortId(client.id)}
+                    </span>
+                  </span>
+                </Button>
+              )
+            }
+            if (name) {
+              return (
+                <div className="-ml-2 flex max-w-64 items-center gap-2 px-2 py-1">
+                  <Avatar className="size-7">
+                    <AvatarFallback>{getInitialsFromName(name)}</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{name}</span>
+                  </span>
+                </div>
+              )
+            }
+            return <span className="block max-w-44 truncate text-sm font-medium">{name || "-"}</span>
+          }
+          if (column.key === "investor") {
+            const investor = resolveInvestorUser(row.original)
+            const isCompany = investor && "isCompany" in investor && investor.isCompany
+            const name = isCompany ? "ABC Inversiones" : loanInvestorName(row.original)
+
+            // ABC Inversiones / company-funded cell
+            if (isCompany && investor && onUserClick) {
+              return (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-2 h-auto max-w-64 justify-start px-2 py-1 text-left"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onUserClick(investor as UserDetailProfile)
+                  }}
+                >
+                  <Avatar className="size-7">
+                    <AvatarImage src={iconAbc} alt="ABC Inversiones" />
+                    <AvatarFallback>AI</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">ABC Inversiones</span>
+                  </span>
+                </Button>
+              )
+            }
+
+            // Regular investor cell
+            if (investor && !isCompany && onUserClick) {
+              const inv = investor as RelatedUser
+              return (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-2 h-auto max-w-64 justify-start px-2 py-1 text-left"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onUserClick(inv)
+                  }}
+                >
+                  <Avatar className="size-7">
+                    {inv.avatarUrl ? <AvatarImage src={inv.avatarUrl} alt="" /> : null}
+                    <AvatarFallback>{getUserInitials(inv)}</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{getUserName(inv)}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {inv.publicCode || inv.email || shortId(inv.id)}
+                    </span>
+                  </span>
+                </Button>
+              )
+            }
+            if (name) {
+              return (
+                <div className="-ml-2 flex max-w-64 items-center gap-2 px-2 py-1">
+                  <Avatar className="size-7">
+                    {isCompany ? <AvatarImage src={iconAbc} alt="" /> : null}
+                    <AvatarFallback>{isCompany ? "AI" : getInitialsFromName(name)}</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{name}</span>
+                  </span>
+                </div>
+              )
+            }
+            return <span className="block max-w-44 truncate text-sm">{name || "-"}</span>
+          }
+          return column.render(row.original)
+        },
         meta: {
           headerClassName: cn(column.align === "right" && "text-right"),
           cellClassName: cn(column.align === "right" && "text-right"),
@@ -452,6 +643,7 @@ export function AdminLoansOperationsPanel({
       handleToggleVisibleRows,
       selectedIds,
       visibleColumns,
+      onUserClick,
     ],
   )
 
@@ -460,10 +652,10 @@ export function AdminLoansOperationsPanel({
   return (
     <section className="flex flex-col gap-5">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <OperationKpi label="Cartera filtrada" value={formatPreciseCurrencyWithSymbol(totals.portfolio)} loading={loadingList} />
-        <OperationKpi label="Saldo pendiente" value={formatPreciseCurrencyWithSymbol(totals.pending)} loading={loadingList} />
-        <OperationKpi label="Por revisar" value={totals.review} loading={loadingList} />
-        <OperationKpi label="En riesgo" value={totals.risk} loading={loadingList} />
+        <OperationKpi label="Cartera filtrada" value={<AnimatedNumber value={totals.portfolio} isCurrency />} loading={loadingList} />
+        <OperationKpi label="Saldo pendiente" value={<AnimatedNumber value={totals.pending} isCurrency />} loading={loadingList} />
+        <OperationKpi label="Por revisar" value={<AnimatedNumber value={totals.review} />} loading={loadingList} />
+        <OperationKpi label="En riesgo" value={<AnimatedNumber value={totals.risk} />} loading={loadingList} />
       </div>
 
       <div className="flex flex-col gap-4 border-b pb-4">
@@ -594,10 +786,11 @@ export function AdminLoansOperationsPanel({
         </div>
       ) : view === "cards" ? (
         <div className="grid gap-3 xl:grid-cols-2">
-          {operationRows.map((loan) => (
+          {paginatedCards.map((loan) => (
             <OperationCard
               key={loan.id}
               loan={loan}
+              isNew={highlightedLoanIds?.has(loan.id) ?? false}
               checked={selectedIds.includes(loan.id)}
               active={detailOpen && selectedLoan?.id === loan.id}
               onCheckedChange={(checked) => handleToggleRow(loan.id, checked)}
@@ -609,18 +802,23 @@ export function AdminLoansOperationsPanel({
         <DataTableCard
           columns={operationColumns}
           data={operationRows}
+          clientPagination
           getRowId={(loan) => loan.id}
           getRowClassName={(loan) =>
-            cn(detailOpen && selectedLoan?.id === loan.id && "bg-accent/40")
+            cn(
+              highlightedLoanIds?.has(loan.id) && "realtime-row-enter",
+              detailOpen && selectedLoan?.id === loan.id && "bg-accent/40",
+            )
           }
           tableClassName="min-w-[1180px]"
           initialSorting={[{ id: "publicCode", desc: true }]}
           pagination={
-            totalPages > 1
+            localTotalPages > 1
               ? {
                   page,
-                  totalPages,
-                  total: pagination.total,
+                  pageSize: 10,
+                  totalPages: localTotalPages,
+                  total: operationRows.length,
                   itemLabel: "préstamos",
                   onPageChange,
                 }
@@ -629,25 +827,80 @@ export function AdminLoansOperationsPanel({
         />
       )}
 
-      {view === "cards" && totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button
-            variant="ghost"
-            disabled={page <= 1}
-            onClick={() => onPageChange(Math.max(page - 1, 1))}
-          >
-            Anterior
-          </Button>
-          <span className="rounded-lg border px-3 py-1 text-sm text-muted-foreground">
-            {page} de {totalPages}
-          </span>
-          <Button
-            variant="ghost"
-            disabled={page >= totalPages}
-            onClick={() => onPageChange(Math.min(page + 1, totalPages))}
-          >
-            Siguiente
-          </Button>
+      {view === "cards" && localTotalPages > 1 && (
+        <div className="flex justify-center mt-4">
+          <Pagination>
+            <PaginationContent className="flex items-center gap-1.5">
+              <PaginationItem>
+                <Button
+                  variant="outline"
+                  size="default"
+                  className="rounded-full px-4"
+                  disabled={page <= 1}
+                  onClick={() => onPageChange(Math.max(page - 1, 1))}
+                >
+                  Anterior
+                </Button>
+              </PaginationItem>
+              
+              {(() => {
+                const pages: Array<number | string> = [];
+                const maxVisible = 5;
+                if (localTotalPages <= maxVisible) {
+                  for (let i = 1; i <= localTotalPages; i++) pages.push(i);
+                } else {
+                  pages.push(1);
+                  const start = Math.max(2, page - 1);
+                  const end = Math.min(localTotalPages - 1, page + 1);
+                  if (start > 2) pages.push("...");
+                  for (let i = start; i <= end; i++) pages.push(i);
+                  if (end < localTotalPages - 1) pages.push("...");
+                  pages.push(localTotalPages);
+                }
+                
+                return pages.map((pageVal, index) => {
+                  if (pageVal === "...") {
+                    return (
+                      <PaginationItem key={`ellipsis-${index}`}>
+                        <span className="px-2 text-muted-foreground">...</span>
+                      </PaginationItem>
+                    );
+                  }
+                  
+                  const isCurrent = pageVal === page;
+                  return (
+                    <PaginationItem key={pageVal}>
+                      <Button
+                        variant={isCurrent ? "default" : "outline"}
+                        size="icon"
+                        className={cn(
+                          "rounded-full",
+                          isCurrent
+                            ? "bg-slate-900 text-white hover:bg-slate-900/90 dark:bg-slate-50 dark:text-slate-900"
+                            : "border-border hover:bg-muted"
+                        )}
+                        onClick={() => onPageChange(Number(pageVal))}
+                      >
+                        {pageVal}
+                      </Button>
+                    </PaginationItem>
+                  );
+                });
+              })()}
+
+              <PaginationItem>
+                <Button
+                  variant="outline"
+                  size="default"
+                  className="rounded-full px-4"
+                  disabled={page >= localTotalPages}
+                  onClick={() => onPageChange(Math.min(page + 1, localTotalPages))}
+                >
+                  Siguiente
+                </Button>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </div>
       )}
 
@@ -714,6 +967,7 @@ export function AdminLoansOperationsPanel({
               paymentPresentation="panel"
               onSubViewChange={setSheetSubView}
               resetTrigger={resetTrigger}
+              onUserClick={onUserClick}
             />
           </SheetPanel>
         </ResponsiveSheetContent>
@@ -749,7 +1003,7 @@ function DatePickerFilter({
             : "Sin límite"}
         </span>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto p-0">
+      <PopoverContent align="start" className="w-auto p-1">
         <Calendar
           mode="single"
           selected={selectedDate}
@@ -760,8 +1014,8 @@ function DatePickerFilter({
           }}
         />
         {value && (
-          <div className="mt-2 border-t p-3">
-            <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => onChange("")}>
+          <div className="mt-1 border-t pt-3">
+            <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => { onChange(""); setOpen(false) }}>
               Limpiar fecha
             </Button>
           </div>
@@ -851,7 +1105,7 @@ function OperationKpi({
   loading = false,
 }: {
   label: string
-  value: string | number
+  value: ReactNode
   loading?: boolean
 }) {
   return (
@@ -889,12 +1143,14 @@ function LoanCodeCell({
 
 function OperationCard({
   loan,
+  isNew,
   checked,
   active,
   onCheckedChange,
   onInspect,
 }: {
   loan: Loan
+  isNew: boolean
   checked: boolean
   active: boolean
   onCheckedChange: (checked: boolean) => void
@@ -906,6 +1162,7 @@ function OperationCard({
     <article
       className={cn(
         "flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md",
+        isNew && "realtime-row-enter",
         active && "border-primary/40 bg-accent/30",
       )}
     >
@@ -920,12 +1177,12 @@ function OperationCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate font-semibold">S/ {formatCurrencyPrecise(loan.principal)}</p>
+            <div className="truncate font-semibold"><AnimatedNumber value={loan.principal} isCurrency /></div>
             <LoanStatusBadge status={normalizeStatus(loan)} />
           </div>
           <p className="mt-1 truncate font-mono text-xs text-muted-foreground">{loanPublicCode(loan)}</p>
           <p className="mt-1 truncate text-xs text-muted-foreground">
-            {loanClientName(loan)} · {progress}% pagado
+            {loanClientName(loan)} · <AnimatedNumber value={progress} decimals={0} suffix="% pagado" />
           </p>
         </div>
         <ChevronRightIcon className="shrink-0 text-muted-foreground" />

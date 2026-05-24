@@ -5,6 +5,7 @@ import {
   SearchIcon,
 } from "lucide-react"
 
+import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,12 +37,12 @@ import {
   loanPublicCode,
   normalizeStatus,
 } from "@/features/loans/loan-utils"
-import { formatCurrency } from "@/lib/formatters"
 import { cn } from "@/lib/utils"
 import type { Loan, LoanStatus, PaginationMeta } from "@/types/loans"
 
 export function LoansListPanel({
   loans,
+  highlightedLoanIds,
   selectedLoan,
   pagination,
   page,
@@ -59,6 +60,7 @@ export function LoansListPanel({
   variant = "cards",
 }: {
   loans: Loan[]
+  highlightedLoanIds?: Set<string>
   selectedLoan: Loan | null
   pagination: PaginationMeta
   page: number
@@ -128,6 +130,7 @@ export function LoansListPanel({
             <LoanCardRow
               key={loan.id}
               loan={loan}
+              isNew={highlightedLoanIds?.has(loan.id) ?? false}
               selected={loan.id === selectedLoan?.id}
               perspective={perspective}
               onSelect={onSelectLoan}
@@ -140,6 +143,7 @@ export function LoansListPanel({
             <LoanRow
               key={loan.id}
               loan={loan}
+              isNew={highlightedLoanIds?.has(loan.id) ?? false}
               selected={loan.id === selectedLoan?.id}
               perspective={perspective}
               onSelect={onSelectLoan}
@@ -149,26 +153,71 @@ export function LoansListPanel({
       )}
 
       {!loading && !error && totalPages > 1 && (
-        <div className="flex justify-center">
+        <div className="flex justify-center mt-4">
           <Pagination>
-            <PaginationContent>
+            <PaginationContent className="flex items-center gap-1.5">
               <PaginationItem>
                 <Button
-                  variant="ghost"
+                  variant="outline"
+                  size="default"
+                  className="rounded-full px-4"
                   disabled={page <= 1}
                   onClick={() => onPageChange(Math.max(page - 1, 1))}
                 >
                   Anterior
                 </Button>
               </PaginationItem>
-              <PaginationItem>
-                <Badge variant="outline">
-                  {page} de {totalPages}
-                </Badge>
-              </PaginationItem>
+              
+              {(() => {
+                const pages: Array<number | string> = [];
+                const maxVisible = 5;
+                if (totalPages <= maxVisible) {
+                  for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                  pages.push(1);
+                  const start = Math.max(2, page - 1);
+                  const end = Math.min(totalPages - 1, page + 1);
+                  if (start > 2) pages.push("...");
+                  for (let i = start; i <= end; i++) pages.push(i);
+                  if (end < totalPages - 1) pages.push("...");
+                  pages.push(totalPages);
+                }
+
+                return pages.map((pageVal, index) => {
+                  if (pageVal === "...") {
+                    return (
+                      <PaginationItem key={`ellipsis-${index}`}>
+                        <span className="px-2 text-muted-foreground">...</span>
+                      </PaginationItem>
+                    );
+                  }
+
+                  const isCurrent = pageVal === page;
+                  return (
+                    <PaginationItem key={pageVal}>
+                      <Button
+                        variant={isCurrent ? "default" : "outline"}
+                        size="icon"
+                        className={cn(
+                          "rounded-full",
+                          isCurrent
+                            ? "bg-slate-900 text-white hover:bg-slate-900/90 dark:bg-slate-50 dark:text-slate-900"
+                            : "border-border hover:bg-muted"
+                        )}
+                        onClick={() => onPageChange(Number(pageVal))}
+                      >
+                        {pageVal}
+                      </Button>
+                    </PaginationItem>
+                  );
+                });
+              })()}
+
               <PaginationItem>
                 <Button
-                  variant="ghost"
+                  variant="outline"
+                  size="default"
+                  className="rounded-full px-4"
                   disabled={page >= totalPages}
                   onClick={() => onPageChange(Math.min(page + 1, totalPages))}
                 >
@@ -185,11 +234,13 @@ export function LoansListPanel({
 
 function LoanCardRow({
   loan,
+  isNew,
   selected,
   perspective,
   onSelect,
 }: {
   loan: Loan
+  isNew: boolean
   selected: boolean
   perspective: "admin" | "client" | "investor"
   onSelect: (loan: Loan) => void
@@ -207,6 +258,7 @@ function LoanCardRow({
       type="button"
       className={cn(
         "group flex w-full items-center gap-3 rounded-2xl border bg-card px-4 py-4 text-left shadow-sm transition-shadow hover:shadow-md sm:gap-4 md:px-5",
+        isNew && "realtime-row-enter",
         selected && "border-primary/40 bg-accent/30",
       )}
       onClick={() => onSelect(loan)}
@@ -218,7 +270,7 @@ function LoanCardRow({
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <h3 className="min-w-0 truncate text-base font-semibold leading-tight">
-            {formatCurrency(loan.principal)}
+            <AnimatedNumber value={loan.principal} isCurrency />
           </h3>
           <LoanStatusBadge status={normalizeStatus(loan)} />
         </div>
@@ -230,15 +282,15 @@ function LoanCardRow({
           </span>
         </p>
         <p className="mt-1 truncate text-xs font-medium text-muted-foreground">
-          {frequency} · <span className="text-success">{progress}% pagado</span>
+          {frequency} · <span className="text-success"><AnimatedNumber value={progress} decimals={0} suffix="% pagado" /></span>
           <span className="hidden sm:inline"> · {date}</span>
         </p>
       </div>
 
       <div className="hidden shrink-0 grid-cols-3 gap-4 text-right text-xs text-muted-foreground md:grid">
-        <LoanPlainMetric label="Deuda" value={formatCurrency(loan.totalDebt)} />
-        <LoanPlainMetric label="Restante" value={formatCurrency(getRemainingDebt(loan))} />
-        <LoanPlainMetric label="Cuotas" value={loan.installmentsCount ?? "-"} />
+        <LoanPlainMetric label="Deuda" value={<AnimatedNumber value={loan.totalDebt} isCurrency />} />
+        <LoanPlainMetric label="Restante" value={<AnimatedNumber value={getRemainingDebt(loan)} isCurrency />} />
+        <LoanPlainMetric label="Cuotas" value={<AnimatedNumber value={loan.installmentsCount} />} />
       </div>
 
       <ChevronRightIcon className="shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
@@ -248,11 +300,13 @@ function LoanCardRow({
 
 function LoanRow({
   loan,
+  isNew,
   selected,
   perspective,
   onSelect,
 }: {
   loan: Loan
+  isNew: boolean
   selected: boolean
   perspective: "admin" | "client" | "investor"
   onSelect: (loan: Loan) => void
@@ -269,6 +323,7 @@ function LoanRow({
       type="button"
       className={cn(
         "group relative flex w-full flex-col gap-3 px-1 py-4 pr-10 text-left transition-colors hover:bg-muted/40 md:px-0 md:pr-12",
+        isNew && "realtime-row-enter",
         selected && "bg-accent/60",
       )}
       onClick={() => onSelect(loan)}
@@ -287,21 +342,21 @@ function LoanRow({
           </p>
         </div>
         <div className="shrink-0 text-right">
-          <p className="font-semibold tabular-nums">{formatCurrency(loan.principal)}</p>
+          <div className="font-semibold tabular-nums"><AnimatedNumber value={loan.principal} isCurrency /></div>
           <p className="text-xs text-muted-foreground">principal</p>
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-xs">
-        <LoanTinyMetric label="Deuda" value={formatCurrency(loan.totalDebt)} />
-        <LoanTinyMetric label="Restante" value={formatCurrency(getRemainingDebt(loan))} />
-        <LoanTinyMetric label="Cuotas" value={loan.installmentsCount ?? "-"} />
+        <LoanTinyMetric label="Deuda" value={<AnimatedNumber value={loan.totalDebt} isCurrency />} />
+        <LoanTinyMetric label="Restante" value={<AnimatedNumber value={getRemainingDebt(loan)} isCurrency />} />
+        <LoanTinyMetric label="Cuotas" value={<AnimatedNumber value={loan.installmentsCount} />} />
       </div>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>Avance de pago</span>
-          <span>{Math.round(progress)}%</span>
+          <span><AnimatedNumber value={progress} decimals={0} suffix="%" /></span>
         </div>
         <Progress value={progress} />
       </div>
