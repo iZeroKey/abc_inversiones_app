@@ -5,12 +5,18 @@ import path from "path";
 import { defineConfig } from "vite";
 
 // https://vite.dev/config/
+const host = process.env.TAURI_DEV_HOST;
 export default defineConfig({
   plugins: [
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
   ],
+  server: {
+    host: host || false,
+    port: 5173,
+    strictPort: true,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
