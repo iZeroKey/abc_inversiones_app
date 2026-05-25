@@ -10,6 +10,15 @@
     "fs:default",
     "fs:allow-download-write",
     "fs:allow-download-read",
-    "opener:default"
+    "opener:default",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        { "path": "$DOWNLOAD/*" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DOWNLOADS/*" },
+        { "path": "$DOWNLOADS/**" }
+      ]
+    }
   ]
 }
