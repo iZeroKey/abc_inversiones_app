@@ -1088,7 +1088,7 @@ function OperationCard({
   return (
     <article
       className={cn(
-        "flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md",
+        "flex min-w-0 items-center gap-3 rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md",
         isNew && "realtime-row-enter",
         active && "border-primary/40 bg-accent/30",
       )}
@@ -1097,13 +1097,14 @@ function OperationCard({
         checked={checked}
         onCheckedChange={(nextChecked) => onCheckedChange(Boolean(nextChecked))}
         aria-label={`Seleccionar ${loanPublicCode(loan)}`}
+        className="shrink-0"
       />
       <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => onInspect(loan)}>
         <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted text-primary">
           <ReceiptTextIcon />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <div className="truncate font-semibold"><AnimatedNumber value={loan.principal} isCurrency /></div>
             <LoanStatusBadge status={normalizeStatus(loan)} />
           </div>
@@ -1265,12 +1266,13 @@ async function exportToExcel(rows: Loan[], activeColumns: ColumnDefinition[]) {
         ? { actionProps: { children: "Abrir", onClick: () => void openDownloadFile(filename) } }
         : {}),
     })
-  } catch {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
     toastManager.update(toastId, {
       type: "error",
       title: "No se pudo descargar",
-      description: "Intenta generar el Excel nuevamente.",
-      timeout: 5000,
+      description: `Error: ${errorMessage}`,
+      timeout: 8000,
     })
   }
 }
@@ -1367,12 +1369,13 @@ async function exportToPdf(rows: Loan[], activeColumns: ColumnDefinition[]) {
         ? { actionProps: { children: "Abrir", onClick: () => void openDownloadFile(filename) } }
         : {}),
     })
-  } catch {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
     toastManager.update(toastId, {
       type: "error",
       title: "No se pudo descargar",
-      description: "Intenta generar el PDF nuevamente.",
-      timeout: 5000,
+      description: `Error: ${errorMessage}`,
+      timeout: 8000,
     })
   }
 }
@@ -1416,16 +1419,25 @@ async function savePdfDocument(document: PdfDocument, filename: string) {
 async function openDownloadFile(filename: string) {
   try {
     const { downloadDir, join } = await import("@tauri-apps/api/path")
+    const { exists } = await import("@tauri-apps/plugin-fs")
     const dir = await downloadDir()
     const filePath = await join(dir, filename)
+
+    // Diagnóstico: verificar existencia física del archivo
+    const fileExists = await exists(filePath)
+    if (!fileExists) {
+      throw new Error(`El archivo no existe en la ruta de descargas: ${filePath}`)
+    }
+
     const { openPath } = await import("@tauri-apps/plugin-opener")
     await openPath(filePath)
-  } catch {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
     toastManager.add({
       type: "error",
       title: "No se pudo abrir el archivo",
-      description: "Intenta abrirlo manualmente desde la carpeta Descargas.",
-      timeout: 5000,
+      description: `Ruta: ${filename}. Detalle: ${errorMessage}`,
+      timeout: 10000,
     })
   }
 }
