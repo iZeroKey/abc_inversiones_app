@@ -254,13 +254,13 @@ export default function ClientDashboard() {
 function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: React.ReactNode, label: string }) {
   return (
     <Card className="border-border shadow-sm overflow-hidden">
-      <CardContent className="p-4 md:p-5 flex flex-col items-center justify-center text-center space-y-3">
+      <CardContent className="p-3.5 sm:p-5 flex flex-col items-center justify-center text-center space-y-3">
         <div className="size-12 md:size-14 rounded-2xl bg-primary/10 flex items-center justify-center">
           {icon}
         </div>
-        <div>
-          <div className="font-bold text-xl md:text-2xl leading-none tracking-tight">{value}</div>
-          <div className="text-[10px] md:text-xs text-muted-foreground font-semibold uppercase tracking-widest mt-1.5">{label}</div>
+        <div className="min-w-0 w-full">
+          <div className="font-bold text-base sm:text-xl md:text-2xl leading-none tracking-tight whitespace-nowrap truncate">{value}</div>
+          <div className="text-[10px] md:text-xs text-muted-foreground font-semibold uppercase tracking-widest mt-1.5 truncate">{label}</div>
         </div>
       </CardContent>
     </Card>
@@ -300,7 +300,7 @@ function MainLoanCard({ loan }: { loan: Loan }) {
   const publicCode = loan.publicCode
 
   return (
-    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} className="block">
+    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} state={{ appBackTarget: "/home" }} className="block">
       <Card className="bg-primary text-primary-foreground shadow-lg border-none rounded-3xl overflow-hidden hover:opacity-95 transition-opacity">
         <CardContent className="p-8 space-y-8">
           <div className="flex justify-between items-start">
@@ -364,7 +364,7 @@ function OtherLoanCard({ loan }: { loan: Loan }) {
   const publicCode = loan.publicCode
 
   return (
-    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} className="block group">
+    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} state={{ appBackTarget: "/home" }} className="block group">
       <Card className="border-border shadow-sm hover:shadow-md transition-shadow rounded-2xl overflow-hidden">
         <CardContent className="p-4 md:p-5 flex items-center justify-between">
           <div className="flex items-center gap-4">

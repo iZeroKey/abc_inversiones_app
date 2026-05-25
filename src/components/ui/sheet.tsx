@@ -8,10 +8,158 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { XIcon } from "lucide-react";
 import type React from "react";
+import { useEffect, useRef } from "react";
 
-export const Sheet: typeof SheetPrimitive.Root = SheetPrimitive.Root;
+const sheetHistoryStateKey = "__abcSheetEntry";
+let nextSheetHistoryId = 0;
+let sheetHistoryDepth = 0;
+let ignoreNextSheetPop = false;
+let popStateListenerAttached = false;
+const closingFromPopIds = new Set<number>();
+const sheetBackStack: {
+  close: () => void;
+  id: number;
+}[] = [];
+
+export function Sheet<Payload = unknown>(
+  props: SheetPrimitive.Root.Props<Payload>,
+): React.ReactElement {
+  const { onOpenChange, open, ...rootProps } = props;
+  useSheetBackNavigation(open, onOpenChange);
+
+  return (
+    <SheetPrimitive.Root
+      onOpenChange={onOpenChange}
+      open={open}
+      {...rootProps}
+    />
+  );
+}
 
 export const SheetPortal: typeof SheetPrimitive.Portal = SheetPrimitive.Portal;
+
+function useSheetBackNavigation<Payload>(
+  open: boolean | undefined,
+  onOpenChange: SheetPrimitive.Root.Props<Payload>["onOpenChange"],
+) {
+  const hasOpenChange = Boolean(onOpenChange);
+  const onOpenChangeRef = useRef(onOpenChange);
+  const unregisterRef = useRef<(() => void) | null>(null);
+  const pendingUnregisterRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  }, [onOpenChange]);
+
+  useEffect(() => {
+    if (!open || !hasOpenChange || typeof window === "undefined") return;
+
+    const scheduleUnregister = () => {
+      pendingUnregisterRef.current = window.setTimeout(() => {
+        unregisterRef.current?.();
+        unregisterRef.current = null;
+        pendingUnregisterRef.current = null;
+      }, 0);
+    };
+
+    if (pendingUnregisterRef.current !== null) {
+      window.clearTimeout(pendingUnregisterRef.current);
+      pendingUnregisterRef.current = null;
+      return scheduleUnregister;
+    }
+
+    const unregister = registerSheetBackHandler(() => {
+      onOpenChangeRef.current?.(false, createSheetBackEventDetails());
+    });
+    unregisterRef.current = unregister;
+
+    return scheduleUnregister;
+  }, [hasOpenChange, open]);
+}
+
+function registerSheetBackHandler(close: () => void) {
+  attachSheetPopStateListener();
+
+  const id = nextSheetHistoryId + 1;
+  nextSheetHistoryId = id;
+  sheetBackStack.push({ close, id });
+  pushSheetHistoryEntry(id);
+
+  return () => unregisterSheetBackHandler(id);
+}
+
+function attachSheetPopStateListener() {
+  if (popStateListenerAttached || typeof window === "undefined") return;
+
+  window.addEventListener("popstate", handleSheetPopState);
+  popStateListenerAttached = true;
+}
+
+function handleSheetPopState() {
+  if (ignoreNextSheetPop) {
+    ignoreNextSheetPop = false;
+    return;
+  }
+
+  if (sheetHistoryDepth > 0) {
+    sheetHistoryDepth -= 1;
+  }
+
+  const topSheet = sheetBackStack.at(-1);
+  if (!topSheet) return;
+
+  closingFromPopIds.add(topSheet.id);
+  topSheet.close();
+}
+
+function pushSheetHistoryEntry(id: number) {
+  const currentState = getCurrentHistoryState();
+  window.history.pushState(
+    { ...currentState, [sheetHistoryStateKey]: id },
+    "",
+    window.location.href,
+  );
+  sheetHistoryDepth += 1;
+}
+
+function unregisterSheetBackHandler(id: number) {
+  const stackIndex = sheetBackStack.findIndex((entry) => entry.id === id);
+  if (stackIndex === -1) return;
+
+  const wasTopSheet = stackIndex === sheetBackStack.length - 1;
+  sheetBackStack.splice(stackIndex, 1);
+
+  if (closingFromPopIds.delete(id)) return;
+  if (!wasTopSheet || sheetHistoryDepth <= 0) return;
+  if (getCurrentSheetHistoryId() !== id) return;
+
+  ignoreNextSheetPop = true;
+  sheetHistoryDepth -= 1;
+  window.history.back();
+}
+
+function getCurrentHistoryState(): Record<string, unknown> {
+  const state = window.history.state;
+  return state && typeof state === "object" ? state : {};
+}
+
+function getCurrentSheetHistoryId() {
+  const id = getCurrentHistoryState()[sheetHistoryStateKey];
+  return typeof id === "number" ? id : null;
+}
+
+function createSheetBackEventDetails(): SheetPrimitive.Root.ChangeEventDetails {
+  return {
+    allowPropagation: () => {},
+    cancel: () => {},
+    event: new Event("popstate"),
+    isCanceled: false,
+    isPropagationAllowed: false,
+    preventUnmountOnClose: () => {},
+    reason: "none",
+    trigger: undefined,
+  } as SheetPrimitive.Root.ChangeEventDetails;
+}
 
 export function SheetTrigger(
   props: SheetPrimitive.Trigger.Props,
@@ -54,10 +202,14 @@ export function SheetViewport({
     <SheetPrimitive.Viewport
       className={cn(
         "fixed inset-0 z-50 grid",
-        side === "bottom" && "grid grid-rows-[1fr_auto] pt-12",
-        side === "top" && "grid grid-rows-[auto_1fr] pb-12",
-        side === "left" && "flex justify-start",
-        side === "right" && "flex justify-end",
+        side === "bottom" &&
+          "grid grid-rows-[1fr_auto] pt-12 pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]",
+        side === "top" &&
+          "grid grid-rows-[auto_1fr] pb-12 pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]",
+        side === "left" &&
+          "flex justify-start pl-[env(safe-area-inset-left,0px)] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]",
+        side === "right" &&
+          "flex justify-end pr-[env(safe-area-inset-right,0px)] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]",
         variant === "inset" && "sm:p-4",
         className,
       )}
@@ -153,9 +305,10 @@ export function SheetFooter({
   const defaultProps = {
     className: cn(
       "flex flex-col-reverse gap-2 px-6 sm:flex-row sm:justify-end",
-      variant === "default" && "border-t bg-muted/72 py-4",
+      variant === "default" &&
+        "border-t bg-muted/72 pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+--spacing(5))]",
       variant === "bare" &&
-        "in-[[data-slot=sheet-popup]:has([data-slot=sheet-panel])]:pt-3 pt-4 pb-6",
+        "in-[[data-slot=sheet-popup]:has([data-slot=sheet-panel])]:pt-3 pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+--spacing(7))]",
       className,
     ),
     "data-slot": "sheet-footer",

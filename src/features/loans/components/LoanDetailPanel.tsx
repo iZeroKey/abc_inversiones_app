@@ -475,7 +475,7 @@ export function LoanDetailPanel({
       <div className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           {!hideBackButton && (
-            <Button className="shrink-0" variant="ghost" size="icon-sm" render={<Link to={basePath} />}>
+            <Button className="shrink-0" variant="ghost" size="icon-sm" render={<Link to={basePath} replace />}>
               <ArrowLeftIcon />
             </Button>
           )}

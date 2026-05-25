@@ -355,7 +355,7 @@ export default function LoansPage() {
 
   const handleOpenLoanDetail = (loan: Loan) => {
     const routeId = loan.publicCode || loan.id
-    navigate(`${basePath}/${routeId}`)
+    navigate(`${basePath}/${routeId}`, { state: { appBackTarget: basePath } })
   }
 
   const handleStatusFilterChange = (nextStatus: "all" | LoanStatus) => {

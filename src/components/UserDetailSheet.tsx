@@ -131,8 +131,9 @@ export function UserDetailSheet({
   const [prevUserId, setPrevUserId] = useState<string | null>(null)
 
   // Sync state with props during render
-  if (user?.id !== prevUserId) {
-    setPrevUserId(user?.id ?? null)
+  const currentUserId = user?.id ?? null
+  if (currentUserId !== prevUserId) {
+    setPrevUserId(currentUserId)
     const shouldShowDirectly = !user || user.isCompany || !isPartialUser(user)
     setLoadedUser(shouldShowDirectly ? user : null)
   }

@@ -48,7 +48,7 @@ export function AnimatedNumber({
   let finalDecimals = decimals
 
   if (isCurrency) {
-    finalPrefix = "S/ "
+    finalPrefix = "S/\u00a0"
     finalDecimals = 2
   } else if (isPreciseCurrency) {
     finalDecimals = 2

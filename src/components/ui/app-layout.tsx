@@ -20,9 +20,16 @@ import { cn } from "@/lib/utils"
 import { BellIcon, ChevronRightIcon, LogOutIcon } from "lucide-react"
 import type { ElementType, MouseEvent, ReactNode } from "react"
 import { useEffect, useRef } from "react"
-import { Link, useLocation, useNavigate } from "react-router-dom"
+import { Link, useLocation, useNavigate, useNavigationType } from "react-router-dom"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
+const homePath = "/home"
+
+const routeBackTargets = [
+  { prefix: "/investments/", target: "/investments" },
+  { prefix: "/loans/", target: "/loans" },
+  { prefix: "/requests", target: "/users" },
+]
 
 export type NavItem = {
   title: string
@@ -85,7 +92,10 @@ function AppLayoutContent({
 }: AppLayoutProps) {
   const { isMobile } = useSidebar()
   const location = useLocation()
+  const navigate = useNavigate()
+  const navigationType = useNavigationType()
   const viewportRef = useRef<HTMLDivElement>(null)
+  const previousLocationRef = useRef(location)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -97,8 +107,30 @@ function AppLayoutContent({
     return () => clearTimeout(timer)
   }, [location.pathname])
 
+  useEffect(() => {
+    const previousLocation = previousLocationRef.current
+    const previousRoute = getRouteKey(previousLocation)
+    const currentRoute = getRouteKey(location)
+
+    if (navigationType === "POP" && previousRoute !== currentRoute) {
+      const previousBackTarget = getAppBackTarget(previousLocation.state)
+
+      if (previousBackTarget && location.pathname !== previousBackTarget) {
+        navigate(previousBackTarget, { replace: true })
+        return
+      }
+    }
+
+    previousLocationRef.current = location
+  }, [location, navigate, navigationType])
+
   return (
-    <div className={cn("flex h-svh w-full overflow-hidden", isMobile ? "bg-muted/10" : "bg-transparent")}>
+    <div
+      className={cn(
+        "flex h-svh w-full overflow-hidden pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]",
+        isMobile ? "bg-muted/10" : "bg-background",
+      )}
+    >
       <AppSidebar 
         navigationItems={navigationItems} 
         user={user} 
@@ -139,9 +171,10 @@ function AppSidebar({
 }: Pick<AppLayoutProps, "navigationItems" | "user" | "onLogout" | "notificationsCount" | "headerTitle">) {
   const { isMobile } = useSidebar()
   const location = useLocation()
+  const navigate = useNavigate()
   const hasUnreadNotifications = Boolean(notificationsCount && notificationsCount > 0)
   const notificationBadge = notificationsCount && notificationsCount > 99 ? "99+" : notificationsCount
-  const preventCurrentPathNavigation = (
+  const handleSectionNavigation = (
     event: MouseEvent<HTMLAnchorElement>,
     href: string,
   ) => {
@@ -158,6 +191,16 @@ function AppSidebar({
 
     if (location.pathname === href) {
       event.preventDefault()
+      return
+    }
+
+    if (
+      href === homePath &&
+      getAppBackTarget(location.state) === homePath &&
+      getCameFromHome(location.state)
+    ) {
+      event.preventDefault()
+      navigate(-1)
     }
   }
 
@@ -201,7 +244,9 @@ function AppSidebar({
                     <SidebarMenuButton isActive={isActive} tooltip={item.title} render={
                       <Link 
                         to={item.href} 
-                        onClick={(event) => preventCurrentPathNavigation(event, item.href)}
+                        replace={shouldReplaceSectionNavigation(location.pathname, item.href)}
+                        state={getSectionNavigationState(location.pathname, item.href)}
+                        onClick={(event) => handleSectionNavigation(event, item.href)}
                         className={cn(
                           "group/link flex items-center gap-2 w-full",
                           isActive && item.activeColorClass ? item.activeColorClass : ""
@@ -235,7 +280,7 @@ function AppSidebar({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        
+
         {/* Secondary Menu for Notifications on Desktop */}
         <SidebarGroup className="mt-auto">
           <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">
@@ -256,7 +301,9 @@ function AppSidebar({
                   render={
                     <Link
                       to="/notifications"
-                      onClick={(event) => preventCurrentPathNavigation(event, "/notifications")}
+                      replace={shouldReplaceSectionNavigation(location.pathname, "/notifications")}
+                      state={getSectionNavigationState(location.pathname, "/notifications")}
+                      onClick={(event) => handleSectionNavigation(event, "/notifications")}
                       className="flex items-center gap-2 w-full"
                     >
                       <div className="relative">
@@ -319,6 +366,48 @@ function resolveAvatarUrl(url?: string | null) {
   return url
 }
 
+function getRouteDepth(pathname: string) {
+  return pathname.split("/").filter(Boolean).length
+}
+
+function shouldReplaceSectionNavigation(currentPath: string, targetPath: string) {
+  if (currentPath === targetPath) return false
+  if (targetPath === homePath) return true
+  if (currentPath === homePath) return false
+  return true
+}
+
+function getSectionNavigationState(currentPath: string, targetPath: string) {
+  if (targetPath === homePath) return undefined
+
+  const backTarget = getBackTargetPath(targetPath)
+  return {
+    appBackTarget: backTarget,
+    cameFromHome: currentPath === homePath,
+  }
+}
+
+function getAppBackTarget(state: unknown) {
+  if (!state || typeof state !== "object") return null
+  const backTarget = (state as { appBackTarget?: unknown }).appBackTarget
+  return typeof backTarget === "string" ? backTarget : null
+}
+
+function getCameFromHome(state: unknown) {
+  return Boolean(state && typeof state === "object" && (state as { cameFromHome?: unknown }).cameFromHome === true)
+}
+
+function getBackTargetPath(pathname: string, state?: unknown) {
+  const stateBackTarget = getAppBackTarget(state)
+  if (stateBackTarget && stateBackTarget !== pathname) return stateBackTarget
+
+  return routeBackTargets.find((route) => pathname.startsWith(route.prefix))?.target ?? homePath
+}
+
+function getRouteKey(location: { hash: string; pathname: string; search: string }) {
+  return `${location.pathname}${location.search}${location.hash}`
+}
+
 function AppHeader({
   onLogout,
   onBack,
@@ -337,7 +426,7 @@ function AppHeader({
     if (onBack) {
       onBack()
     } else {
-      navigate(-1)
+      navigate(getBackTargetPath(location.pathname, location.state), { replace: true })
     }
   }
 
@@ -359,9 +448,9 @@ function AppHeader({
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b bg-[#1A233A] px-4 text-white sticky top-0 z-40 shadow-sm transition-colors">
+    <header className="flex h-[calc(3.5rem+env(safe-area-inset-top,0))] pt-[env(safe-area-inset-top,0px)] shrink-0 items-center justify-between border-b bg-[#1A233A] px-4 text-white sticky top-0 z-40 shadow-sm transition-colors">
       <div className="flex items-center gap-3">
-        {(onBack || location.pathname.split('/').length > 2) && (
+        {(onBack || getRouteDepth(location.pathname) > 1) && (
           <button onClick={handleBack} className="text-white/80 hover:text-white transition-colors cursor-pointer mr-1">
             <ChevronRightIcon className="size-5 rotate-180" />
           </button>
@@ -373,6 +462,8 @@ function AppHeader({
       <div className="flex items-center gap-4">
         <Link
           to="/notifications"
+          replace={shouldReplaceSectionNavigation(location.pathname, "/notifications")}
+          state={getSectionNavigationState(location.pathname, "/notifications")}
           onClick={handleNotificationsClick}
           className="relative text-white/80 hover:text-white transition-colors cursor-pointer block"
         >
@@ -393,12 +484,13 @@ function AppHeader({
 
 function AppBottomNav({ navigationItems }: Pick<AppLayoutProps, "navigationItems">) {
   const location = useLocation()
+  const navigate = useNavigate()
   const { isMobile } = useSidebar()
 
   if (!isMobile) return null
 
   const bottomItems = navigationItems.filter(item => !item.hideInBottomNav)
-  const preventCurrentPathNavigation = (
+  const handleSectionNavigation = (
     event: MouseEvent<HTMLAnchorElement>,
     href: string,
   ) => {
@@ -415,22 +507,34 @@ function AppBottomNav({ navigationItems }: Pick<AppLayoutProps, "navigationItems
 
     if (location.pathname === href) {
       event.preventDefault()
+      return
+    }
+
+    if (
+      href === homePath &&
+      getAppBackTarget(location.state) === homePath &&
+      getCameFromHome(location.state)
+    ) {
+      event.preventDefault()
+      navigate(-1)
     }
   }
 
   return (
-    <div className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-50">
+    <div className="fixed left-[calc(env(safe-area-inset-left,0)+1rem)] right-[calc(env(safe-area-inset-right,0)+1rem)] bottom-[calc(env(safe-area-inset-bottom,0)+1rem)] z-50">
       <div className="flex items-center justify-between rounded-4xl bg-background/95 px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-md">
         {bottomItems.map((item) => {
-          const isActive = location.pathname === item.href || (item.href !== "/home" && location.pathname.startsWith(item.href + "/"))
+          const isActive = location.pathname === item.href || (item.href !== homePath && location.pathname.startsWith(item.href + "/"))
           const activeTextColor = item.activeColorClass || "text-primary"
           const activeBgColor = item.activeBgClass || "bg-primary/15"
-          
+
           return (
             <Link
               key={item.href}
               to={item.href}
-              onClick={(event) => preventCurrentPathNavigation(event, item.href)}
+              replace={shouldReplaceSectionNavigation(location.pathname, item.href)}
+              state={getSectionNavigationState(location.pathname, item.href)}
+              onClick={(event) => handleSectionNavigation(event, item.href)}
               className={cn(
                 "group relative flex flex-col items-center justify-center gap-1 flex-1 min-w-0 outline-none transition-colors duration-300 ease-out",
                 isActive ? activeTextColor : "text-muted-foreground hover:text-foreground"

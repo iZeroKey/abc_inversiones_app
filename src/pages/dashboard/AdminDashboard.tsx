@@ -134,7 +134,7 @@ export default function AdminDashboard() {
             size="lg"
             variant="default"
             className="w-full md:w-auto shadow-md"
-            onClick={() => navigate("/loans", { state: { adminView: "advanced" } })}
+            onClick={() => navigate("/loans", { state: { adminView: "advanced", appBackTarget: "/home" } })}
           >
             <ReceiptIcon data-icon="inline-start" />
             Revisar Vouchers ({vouchersCount})
@@ -284,13 +284,13 @@ function MetricCardSkeleton() {
 function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: React.ReactNode, label: string }) {
   return (
     <Card className="border-border shadow-sm overflow-hidden">
-      <CardContent className="p-5 flex flex-col space-y-4">
+      <CardContent className="p-3.5 sm:p-5 flex flex-col space-y-4">
         <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
           {icon}
         </div>
-        <div>
-          <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">{label}</div>
-          <div className="font-bold text-xl md:text-2xl leading-none tracking-tight">{value}</div>
+        <div className="min-w-0">
+          <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1 truncate">{label}</div>
+          <div className="font-bold text-base sm:text-xl md:text-2xl leading-none tracking-tight whitespace-nowrap truncate">{value}</div>
         </div>
       </CardContent>
     </Card>

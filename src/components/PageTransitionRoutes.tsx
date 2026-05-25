@@ -23,6 +23,25 @@ export function PageTransitionRoutes({ children }: RoutesProps) {
   useEffect(() => {
     if (location.key === latestTransitionKey.current) return
 
+    const currentRoute =
+      transition.displayLocation.pathname +
+      transition.displayLocation.search +
+      transition.displayLocation.hash
+    const nextRoute = location.pathname + location.search + location.hash
+
+    if (currentRoute === nextRoute) {
+      const sameRouteTimeoutId = window.setTimeout(() => {
+        latestTransitionKey.current = location.key
+        setTransition((current) => ({
+          ...current,
+          displayLocation: location,
+          stage: "enter",
+        }))
+      }, 0)
+
+      return () => window.clearTimeout(sameRouteTimeoutId)
+    }
+
     const direction = navigationType === "POP" ? "back" : "forward"
 
     const exitTimeoutId = window.setTimeout(() => {
@@ -46,7 +65,7 @@ export function PageTransitionRoutes({ children }: RoutesProps) {
       window.clearTimeout(exitTimeoutId)
       window.clearTimeout(enterTimeoutId)
     }
-  }, [location, navigationType])
+  }, [location, navigationType, transition.displayLocation.hash, transition.displayLocation.pathname, transition.displayLocation.search])
 
   return (
     <div
