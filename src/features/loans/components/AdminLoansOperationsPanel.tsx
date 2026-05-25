@@ -1423,14 +1423,19 @@ async function openDownloadFile(filename: string) {
     const dir = await downloadDir()
     const filePath = await join(dir, filename)
 
-    // Diagnóstico: verificar existencia física del archivo
     const fileExists = await exists(filePath)
     if (!fileExists) {
       throw new Error(`El archivo no existe en la ruta de descargas: ${filePath}`)
     }
 
-    const { openPath } = await import("@tauri-apps/plugin-opener")
-    await openPath(filePath)
+    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent.toLowerCase())
+    const { openPath, openUrl } = await import("@tauri-apps/plugin-opener")
+
+    if (isMobile) {
+      await openUrl(`file://${filePath}`)
+    } else {
+      await openPath(filePath)
+    }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err)
     toastManager.add({

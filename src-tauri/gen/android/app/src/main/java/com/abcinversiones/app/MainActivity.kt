@@ -12,5 +12,8 @@ class MainActivity : TauriActivity() {
     super.onCreate(savedInstanceState)
 
     WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
+
+    val builder = android.os.StrictMode.VmPolicy.Builder()
+    android.os.StrictMode.setVmPolicy(builder.build())
   }
 }
