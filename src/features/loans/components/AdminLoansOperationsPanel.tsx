@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import iconAbc from "@/assets/icon-abc.png"
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { DataTableCard, DataTableColumnHeader } from "@/components/data-table-card"
+import { ResponsivePagination } from "@/components/ResponsivePagination"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -27,11 +28,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-} from "@/components/ui/pagination"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   ResponsiveSheetContent,
@@ -43,6 +39,7 @@ import {
 } from "@/components/ui/responsive-sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import { toastManager } from "@/components/ui/toast"
 import type { UserDetailProfile } from "@/components/UserDetailSheet"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
@@ -269,7 +266,6 @@ const columnGroups: Array<ColumnDefinition["group"]> = [
   "Importes",
   "Seguimiento",
 ]
-const brandLogoUrl = new URL("../../../assets/icon-name-abc.png", import.meta.url).href
 const operationsPreferencesKey = "abc-loans-operations-preferences"
 
 type OperationsPreferences = {
@@ -767,7 +763,7 @@ export function AdminLoansOperationsPanel({
             size="sm"
             className="h-8 w-full sm:w-auto"
             disabled={exportRows.length === 0}
-            onClick={() => exportToPdf(exportRows, visibleColumns)}
+            onClick={() => void exportToPdf(exportRows, visibleColumns)}
           >
             <FileTextIcon data-icon="inline-start" />
             PDF
@@ -827,81 +823,12 @@ export function AdminLoansOperationsPanel({
         />
       )}
 
-      {view === "cards" && localTotalPages > 1 && (
-        <div className="flex justify-center mt-4">
-          <Pagination>
-            <PaginationContent className="flex items-center gap-1.5">
-              <PaginationItem>
-                <Button
-                  variant="outline"
-                  size="default"
-                  className="rounded-full px-4"
-                  disabled={page <= 1}
-                  onClick={() => onPageChange(Math.max(page - 1, 1))}
-                >
-                  Anterior
-                </Button>
-              </PaginationItem>
-              
-              {(() => {
-                const pages: Array<number | string> = [];
-                const maxVisible = 5;
-                if (localTotalPages <= maxVisible) {
-                  for (let i = 1; i <= localTotalPages; i++) pages.push(i);
-                } else {
-                  pages.push(1);
-                  const start = Math.max(2, page - 1);
-                  const end = Math.min(localTotalPages - 1, page + 1);
-                  if (start > 2) pages.push("...");
-                  for (let i = start; i <= end; i++) pages.push(i);
-                  if (end < localTotalPages - 1) pages.push("...");
-                  pages.push(localTotalPages);
-                }
-                
-                return pages.map((pageVal, index) => {
-                  if (pageVal === "...") {
-                    return (
-                      <PaginationItem key={`ellipsis-${index}`}>
-                        <span className="px-2 text-muted-foreground">...</span>
-                      </PaginationItem>
-                    );
-                  }
-                  
-                  const isCurrent = pageVal === page;
-                  return (
-                    <PaginationItem key={pageVal}>
-                      <Button
-                        variant={isCurrent ? "default" : "outline"}
-                        size="icon"
-                        className={cn(
-                          "rounded-full",
-                          isCurrent
-                            ? "bg-slate-900 text-white hover:bg-slate-900/90 dark:bg-slate-50 dark:text-slate-900"
-                            : "border-border hover:bg-muted"
-                        )}
-                        onClick={() => onPageChange(Number(pageVal))}
-                      >
-                        {pageVal}
-                      </Button>
-                    </PaginationItem>
-                  );
-                });
-              })()}
-
-              <PaginationItem>
-                <Button
-                  variant="outline"
-                  size="default"
-                  className="rounded-full px-4"
-                  disabled={page >= localTotalPages}
-                  onClick={() => onPageChange(Math.min(page + 1, localTotalPages))}
-                >
-                  Siguiente
-                </Button>
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
+      {view === "cards" && (
+        <ResponsivePagination
+          currentPage={page}
+          totalPages={localTotalPages}
+          onPageChange={onPageChange}
+        />
       )}
 
       <Sheet open={detailOpen} onOpenChange={(open) => {
@@ -1114,7 +1041,7 @@ function OperationKpi({
       {loading ? (
         <Skeleton className="mt-2 h-8 w-28 max-w-full" />
       ) : (
-        <p className="mt-2 wrap-break-word text-xl font-semibold tracking-normal tabular-nums lg:text-2xl">{value}</p>
+        <p className="mt-2 text-lg sm:text-xl font-semibold tracking-normal tabular-nums lg:text-2xl whitespace-nowrap truncate">{value}</p>
       )}
     </div>
   )
@@ -1218,180 +1145,293 @@ function formatInputDate(date: Date) {
 }
 
 async function exportToExcel(rows: Loan[], activeColumns: ColumnDefinition[]) {
-  const XLSX = await import("xlsx-js-style")
-  const generatedAt = new Intl.DateTimeFormat("es-PE", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date())
-  const headerRowIndex = 3
-  const lastColumnIndex = Math.max(activeColumns.length - 1, 0)
-  const worksheet = XLSX.utils.aoa_to_sheet([
-    ["ABC Inversiones"],
-    ["Préstamos seleccionados"],
-    [`Reporte operativo · ${generatedAt} · ${rows.length} filas`],
-    activeColumns.map((column) => column.label),
-    ...rows.map((loan) => activeColumns.map((column) => getExcelCellValue(column, loan))),
-  ])
-
-  const range = XLSX.utils.decode_range(worksheet["!ref"] ?? "A1:A1")
-  worksheet["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: lastColumnIndex } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: lastColumnIndex } },
-    { s: { r: 2, c: 0 }, e: { r: 2, c: lastColumnIndex } },
-  ]
-  worksheet["!autofilter"] = {
-    ref: XLSX.utils.encode_range({
-      s: { r: headerRowIndex, c: 0 },
-      e: { r: range.e.r, c: lastColumnIndex },
-    }),
-  }
-  worksheet["!rows"] = [
-    { hpt: 24 },
-    { hpt: 22 },
-    { hpt: 18 },
-    { hpt: 22 },
-  ]
-
-  const titleCell = worksheet.A1
-  if (titleCell) {
-    titleCell.s = {
-      font: { bold: true, sz: 18, color: { rgb: "10172F" } },
-      alignment: { vertical: "center" },
-    }
-  }
-
-  const subtitleCell = worksheet.A2
-  if (subtitleCell) {
-    subtitleCell.s = {
-      font: { bold: true, sz: 13, color: { rgb: "10172F" } },
-      alignment: { vertical: "center" },
-    }
-  }
-
-  const metaCell = worksheet.A3
-  if (metaCell) {
-    metaCell.s = {
-      font: { sz: 10, color: { rgb: "667085" } },
-      alignment: { vertical: "center" },
-    }
-  }
-
-  for (let columnIndex = range.s.c; columnIndex <= range.e.c; columnIndex += 1) {
-    const definition = activeColumns[columnIndex]
-    const headerAddress = XLSX.utils.encode_cell({ r: headerRowIndex, c: columnIndex })
-    const headerCell = worksheet[headerAddress]
-    if (headerCell) {
-      headerCell.s = {
-        font: { bold: true, color: { rgb: "FFFFFF" } },
-        fill: { patternType: "solid", fgColor: { rgb: "10172F" } },
-        alignment: { horizontal: definition.align === "right" ? "right" : "left", vertical: "center" },
-        border: {
-          top: { style: "thin", color: { rgb: "10172F" } },
-          bottom: { style: "thin", color: { rgb: "10172F" } },
-        },
-      }
-    }
-
-    for (let rowIndex = headerRowIndex + 1; rowIndex <= range.e.r; rowIndex += 1) {
-      const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })
-      const cell = worksheet[address]
-      if (!cell) continue
-
-      cell.s = {
-        font: { color: { rgb: "111827" } },
-        alignment: { horizontal: definition.align === "right" ? "right" : "left", vertical: "center" },
-        border: {
-          bottom: { style: "thin", color: { rgb: "D7DCE7" } },
-        },
-      }
-      if (rowIndex % 2 === 0) {
-        cell.s.fill = { patternType: "solid", fgColor: { rgb: "F8FAFC" } }
-      }
-      if (isMoneyColumn(definition.key)) cell.s.numFmt = '"S/ " #,##0.00'
-      if (definition.key === "rate" || definition.key === "progress") cell.s.numFmt = "0.00%"
-      if (definition.key === "creditDate") cell.s.numFmt = "dd mmm yyyy"
-    }
-  }
-
-  worksheet["!cols"] = activeColumns.map((column) => ({ wch: getExcelColumnWidth(column) }))
-
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Prestamos")
-  XLSX.writeFile(workbook, `prestamos-seleccionados-${formatDownloadTimestamp()}.xlsx`, {
-    bookType: "xlsx",
+  const filename = `prestamos-${formatDownloadTimestamp()}.xlsx`
+  const toastId = toastManager.add({
+    type: "loading",
+    title: "Preparando Excel",
+    description: `Descargando ${filename}`,
+    timeout: 0,
   })
+
+  try {
+    const XLSX = await import("xlsx-js-style")
+    const generatedAt = new Intl.DateTimeFormat("es-PE", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date())
+    const headerRowIndex = 3
+    const lastColumnIndex = Math.max(activeColumns.length - 1, 0)
+    const worksheet = XLSX.utils.aoa_to_sheet([
+      ["ABC Inversiones"],
+      ["Préstamos"],
+      [`Reporte operativo · ${generatedAt} · ${rows.length} filas`],
+      activeColumns.map((column) => column.label),
+      ...rows.map((loan) => activeColumns.map((column) => getExcelCellValue(column, loan))),
+    ])
+
+    const range = XLSX.utils.decode_range(worksheet["!ref"] ?? "A1:A1")
+    worksheet["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: lastColumnIndex } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: lastColumnIndex } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: lastColumnIndex } },
+    ]
+    worksheet["!autofilter"] = {
+      ref: XLSX.utils.encode_range({
+        s: { r: headerRowIndex, c: 0 },
+        e: { r: range.e.r, c: lastColumnIndex },
+      }),
+    }
+    worksheet["!rows"] = [
+      { hpt: 24 },
+      { hpt: 22 },
+      { hpt: 18 },
+      { hpt: 22 },
+    ]
+
+    const titleCell = worksheet.A1
+    if (titleCell) {
+      titleCell.s = {
+        font: { bold: true, sz: 18, color: { rgb: "10172F" } },
+        alignment: { vertical: "center" },
+      }
+    }
+
+    const subtitleCell = worksheet.A2
+    if (subtitleCell) {
+      subtitleCell.s = {
+        font: { bold: true, sz: 13, color: { rgb: "10172F" } },
+        alignment: { vertical: "center" },
+      }
+    }
+
+    const metaCell = worksheet.A3
+    if (metaCell) {
+      metaCell.s = {
+        font: { sz: 10, color: { rgb: "667085" } },
+        alignment: { vertical: "center" },
+      }
+    }
+
+    for (let columnIndex = range.s.c; columnIndex <= range.e.c; columnIndex += 1) {
+      const definition = activeColumns[columnIndex]
+      const headerAddress = XLSX.utils.encode_cell({ r: headerRowIndex, c: columnIndex })
+      const headerCell = worksheet[headerAddress]
+      if (headerCell) {
+        headerCell.s = {
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          fill: { patternType: "solid", fgColor: { rgb: "10172F" } },
+          alignment: { horizontal: definition.align === "right" ? "right" : "left", vertical: "center" },
+          border: {
+            top: { style: "thin", color: { rgb: "10172F" } },
+            bottom: { style: "thin", color: { rgb: "10172F" } },
+          },
+        }
+      }
+
+      for (let rowIndex = headerRowIndex + 1; rowIndex <= range.e.r; rowIndex += 1) {
+        const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })
+        const cell = worksheet[address]
+        if (!cell) continue
+
+        cell.s = {
+          font: { color: { rgb: "111827" } },
+          alignment: { horizontal: definition.align === "right" ? "right" : "left", vertical: "center" },
+          border: {
+            bottom: { style: "thin", color: { rgb: "D7DCE7" } },
+          },
+        }
+        if (rowIndex % 2 === 0) {
+          cell.s.fill = { patternType: "solid", fgColor: { rgb: "F8FAFC" } }
+        }
+        if (isMoneyColumn(definition.key)) cell.s.numFmt = '"S/ " #,##0.00'
+        if (definition.key === "rate" || definition.key === "progress") cell.s.numFmt = "0.00%"
+        if (definition.key === "creditDate") cell.s.numFmt = "dd mmm yyyy"
+      }
+    }
+
+    worksheet["!cols"] = activeColumns.map((column) => ({ wch: getExcelColumnWidth(column) }))
+
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Prestamos")
+
+    const saveResult = await saveExcelDocument(XLSX, workbook, filename)
+
+    toastManager.update(toastId, {
+      type: "success",
+      title: saveResult.native ? "Excel guardado" : "Descarga iniciada",
+      description: saveResult.native ? `${filename} en Descargas` : filename,
+      timeout: 6000,
+      ...(saveResult.native
+        ? { actionProps: { children: "Abrir", onClick: () => void openDownloadFile(filename) } }
+        : {}),
+    })
+  } catch {
+    toastManager.update(toastId, {
+      type: "error",
+      title: "No se pudo descargar",
+      description: "Intenta generar el Excel nuevamente.",
+      timeout: 5000,
+    })
+  }
 }
 
-function exportToPdf(rows: Loan[], activeColumns: ColumnDefinition[]) {
-  const filename = `prestamos-seleccionados-${formatDownloadTimestamp()}`
-  const absoluteLogoUrl = new URL(brandLogoUrl, window.location.href).href
-  const tableRows = rows
-    .map((loan) =>
-      `<tr>${activeColumns
-        .map((column) => `<td>${escapeHtml(formatExportValue(column, loan))}</td>`)
-        .join("")}</tr>`,
-    )
-    .join("")
-  const tableHeaders = activeColumns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")
-  const timestamp = new Intl.DateTimeFormat("es-PE", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date())
-  const html = `
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>${filename}</title>
-        <style>
-          :root { --brand: #10172f; --accent: #00a86b; --line: #d7dce7; }
-          body { font-family: Arial, sans-serif; margin: 0; padding: 32px; color: #111827; }
-          header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--brand); padding-bottom: 18px; margin-bottom: 22px; }
-          .brand { display: flex; align-items: center; gap: 12px; }
-          .logo { height: 42px; width: auto; object-fit: contain; filter: brightness(0) saturate(100%) invert(8%) sepia(20%) saturate(2133%) hue-rotate(196deg) brightness(91%) contrast(93%); }
-          .mark { width: 42px; height: 42px; border-radius: 12px; background: var(--brand); color: white; display: grid; place-items: center; font-weight: 800; }
-          h1 { font-size: 20px; margin: 0; color: var(--brand); }
-          .meta { color: #667085; font-size: 12px; margin-top: 4px; }
-          .pill { border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font-size: 12px; color: #475467; }
-          table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
-          th, td { border-bottom: 1px solid var(--line); padding: 7px 6px; text-align: left; }
-          th { background: #f6f8fb; color: #344054; font-weight: 700; }
-          tr:nth-child(even) td { background: #fbfcfe; }
-          footer { margin-top: 18px; color: #667085; font-size: 11px; }
-        </style>
-      </head>
-      <body>
-        <header>
-          <div class="brand">
-            <img class="logo" src="${absoluteLogoUrl}" alt="ABC Inversiones" />
-              <div>
-                <h1>Préstamos seleccionados</h1>
-              <div class="meta">ABC Inversiones · Reporte operativo · ${escapeHtml(timestamp)}</div>
-            </div>
-          </div>
-          <div class="pill">${rows.length} filas</div>
-        </header>
-        <table>
-          <thead><tr>${tableHeaders}</tr></thead>
-          <tbody>${tableRows}</tbody>
-        </table>
-        <footer>Generado desde la mesa administrativa de ABC Inversiones.</footer>
-        <script>
-          const logo = document.querySelector(".logo");
-          const printNow = () => setTimeout(() => window.print(), 120);
-          if (logo && !logo.complete) {
-            logo.addEventListener("load", printNow, { once: true });
-            logo.addEventListener("error", printNow, { once: true });
-          } else {
-            printNow();
-          }
-        </script>
-      </body>
-    </html>
-  `
-  const printWindow = window.open("", "_blank")
-  if (!printWindow) return
-  printWindow.document.write(html)
-  printWindow.document.close()
+async function exportToPdf(rows: Loan[], activeColumns: ColumnDefinition[]) {
+  const filename = `prestamos-${formatDownloadTimestamp()}.pdf`
+  const toastId = toastManager.add({
+    type: "loading",
+    title: "Preparando PDF",
+    description: `Descargando ${filename}`,
+    timeout: 0,
+  })
+
+  try {
+    const [{ jsPDF }, autoTableModule] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ])
+    const autoTable = autoTableModule.default
+    const generatedAt = new Intl.DateTimeFormat("es-PE", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date())
+    const orientation = activeColumns.length > 7 ? "landscape" : "portrait"
+    const document = new jsPDF({ orientation, unit: "pt", format: "a4" })
+    const pageWidth = document.internal.pageSize.getWidth()
+    const pageHeight = document.internal.pageSize.getHeight()
+    const margin = 36
+
+    document.setFillColor(16, 23, 47)
+    document.rect(0, 0, pageWidth, 86, "F")
+    document.setFillColor(240, 215, 2)
+    document.rect(margin, 64, 82, 4, "F")
+    document.setTextColor(255, 255, 255)
+    document.setFont("helvetica", "bold")
+    document.setFontSize(18)
+    document.text("ABC Inversiones", margin, 32)
+    document.setFontSize(12)
+    document.setFont("helvetica", "normal")
+    document.text("Reporte de préstamos", margin, 52)
+    document.setFontSize(9)
+    document.text(`${rows.length} filas`, pageWidth - margin, 36, { align: "right" })
+    document.text(generatedAt, pageWidth - margin, 52, { align: "right" })
+
+    autoTable(document, {
+      startY: 112,
+      head: [activeColumns.map((column) => column.label)],
+      body: rows.map((loan) => activeColumns.map((column) => formatExportValue(column, loan))),
+      margin: { left: margin, right: margin },
+      styles: {
+        font: "helvetica",
+        fontSize: activeColumns.length > 8 ? 7.5 : 8.5,
+        cellPadding: 5,
+        lineColor: [215, 220, 231],
+        lineWidth: 0.4,
+        overflow: "linebreak",
+        textColor: [17, 24, 39],
+      },
+      headStyles: {
+        fillColor: [16, 23, 47],
+        fontStyle: "bold",
+        textColor: [255, 255, 255],
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+      columnStyles: activeColumns.reduce<Record<number, { halign: "left" | "right" }>>(
+        (styles, column, index) => ({
+          ...styles,
+          [index]: { halign: column.align === "right" ? "right" : "left" },
+        }),
+        {},
+      ),
+      didDrawPage: ({ pageNumber }) => {
+        document.setFont("helvetica", "normal")
+        document.setFontSize(8)
+        document.setTextColor(102, 112, 133)
+        document.text(
+          `Generado desde la mesa administrativa de ABC Inversiones · Página ${pageNumber}`,
+          margin,
+          pageHeight - 22,
+        )
+      },
+    })
+
+    const saveResult = await savePdfDocument(document, filename)
+
+    toastManager.update(toastId, {
+      type: "success",
+      title: saveResult.native ? "PDF guardado" : "Descarga iniciada",
+      description: saveResult.native ? `${filename} en Descargas` : filename,
+      timeout: 6000,
+      ...(saveResult.native
+        ? { actionProps: { children: "Abrir", onClick: () => void openDownloadFile(filename) } }
+        : {}),
+    })
+  } catch {
+    toastManager.update(toastId, {
+      type: "error",
+      title: "No se pudo descargar",
+      description: "Intenta generar el PDF nuevamente.",
+      timeout: 5000,
+    })
+  }
+}
+
+type PdfDocument = {
+  output: (type: "arraybuffer") => ArrayBuffer
+  save: (filename: string, options: { returnPromise: true }) => Promise<void>
+}
+
+async function saveExcelDocument(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  XLSX: any,
+  workbook: unknown,
+  filename: string,
+) {
+  if (isTauriRuntime()) {
+    const { BaseDirectory, writeFile } = await import("@tauri-apps/plugin-fs")
+    const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" }) as ArrayBuffer
+    await writeFile(filename, new Uint8Array(buffer), { baseDir: BaseDirectory.Download })
+    return { native: true }
+  }
+
+  // Fallback: browser download via writeFile
+  XLSX.writeFile(workbook, filename, { bookType: "xlsx" })
+  return { native: false }
+}
+
+async function savePdfDocument(document: PdfDocument, filename: string) {
+  if (isTauriRuntime()) {
+    const { BaseDirectory, writeFile } = await import("@tauri-apps/plugin-fs")
+    const bytes = new Uint8Array(document.output("arraybuffer"))
+
+    await writeFile(filename, bytes, { baseDir: BaseDirectory.Download })
+    return { native: true }
+  }
+
+  await document.save(filename, { returnPromise: true })
+  return { native: false }
+}
+
+async function openDownloadFile(filename: string) {
+  try {
+    const { downloadDir, join } = await import("@tauri-apps/api/path")
+    const dir = await downloadDir()
+    const filePath = await join(dir, filename)
+    const { openPath } = await import("@tauri-apps/plugin-opener")
+    await openPath(filePath)
+  } catch {
+    toastManager.add({
+      type: "error",
+      title: "No se pudo abrir el archivo",
+      description: "Intenta abrirlo manualmente desde la carpeta Descargas.",
+      timeout: 5000,
+    })
+  }
+}
+
+function isTauriRuntime() {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
 }
 
 function getExcelCellValue(column: ColumnDefinition, loan: Loan) {
@@ -1449,13 +1489,4 @@ function formatDownloadTimestamp() {
   const seconds = String(date.getSeconds()).padStart(2, "0")
 
   return `${year}${month}${day}-${hours}${minutes}${seconds}`
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;")
 }
