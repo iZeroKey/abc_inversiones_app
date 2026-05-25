@@ -10,6 +10,7 @@ import {
 import { ArrowUpIcon } from "lucide-react"
 import { useState } from "react"
 
+import { ResponsivePagination } from "@/components/ResponsivePagination"
 import { Button } from "@/components/ui/button"
 import { CardFrame } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -291,77 +292,20 @@ function DataTablePaginationBar({
   pagination: DataTablePagination
 }) {
   const totalPages = Math.max(pagination.totalPages, 1)
-  const visiblePages = getVisiblePaginationPages(pagination.page, totalPages)
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border bg-card px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-      <span className="text-muted-foreground">
-        Página {pagination.page} de {totalPages}
-        {typeof pagination.total === "number"
-          ? ` · ${pagination.total} ${pagination.itemLabel ?? "registros"}`
-          : ""}
-      </span>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={pagination.page <= 1}
-          onClick={() => pagination.onPageChange(Math.max(pagination.page - 1, 1))}
-        >
-          Anterior
-        </Button>
-        <div className="flex items-center gap-1">
-          {visiblePages.map((item, index) =>
-            item === "ellipsis" ? (
-              <span
-                key={`ellipsis-${index}`}
-                className="flex h-9 min-w-9 items-center justify-center px-1 text-muted-foreground"
-              >
-                ...
-              </span>
-            ) : (
-              <Button
-                key={item}
-                variant={item === pagination.page ? "default" : "outline"}
-                size="sm"
-                className="min-w-9 px-3 tabular-nums"
-                onClick={() => pagination.onPageChange(item)}
-              >
-                {item}
-              </Button>
-            ),
-          )}
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={pagination.page >= totalPages}
-          onClick={() => pagination.onPageChange(Math.min(pagination.page + 1, totalPages))}
-        >
-          Siguiente
-        </Button>
-      </div>
+    <div className="flex flex-col items-center justify-center gap-1.5 w-full mt-2">
+      {typeof pagination.total === "number" && (
+        <span className="text-xs text-muted-foreground font-medium">
+          Página {pagination.page} de {totalPages} · {pagination.total} {pagination.itemLabel ?? "registros"}
+        </span>
+      )}
+      <ResponsivePagination
+        currentPage={pagination.page}
+        totalPages={totalPages}
+        onPageChange={pagination.onPageChange}
+        className="mt-0"
+      />
     </div>
   )
-}
-
-function getVisiblePaginationPages(currentPage: number, totalPages: number) {
-  if (totalPages <= 5) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1)
-  }
-
-  const pages: Array<number | "ellipsis"> = [1]
-  const start = Math.max(2, currentPage - 1)
-  const end = Math.min(totalPages - 1, currentPage + 1)
-
-  if (start > 2) pages.push("ellipsis")
-
-  for (let page = start; page <= end; page += 1) {
-    pages.push(page)
-  }
-
-  if (end < totalPages - 1) pages.push("ellipsis")
-  pages.push(totalPages)
-
-  return pages
 }

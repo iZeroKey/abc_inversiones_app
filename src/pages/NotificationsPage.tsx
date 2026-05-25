@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useState, type ElementType } from "react"
 
+import { ResponsivePagination } from "@/components/ResponsivePagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,11 +22,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-} from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -541,79 +537,12 @@ export default function NotificationsPage() {
         </div>
       )}
 
-      {!loading && !error && totalPages > 1 && (
-        <Pagination>
-          <PaginationContent className="flex items-center gap-1.5 justify-center">
-            <PaginationItem>
-              <Button
-                variant="outline"
-                size="default"
-                className="rounded-full px-4"
-                disabled={page <= 1}
-                onClick={() => setPage((current) => Math.max(current - 1, 1))}
-              >
-                Anterior
-              </Button>
-            </PaginationItem>
-            
-            {(() => {
-              const pages: Array<number | string> = [];
-              const maxVisible = 5;
-              if (totalPages <= maxVisible) {
-                for (let i = 1; i <= totalPages; i++) pages.push(i);
-              } else {
-                pages.push(1);
-                const start = Math.max(2, page - 1);
-                const end = Math.min(totalPages - 1, page + 1);
-                if (start > 2) pages.push("...");
-                for (let i = start; i <= end; i++) pages.push(i);
-                if (end < totalPages - 1) pages.push("...");
-                pages.push(totalPages);
-              }
-              
-              return pages.map((pageVal, index) => {
-                if (pageVal === "...") {
-                  return (
-                    <PaginationItem key={`ellipsis-${index}`}>
-                      <span className="px-2 text-muted-foreground">...</span>
-                    </PaginationItem>
-                  );
-                }
-                
-                const isCurrent = pageVal === page;
-                return (
-                  <PaginationItem key={pageVal}>
-                    <Button
-                      variant={isCurrent ? "default" : "outline"}
-                      size="icon"
-                      className={cn(
-                        "rounded-full",
-                        isCurrent
-                          ? "bg-slate-900 text-white hover:bg-slate-900/90 dark:bg-slate-50 dark:text-slate-900"
-                          : "border-border hover:bg-muted"
-                      )}
-                      onClick={() => setPage(Number(pageVal))}
-                    >
-                      {pageVal}
-                    </Button>
-                  </PaginationItem>
-                );
-              });
-            })()}
-
-            <PaginationItem>
-              <Button
-                variant="outline"
-                size="default"
-                className="rounded-full px-4"
-                disabled={page >= totalPages}
-                onClick={() => setPage((current) => Math.min(current + 1, totalPages))}
-              >
-                Siguiente
-              </Button>
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+      {!loading && !error && (
+        <ResponsivePagination
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
       )}
     </div>
   )
