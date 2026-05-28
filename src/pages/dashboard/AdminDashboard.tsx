@@ -1,5 +1,4 @@
 import { FileTextIcon, PieChartIcon, ReceiptIcon, TrendingUpIcon, UsersIcon, WalletIcon } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
@@ -9,91 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/contexts/auth-context"
-
-import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
-
-type AdminDashboardData = {
-  users?: {
-    totalUsers?: number
-    clients?: number
-    investors?: number
-    admins?: number
-  }
-  loans?: {
-    totalLoans?: number
-    activeLoans?: number
-    pendingLoans?: number
-    totalPortfolio?: string
-    totalDebt?: string
-  }
-  overdue?: {
-    overdueCount?: number
-    overdueAmount?: string
-  }
-  vouchers?: {
-    pendingInvestor?: number
-    pendingAdmin?: number
-  }
-}
-
-type ApiResponse<T> = {
-  success: boolean
-  data?: T
-}
+import { useAdminDashboardQuery } from "@/pages/dashboard/dashboard-queries"
 
 export default function AdminDashboard() {
-  const { user, session, fetchWithAuth } = useAuth()
-  const [data, setData] = useState<AdminDashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
+  const { data, isLoading } = useAdminDashboardQuery()
   const navigate = useNavigate()
 
-  const fetchData = useCallback(
-    async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
-      if (!keepContent) setLoading(true)
-      try {
-        const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/reports/dashboard`)
-        const json = (await res.json()) as ApiResponse<AdminDashboardData>
-        if (json.success && json.data) {
-          setData(json.data)
-        }
-      } catch (error) {
-        console.error("Failed to fetch admin dashboard", error)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [fetchWithAuth],
-  )
-
-  useEffect(() => {
-    if (session?.access_token) {
-      Promise.resolve().then(() => {
-        void fetchData()
-      })
-    }
-  }, [fetchData, session?.access_token])
-
-  useEffect(() => {
-    const refreshFromRealtime = (event: Event) => {
-      const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
-      if (
-        detail?.type?.startsWith("loan.") ||
-        detail?.type?.startsWith("payment.") ||
-        detail?.type?.startsWith("voucher.") ||
-        detail?.type?.startsWith("user.") ||
-        detail?.type?.startsWith("access-request.")
-      ) {
-        void fetchData({ keepContent: true })
-      }
-    }
-
-    window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
-    return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
-  }, [fetchData])
-
-  if (loading) {
+  if (isLoading) {
     return <AdminDashboardSkeleton />
   }
 

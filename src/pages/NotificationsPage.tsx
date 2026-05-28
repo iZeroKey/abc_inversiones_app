@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useQueryClient } from "@tanstack/react-query"
 import {
   AlertCircleIcon,
   BellIcon,
@@ -28,31 +30,19 @@ import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
-import { dispatchNotificationsUpdated, realtimeNotificationsEvent } from "@/lib/realtime"
+import { dispatchNotificationsUpdated } from "@/lib/realtime"
 import { cn } from "@/lib/utils"
+import {
+  NOTIFICATIONS_PAGE_SIZE,
+  useNotificationsQuery,
+  useUnreadNotificationsCountQuery,
+  type NotificationFilter,
+  type NotificationItem,
+  type NotificationsPaginationMeta as PaginationMeta,
+} from "@/pages/notifications-queries"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
-const PAGE_SIZE = 10
-
-type NotificationFilter = "all" | "unread" | "read"
-
-type NotificationItem = {
-  id: string
-  title: string
-  body: string
-  type: string
-  isRead: boolean
-  data: unknown
-  createdAt: string
-}
-
-type PaginationMeta = {
-  page?: number
-  limit?: number
-  total?: number
-  totalPages?: number
-  unreadCount?: number
-}
+const PAGE_SIZE = NOTIFICATIONS_PAGE_SIZE
 
 type ApiResponse<T> = {
   success: boolean
@@ -211,7 +201,8 @@ function getNotificationTitle(notification: NotificationItem) {
 }
 
 export default function NotificationsPage() {
-  const { session, fetchWithAuth } = useAuth()
+  const { fetchWithAuth } = useAuth()
+  const queryClient = useQueryClient()
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [pagination, setPagination] = useState<PaginationMeta>({
     page: 1,
@@ -222,93 +213,48 @@ export default function NotificationsPage() {
   })
   const [filter, setFilter] = useState<NotificationFilter>("all")
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
   const [markingAll, setMarkingAll] = useState(false)
   const [markingIds, setMarkingIds] = useState<Set<string>>(() => new Set())
-  const [error, setError] = useState<string | null>(null)
+  const notificationsQuery = useNotificationsQuery({ filter, page })
+  const { refetch: refetchNotifications } = notificationsQuery
+  const { data: unreadCountData } = useUnreadNotificationsCountQuery()
 
-  const unreadCount = pagination.unreadCount ?? 0
-  const totalPages = Math.max(pagination.totalPages ?? 1, 1)
+  useEffect(() => {
+    if (!notificationsQuery.data) return
+    setNotifications(notificationsQuery.data.notifications)
+    setPagination(notificationsQuery.data.pagination)
+  }, [notificationsQuery.data])
 
   const fetchNotifications = useCallback(
-    async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
-      if (!session?.access_token) return
-
-      if (!API_BASE_URL) {
-        setError("No se encontró VITE_API_URL para consultar el servidor.")
-        setLoading(false)
-        return
-      }
-
-      if (keepContent) {
-        setRefreshing(true)
-      } else {
-        setLoading(true)
-      }
-      setError(null)
-
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(PAGE_SIZE),
-      })
-
-      if (filter !== "all") {
-        params.set("isRead", String(filter === "read"))
-      }
-
-      try {
-        const response = await fetchWithAuth(
-          `${API_BASE_URL}/api/v1/notifications?${params.toString()}`,
-        )
-        const payload =
-          (await response.json().catch(() => null)) as ApiResponse<
-            NotificationItem[]
-          > | null
-
-        if (!response.ok || !payload?.success) {
-          throw new Error(payload?.message || "No se pudieron cargar las notificaciones.")
-        }
-
-        setNotifications(payload.data ?? [])
-        setPagination({
-          page: payload.meta?.page ?? page,
-          limit: payload.meta?.limit ?? PAGE_SIZE,
-          total: payload.meta?.total ?? payload.data?.length ?? 0,
-          totalPages: payload.meta?.totalPages ?? 1,
-          unreadCount:
-            payload.meta?.unreadCount ??
-            payload.data?.filter((notification) => !notification.isRead).length ??
-            0,
-        })
-      } catch (fetchError) {
-        setError(
-          getErrorMessage(fetchError, "No se pudieron cargar las notificaciones."),
-        )
-      } finally {
-        setLoading(false)
-        setRefreshing(false)
-      }
+    async () => {
+      await refetchNotifications()
     },
-    [fetchWithAuth, filter, page, session?.access_token],
+    [refetchNotifications],
   )
 
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void fetchNotifications()
-    }, 0)
+  const updateUnreadCountQueries = useCallback(
+    (updater: (current: number) => number) => {
+      queryClient.setQueriesData<number>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey[0] === "abc" &&
+            query.queryKey[1] === "notifications" &&
+            query.queryKey[2] === "unread-count",
+        },
+        (current) => updater(current ?? 0),
+      )
+    },
+    [queryClient],
+  )
 
-    return () => window.clearTimeout(timeoutId)
-  }, [fetchNotifications])
-
-  useEffect(() => {
-    const refreshFromRealtime = () => {
-      void fetchNotifications({ keepContent: true })
-    }
-
-    window.addEventListener(realtimeNotificationsEvent, refreshFromRealtime)
-    return () => window.removeEventListener(realtimeNotificationsEvent, refreshFromRealtime)
-  }, [fetchNotifications])
+  const loading = notificationsQuery.isLoading
+  const refreshing = notificationsQuery.isFetching && !notificationsQuery.isLoading
+  const error = notificationsQuery.error
+    ? getErrorMessage(notificationsQuery.error, "No se pudieron cargar las notificaciones.")
+    : null
+  const unreadCount = unreadCountData ?? pagination.unreadCount ?? 0
+  const totalPages = Math.max(pagination.totalPages ?? 1, 1)
 
   const handleFilterChange = (nextFilter: string) => {
     if (!nextFilter || !["all", "unread", "read"].includes(nextFilter)) return
@@ -344,6 +290,8 @@ export default function NotificationsPage() {
         totalPages: filter === "unread" ? 1 : current.totalPages,
         unreadCount: 0,
       }))
+      updateUnreadCountQueries(() => 0)
+      void queryClient.invalidateQueries({ queryKey: ["abc", "notifications", "list"] })
       dispatchNotificationsUpdated()
       toastManager.add({
         type: "success",
@@ -387,6 +335,7 @@ export default function NotificationsPage() {
           : current.totalPages,
       unreadCount: Math.max((current.unreadCount ?? 0) - 1, 0),
     }))
+    updateUnreadCountQueries((current) => Math.max(current - 1, 0))
 
     try {
       const response = await fetchWithAuth(
@@ -404,6 +353,7 @@ export default function NotificationsPage() {
       }
 
       dispatchNotificationsUpdated()
+      void queryClient.invalidateQueries({ queryKey: ["abc", "notifications", "list"] })
     } catch (markError) {
       setNotifications((current) =>
         filter === "unread"
@@ -421,6 +371,7 @@ export default function NotificationsPage() {
             : current.totalPages,
         unreadCount: (current.unreadCount ?? 0) + 1,
       }))
+      updateUnreadCountQueries((current) => current + 1)
       toastManager.add({
         type: "error",
         title: "No se actualizó la notificación",
@@ -459,7 +410,7 @@ export default function NotificationsPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => void fetchNotifications({ keepContent: true })}
+            onClick={() => void fetchNotifications()}
             disabled={loading || refreshing}
             aria-label="Actualizar notificaciones"
             title="Actualizar"
@@ -501,7 +452,7 @@ export default function NotificationsPage() {
       ) : error ? (
         <ErrorState
           message={error}
-          onRetry={() => void fetchNotifications({ keepContent: true })}
+          onRetry={() => void fetchNotifications()}
         />
       ) : notifications.length === 0 ? (
         <EmptyState filter={filter} />

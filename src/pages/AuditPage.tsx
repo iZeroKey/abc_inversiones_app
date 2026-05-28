@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
   ActivityIcon,
@@ -52,6 +53,8 @@ import {
 } from "@/components/ui/responsive-sheet"
 import { UserDetailSheet } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
+import { getAuthQueryScope } from "@/features/loans/loan-queries"
+import { queryKeys } from "@/lib/query-keys"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import { cn } from "@/lib/utils"
 
@@ -373,6 +376,8 @@ async function fetchAuditLogs(
 
 export default function AuditPage() {
   const { user, session, fetchWithAuth } = useAuth()
+  const queryClient = useQueryClient()
+  const queryScope = useMemo(() => getAuthQueryScope(user), [user])
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [filters, setFilters] = useState<AuditFilters>(emptyFilters)
   const [appliedFilters, setAppliedFilters] = useState<AuditFilters>(emptyFilters)
@@ -430,7 +435,17 @@ export default function AuditPage() {
       setError(null)
 
       try {
-        const result = await fetchAuditLogs(fetchWithAuth, appliedFilters, page)
+        const result = await queryClient.fetchQuery({
+          gcTime: 5 * 60 * 1000,
+          queryFn: () => fetchAuditLogs(fetchWithAuth, appliedFilters, page),
+          queryKey: queryKeys.audit.logs(queryScope, {
+            action: appliedFilters.action,
+            module: appliedFilters.module,
+            page,
+            userId: appliedFilters.userId,
+          }),
+          staleTime: 15 * 1000,
+        })
         const previousIds = visibleLogIdsRef.current
         const nextIds = new Set(result.logs.map((log) => log.id))
         const addedIds =
@@ -458,7 +473,7 @@ export default function AuditPage() {
         setRefreshing(false)
       }
     },
-    [appliedFilters, fetchWithAuth, isAdmin, page, session?.access_token],
+    [appliedFilters, fetchWithAuth, isAdmin, page, queryClient, queryScope, session?.access_token],
   )
 
   useEffect(() => {

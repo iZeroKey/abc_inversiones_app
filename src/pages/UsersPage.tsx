@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
   BadgeCheckIcon,
@@ -80,6 +81,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
+import { getAuthQueryScope } from "@/features/loans/loan-queries"
+import { queryKeys } from "@/lib/query-keys"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import { cn } from "@/lib/utils"
 import type { ApiResponse, MaritalStatus, PaginationMeta, UserRole } from "@/types/loans"
@@ -87,6 +90,8 @@ import type { ApiResponse, MaritalStatus, PaginationMeta, UserRole } from "@/typ
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 const USERS_PAGE_SIZE = 10
 const usersPreferencesKey = "abc-users-page-preferences"
+const usersPreferencesVersion = 1
+let usersPreferencesCache: UsersPagePreferences | null = null
 
 type UsersTab = "users" | "requests"
 type RoleFilter = "all" | UserRole
@@ -438,16 +443,25 @@ async function reviewAccessRequest(
 }
 
 function readUsersPreferences(): UsersPagePreferences {
+  if (usersPreferencesCache) return usersPreferencesCache
+
   try {
-    return JSON.parse(localStorage.getItem(usersPreferencesKey) ?? "{}") as UsersPagePreferences
+    const preferences = JSON.parse(localStorage.getItem(usersPreferencesKey) ?? "{}") as UsersPagePreferences & { version?: number }
+    usersPreferencesCache =
+      preferences.version === undefined || preferences.version === usersPreferencesVersion
+        ? preferences
+        : {}
+    return usersPreferencesCache
   } catch {
+    usersPreferencesCache = {}
     return {}
   }
 }
 
 function writeUsersPreferences(nextPreferences: UsersPagePreferences) {
   const currentPreferences = readUsersPreferences()
-  localStorage.setItem(usersPreferencesKey, JSON.stringify({ ...currentPreferences, ...nextPreferences }))
+  usersPreferencesCache = { ...currentPreferences, ...nextPreferences }
+  localStorage.setItem(usersPreferencesKey, JSON.stringify({ ...usersPreferencesCache, version: usersPreferencesVersion }))
 }
 
 function rememberVisibleIds<T extends { id: string }>(
@@ -481,6 +495,8 @@ function rememberVisibleIds<T extends { id: string }>(
 
 export default function UsersPage({ initialTab = "users" }: { initialTab?: UsersTab }) {
   const { user, session, fetchWithAuth } = useAuth()
+  const queryClient = useQueryClient()
+  const queryScope = useMemo(() => getAuthQueryScope(user), [user])
   const [activeTab, setActiveTab] = useState<UsersTab>(() => readUsersPreferences().activeTab ?? initialTab)
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [requests, setRequests] = useState<AccessRequest[]>([])
@@ -613,7 +629,11 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       setUsersError(null)
 
       try {
-        const nextUsers = await fetchUsers(fetchWithAuth)
+        const nextUsers = await queryClient.fetchQuery({
+          meta: { persist: true },
+          queryFn: () => fetchUsers(fetchWithAuth),
+          queryKey: queryKeys.users.list(queryScope),
+        })
         rememberVisibleIds(nextUsers, keepContent, visibleUserIdsRef, newUserTimeoutRef, setNewUserIds)
         setUsers(nextUsers)
       } catch (error) {
@@ -623,7 +643,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         setRefreshingUsers(false)
       }
     },
-    [fetchWithAuth, isAdmin, session?.access_token],
+    [fetchWithAuth, isAdmin, queryClient, queryScope, session?.access_token],
   )
 
   const loadRequests = useCallback(
@@ -638,7 +658,11 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       setRequestsError(null)
 
       try {
-        const nextRequests = await fetchAccessRequests(fetchWithAuth)
+        const nextRequests = await queryClient.fetchQuery({
+          meta: { persist: true },
+          queryFn: () => fetchAccessRequests(fetchWithAuth),
+          queryKey: queryKeys.users.accessRequests(queryScope),
+        })
         rememberVisibleIds(nextRequests, keepContent, visibleRequestIdsRef, newRequestTimeoutRef, setNewRequestIds)
         setRequests(nextRequests)
       } catch (error) {
@@ -648,7 +672,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         setRefreshingRequests(false)
       }
     },
-    [fetchWithAuth, isAdmin, session?.access_token],
+    [fetchWithAuth, isAdmin, queryClient, queryScope, session?.access_token],
   )
 
   useEffect(() => {
@@ -754,6 +778,10 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
       if (savedUser) {
         setUsers((currentUsers) => upsertById(currentUsers, savedUser))
+        queryClient.setQueryData<ManagedUser[]>(
+          queryKeys.users.list(queryScope),
+          (currentUsers) => upsertById(currentUsers ?? [], savedUser),
+        )
       }
 
       if (editingUser) {
@@ -789,6 +817,10 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       const linkedUser = response.data
       if (linkedUser) {
         setUsers((currentUsers) => upsertById(currentUsers, linkedUser))
+        queryClient.setQueryData<ManagedUser[]>(
+          queryKeys.users.list(queryScope),
+          (currentUsers) => upsertById(currentUsers ?? [], linkedUser),
+        )
       }
       toastManager.add({
         type: "success",
@@ -832,6 +864,10 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       const reviewedRequest = response.data
       if (reviewedRequest) {
         setRequests((currentRequests) => upsertById(currentRequests, reviewedRequest))
+        queryClient.setQueryData<AccessRequest[]>(
+          queryKeys.users.accessRequests(queryScope),
+          (currentRequests) => upsertById(currentRequests ?? [], reviewedRequest),
+        )
         setSelectedRequest((currentRequest) =>
           currentRequest?.id === reviewedRequest.id ? reviewedRequest : currentRequest,
         )
@@ -849,6 +885,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       setRequestObservation("")
       setRequestInitialPassword("")
       if (requestAction === "approved") {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.users.list(queryScope) })
         await loadUsers({ keepContent: true })
       }
     } catch (error) {

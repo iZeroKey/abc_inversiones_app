@@ -4,97 +4,16 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/contexts/auth-context"
 import { formatPercent } from "@/lib/formatters"
-import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
+import { useInvestorDashboardQuery } from "@/pages/dashboard/dashboard-queries"
 import { CheckSquareIcon, TrendingUpIcon, WalletIcon } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
-
-type InvestorPortfolio = {
-  investments?: {
-    loanId: string
-  }[]
-  summary?: {
-    totalInvested?: string
-    totalReturn?: string
-    activeLoans?: number
-  }
-}
-
-type Payment = {
-  amount?: string
-  status?: string
-}
-
-type ApiResponse<T> = {
-  success: boolean
-  data?: T
-}
 
 export default function InvestorDashboard() {
-  const { user, session, fetchWithAuth } = useAuth()
-  const [data, setData] = useState<InvestorPortfolio | null>(null)
-  const [collectedAmount, setCollectedAmount] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
+  const { data: dashboardData, isLoading } = useInvestorDashboardQuery()
+  const data = dashboardData?.data ?? null
+  const collectedAmount = dashboardData?.collectedAmount ?? 0
 
-  const fetchData = useCallback(
-    async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
-      if (!keepContent) setLoading(true)
-      try {
-        const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/reports/portfolio`)
-        const json = (await res.json()) as ApiResponse<InvestorPortfolio>
-        if (json.success && json.data) {
-          setData(json.data)
-          const paymentsByLoan = await Promise.all(
-            (json.data.investments ?? []).map(async (investment) => {
-              const paymentRes = await fetchWithAuth(
-                `${API_BASE_URL}/api/v1/payments/loan/${investment.loanId}`,
-              )
-              const paymentJson = (await paymentRes.json()) as ApiResponse<Payment[]>
-              return paymentJson.success ? paymentJson.data ?? [] : []
-            }),
-          )
-          setCollectedAmount(
-            paymentsByLoan
-              .flat()
-              .filter((payment) => payment.status === "confirmed")
-              .reduce((total, payment) => total + parseFloat(payment.amount || "0"), 0),
-          )
-        }
-      } catch (error) {
-        console.error("Failed to fetch investor portfolio", error)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [fetchWithAuth],
-  )
-
-  useEffect(() => {
-    if (session?.access_token) {
-      Promise.resolve().then(() => {
-        void fetchData()
-      })
-    }
-  }, [fetchData, session?.access_token])
-
-  useEffect(() => {
-    const refreshFromRealtime = (event: Event) => {
-      const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
-      if (
-        detail?.type?.startsWith("loan.") ||
-        detail?.type?.startsWith("payment.") ||
-        detail?.type?.startsWith("voucher.")
-      ) {
-        void fetchData({ keepContent: true })
-      }
-    }
-
-    window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
-    return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
-  }, [fetchData])
-
-  if (loading) {
+  if (isLoading) {
     return <InvestorDashboardSkeleton />
   }
 

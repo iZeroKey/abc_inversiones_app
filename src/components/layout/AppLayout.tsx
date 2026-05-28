@@ -1,6 +1,6 @@
 import { AppLayout as UIAppLayout, type NavItem } from "@/components/ui/app-layout"
 import { useAuth } from "@/contexts/auth-context"
-import { realtimeNotificationsEvent } from "@/lib/realtime"
+import { useUnreadNotificationsCountQuery } from "@/pages/notifications-queries"
 import {
   ClipboardListIcon,
   FileTextIcon,
@@ -11,67 +11,13 @@ import {
 import React from "react"
 import { useNavigate } from "react-router-dom"
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
-
-type NotificationsCountResponse = {
-  success: boolean
-  data?: {
-    isRead?: boolean
-  }[]
-  meta?: {
-    total?: number
-    unreadCount?: number
-  }
-}
-
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, session, logout, fetchWithAuth } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [notificationsCount, setNotificationsCount] = React.useState(0)
+  const { data: notificationsCount = 0 } = useUnreadNotificationsCountQuery()
 
   const role = user?.role || "client"
   const isAdmin = role === "admin" || user?.isOwner
-
-  const refreshNotificationsCount = React.useCallback(async () => {
-    if (!session?.access_token || !API_BASE_URL) {
-      setNotificationsCount(0)
-      return
-    }
-
-    try {
-      const response = await fetchWithAuth(
-        `${API_BASE_URL}/api/v1/notifications?isRead=false&page=1&limit=1`,
-      )
-      const payload =
-        (await response.json().catch(() => null)) as NotificationsCountResponse | null
-
-      if (!response.ok || !payload?.success) {
-        setNotificationsCount(0)
-        return
-      }
-
-      setNotificationsCount(
-        payload.meta?.unreadCount ??
-          payload.meta?.total ??
-          payload.data?.filter((notification) => !notification.isRead).length ??
-          0,
-      )
-    } catch {
-      setNotificationsCount(0)
-    }
-  }, [fetchWithAuth, session?.access_token])
-
-  React.useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void refreshNotificationsCount()
-    }, 0)
-
-    window.addEventListener(realtimeNotificationsEvent, refreshNotificationsCount)
-    return () => {
-      window.clearTimeout(timeoutId)
-      window.removeEventListener(realtimeNotificationsEvent, refreshNotificationsCount)
-    }
-  }, [refreshNotificationsCount])
 
   const navItems = React.useMemo<NavItem[]>(() => {
     if (isAdmin) {

@@ -9,128 +9,21 @@ import {
   getRemainingDebt,
   toNumber,
 } from "@/features/loans/loan-utils"
+import {
+  useClientDashboardQuery,
+  type DashboardLoan as Loan,
+} from "@/pages/dashboard/dashboard-queries"
 
-import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import { ChevronRightIcon, CreditCardIcon, ReceiptTextIcon, WalletIcon } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
-
-type Loan = {
-  id: string
-  publicCode?: string | null
-  totalDebt?: string
-  totalPaid?: string
-  status?: string
-  installmentsCount?: number
-  interestRate?: string | number
-  frequency?: string
-}
-
-type Installment = {
-  id: string
-  loanId?: string
-  paidAmount?: string | number
-  status?: string
-}
-
-type ClientStatement = {
-  loans?: Loan[]
-  summary?: {
-    totalDebt?: string
-    totalPaid?: string
-  }
-}
-
-type ApiResponse<T> = {
-  success: boolean
-  data?: T
-}
-
 export default function ClientDashboard() {
-  const { user, session, fetchWithAuth } = useAuth()
-  const [data, setData] = useState<ClientStatement | null>(null)
-  const [pendingInstallments, setPendingInstallments] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
+  const { data: dashboardData, isLoading } = useClientDashboardQuery()
+  const data = dashboardData?.data ?? null
+  const pendingInstallments = dashboardData?.pendingInstallments ?? 0
 
-  const fetchData = useCallback(
-    async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
-      if (!keepContent) setLoading(true)
-      try {
-        const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/reports/statement`)
-        const json = (await res.json()) as ApiResponse<ClientStatement>
-        if (json.success && json.data) {
-          const loans = json.data.loans ?? []
-          const activeLoanIds = new Set(loans.filter((loan) => loan.status === "active").map((loan) => loan.id))
-          const installmentResponses = await Promise.all(
-            loans.map(async (loan) => {
-              const installmentRes = await fetchWithAuth(
-                `${API_BASE_URL}/api/v1/loans/${loan.id}/installments`,
-              )
-              const installmentJson = (await installmentRes.json()) as ApiResponse<Installment[]>
-              return {
-                loan,
-                installments: installmentJson.success ? installmentJson.data ?? [] : [],
-              }
-            }),
-          )
-          const loansWithProgress = installmentResponses.map(({ loan, installments }) => ({
-            ...loan,
-            totalPaid: String(getLoanPaidAmount(loan, installments)),
-          }))
-          const paidFromInstallments = loansWithProgress.reduce(
-            (total, loan) => total + toNumber(loan.totalPaid),
-            0,
-          )
-          setData({
-            ...json.data,
-            loans: loansWithProgress,
-            summary: {
-              ...json.data.summary,
-              totalPaid: String(Math.max(toNumber(json.data.summary?.totalPaid), paidFromInstallments)),
-            },
-          })
-          setPendingInstallments(
-            installmentResponses
-              .flatMap(({ loan, installments }) => (activeLoanIds.has(loan.id) ? installments : []))
-              .filter((installment) => installment.status !== "paid").length,
-          )
-        }
-      } catch (error) {
-        console.error("Failed to fetch client statement", error)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [fetchWithAuth],
-  )
-
-  useEffect(() => {
-    if (session?.access_token) {
-      Promise.resolve().then(() => {
-        void fetchData()
-      })
-    }
-  }, [fetchData, session?.access_token])
-
-  useEffect(() => {
-    const refreshFromRealtime = (event: Event) => {
-      const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
-      if (
-        detail?.type?.startsWith("loan.") ||
-        detail?.type?.startsWith("payment.") ||
-        detail?.type?.startsWith("voucher.")
-      ) {
-        void fetchData({ keepContent: true })
-      }
-    }
-
-    window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
-    return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
-  }, [fetchData])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
         <div className="flex flex-col gap-1">
