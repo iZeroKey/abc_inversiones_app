@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 
+import { clearPersistedQueryCache } from "@/lib/query-client"
+
 type AuthSession = {
   access_token: string
   refresh_token: string
@@ -124,6 +126,7 @@ function addExpiry(session: AuthSession): AuthSession {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>(getInitialAuthState)
   const stateRef = useRef<AuthState>(state)
+  const refreshPromiseRef = useRef<Promise<AuthSession | null> | null>(null)
 
   useEffect(() => {
     stateRef.current = state
@@ -220,42 +223,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }).catch(() => undefined)
     }
     clearStoredAuth()
+    clearPersistedQueryCache()
     setState({ session: null, user: null, isHydrating: false })
   }, [])
 
   const refreshSession = useCallback(async () => {
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current
+    }
+
     const currentSession = stateRef.current.session
     if (!currentSession?.refresh_token || !API_BASE_URL) {
       logout()
       return null
     }
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          refresh_token: currentSession.refresh_token,
-        }),
-      })
-      const payload = (await response.json().catch(() => null)) as RefreshResponse | null
+    refreshPromiseRef.current = (async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            refresh_token: currentSession.refresh_token,
+          }),
+        })
+        const payload = (await response.json().catch(() => null)) as RefreshResponse | null
 
-      if (!response.ok || !payload?.success || !payload.data?.session) {
+        if (!response.ok || !payload?.success || !payload.data?.session) {
+          logout()
+          return null
+        }
+
+        return persistSession(payload.data.session)
+      } catch {
         logout()
         return null
+      } finally {
+        refreshPromiseRef.current = null
       }
+    })()
 
-      return persistSession(payload.data.session)
-    } catch {
-      logout()
-      return null
-    }
+    return refreshPromiseRef.current
   }, [logout, persistSession])
 
-  // fetchWithAuth tiene referencia estable — no cambia aunque cambie el state.
-  // Usa stateRef para leer el token actual en el momento de la llamada.
   const fetchWithAuth = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const currentSession = stateRef.current.session
     const activeSession =
@@ -279,6 +291,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refreshSession])
 
   const login = useCallback(({ session, user, remember }: LoginPayload) => {
+    const previousUserId = stateRef.current.user?.id
+    if (previousUserId && user?.id && previousUserId !== user.id) {
+      clearPersistedQueryCache()
+    }
+
     const sessionWithExpiry = addExpiry(session)
     const storage = remember ? localStorage : sessionStorage
     const otherStorage = remember ? sessionStorage : localStorage

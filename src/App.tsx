@@ -1,9 +1,11 @@
-import { useEffect } from "react"
+import { lazy, Suspense, useEffect, type ReactNode } from "react"
 import { HashRouter, Navigate, Route, Routes, useLocation } from "react-router-dom"
 import "./App.css"
 import { PageTransitionRoutes } from "./components/PageTransitionRoutes"
 import ProtectedRoute from "./components/ProtectedRoute"
 import { AppLayout } from "./components/layout/AppLayout"
+import { Skeleton } from "./components/ui/skeleton"
+import { Spinner } from "./components/ui/spinner"
 import {
   AnchoredToastProvider,
   ToastProvider,
@@ -11,14 +13,16 @@ import {
 import { TooltipProvider } from "./components/ui/tooltip"
 import { AuthProvider } from "./contexts/auth-context"
 import { RealtimeProvider } from "./contexts/realtime-context"
-import AuditPage from "./pages/AuditPage"
-import HomePage from "./pages/HomePage"
-import LoansPage from "./pages/LoansPage"
-import LoginPage from "./pages/LoginPage"
-import NotFoundPage from "./pages/NotFoundPage"
-import NotificationsPage from "./pages/NotificationsPage"
-import ProfilePage from "./pages/ProfilePage"
-import UsersPage from "./pages/UsersPage"
+import { AppQueryProvider } from "./lib/query-client"
+
+const AuditPage = lazy(() => import("./pages/AuditPage"))
+const HomePage = lazy(() => import("./pages/HomePage"))
+const LoansPage = lazy(() => import("./pages/LoansPage"))
+const LoginPage = lazy(() => import("./pages/LoginPage"))
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"))
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"))
+const ProfilePage = lazy(() => import("./pages/ProfilePage"))
+const UsersPage = lazy(() => import("./pages/UsersPage"))
 
 const pageTitles: Record<string, string> = {
   "/": "ABC Inversiones",
@@ -51,20 +55,76 @@ function ProtectedAppRoutes() {
     <ProtectedRoute>
       <AppLayout>
         <PageTransitionRoutes>
-          <Route path="home" element={<HomePage />} />
-          <Route path="loans" element={<LoansPage />} />
-          <Route path="loans/:loanId" element={<LoansPage />} />
-          <Route path="investments" element={<LoansPage />} />
-          <Route path="investments/:loanId" element={<LoansPage />} />
-          <Route path="users" element={<UsersPage />} />
-          <Route path="requests" element={<UsersPage initialTab="requests" />} />
-          <Route path="audit" element={<AuditPage />} />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="*" element={<NotFoundPage />} />
+          <Route path="home" element={<RouteChunk><HomePage /></RouteChunk>} />
+          <Route path="loans" element={<RouteChunk><LoansPage /></RouteChunk>} />
+          <Route path="loans/:loanId" element={<RouteChunk><LoansPage /></RouteChunk>} />
+          <Route path="investments" element={<RouteChunk><LoansPage /></RouteChunk>} />
+          <Route path="investments/:loanId" element={<RouteChunk><LoansPage /></RouteChunk>} />
+          <Route path="users" element={<RouteChunk><UsersPage /></RouteChunk>} />
+          <Route path="requests" element={<RouteChunk><UsersPage initialTab="requests" /></RouteChunk>} />
+          <Route path="audit" element={<RouteChunk><AuditPage /></RouteChunk>} />
+          <Route path="profile" element={<RouteChunk><ProfilePage /></RouteChunk>} />
+          <Route path="notifications" element={<RouteChunk><NotificationsPage /></RouteChunk>} />
+          <Route path="*" element={<RouteChunk><NotFoundPage /></RouteChunk>} />
         </PageTransitionRoutes>
       </AppLayout>
     </ProtectedRoute>
+  )
+}
+
+function RouteChunk({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>
+}
+
+function RouteFallback() {
+  return (
+    <div className="min-h-[calc(100svh-4rem)] w-full px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-3">
+            <Skeleton className="h-8 w-56 max-w-[70vw]" />
+            <Skeleton className="h-4 w-80 max-w-[82vw]" />
+          </div>
+          <Spinner className="mt-1 size-5 shrink-0 text-muted-foreground" />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-24 rounded-md" />
+          ))}
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
+          <div className="space-y-3">
+            <Skeleton className="h-11 rounded-md" />
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-14 rounded-md" />
+            ))}
+          </div>
+          <Skeleton className="hidden min-h-96 rounded-md lg:block" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AppFallback() {
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-background p-6">
+      <div className="flex w-full max-w-sm flex-col items-center gap-5">
+        <img
+          src="/favicon.svg"
+          alt=""
+          aria-hidden="true"
+          className="size-12 rounded-md"
+        />
+        <Spinner className="size-6 text-muted-foreground" />
+        <div className="w-full space-y-3">
+          <Skeleton className="mx-auto h-4 w-44" />
+          <Skeleton className="mx-auto h-4 w-64 max-w-full" />
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -73,18 +133,22 @@ function App() {
     <TooltipProvider>
       <ToastProvider>
         <AnchoredToastProvider>
-          <AuthProvider>
-            <RealtimeProvider>
-              <HashRouter>
-                <AppDocumentTitle />
-                <Routes>
-                  <Route path="/" element={<Navigate to="/login" replace />} />
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/*" element={<ProtectedAppRoutes />} />
-                </Routes>
-              </HashRouter>
-            </RealtimeProvider>
-          </AuthProvider>
+          <AppQueryProvider>
+            <AuthProvider>
+              <RealtimeProvider>
+                <HashRouter>
+                  <AppDocumentTitle />
+                  <Suspense fallback={<AppFallback />}>
+                    <Routes>
+                      <Route path="/" element={<Navigate to="/login" replace />} />
+                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/*" element={<ProtectedAppRoutes />} />
+                    </Routes>
+                  </Suspense>
+                </HashRouter>
+              </RealtimeProvider>
+            </AuthProvider>
+          </AppQueryProvider>
         </AnchoredToastProvider>
       </ToastProvider>
     </TooltipProvider>
