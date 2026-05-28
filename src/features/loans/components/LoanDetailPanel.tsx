@@ -475,7 +475,7 @@ export function LoanDetailPanel({
       <div className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           {!hideBackButton && (
-            <Button className="shrink-0" variant="ghost" size="icon-sm" render={<Link to={basePath} replace />}>
+            <Button nativeButton={false} className="shrink-0" variant="ghost" size="icon-sm" render={<Link to={basePath} replace />}>
               <ArrowLeftIcon />
             </Button>
           )}
@@ -627,14 +627,16 @@ export function LoanDetailPanel({
               payments={relatedData.payments}
               vouchers={relatedData.vouchers}
               canManage={perspective === "admin"}
-              showPendingVouchers={perspective === "client"}
-              canManageVoucher={(voucher) =>
-                canEditVoucher(voucher, perspective, user?.id) || canDeleteVoucher(voucher, perspective, user?.id)
-              }
+              showUnappliedVouchers
+              canEditVoucher={(voucher) => canEditVoucher(voucher, perspective, user?.id)}
+              canDeleteVoucher={(voucher) => canDeleteVoucher(voucher, perspective, user?.id)}
+              canProcessVoucher={(voucher) => canProcessVoucher(voucher, loan, perspective, user?.id)}
               onEdit={setPaymentDialogPayment}
               onDelete={(payment) => setDeleteTarget({ type: "payment", item: payment, source: "list" })}
               onEditVoucher={setVoucherDialogVoucher}
               onDeleteVoucher={(voucher) => setDeleteTarget({ type: "voucher", item: voucher, source: "list" })}
+              onApproveVoucher={(voucher) => setProcessDialog({ voucher, mode: "approve" })}
+              onRejectVoucher={(voucher) => setProcessDialog({ voucher, mode: "reject" })}
             />
           </TabsContent>
           <TabsContent value="vouchers">
@@ -749,22 +751,30 @@ function PaymentsTable({
   payments,
   vouchers,
   canManage,
-  showPendingVouchers,
-  canManageVoucher,
+  showUnappliedVouchers,
+  canEditVoucher,
+  canDeleteVoucher,
+  canProcessVoucher,
   onEdit,
   onDelete,
   onEditVoucher,
   onDeleteVoucher,
+  onApproveVoucher,
+  onRejectVoucher,
 }: {
   payments: Payment[]
   vouchers: PaymentVoucher[]
   canManage: boolean
-  showPendingVouchers: boolean
-  canManageVoucher: (voucher: PaymentVoucher) => boolean
+  showUnappliedVouchers: boolean
+  canEditVoucher: (voucher: PaymentVoucher) => boolean
+  canDeleteVoucher: (voucher: PaymentVoucher) => boolean
+  canProcessVoucher: (voucher: PaymentVoucher) => boolean
   onEdit: (payment: Payment) => void
   onDelete: (payment: Payment) => void
   onEditVoucher: (voucher: PaymentVoucher) => void
   onDeleteVoucher: (voucher: PaymentVoucher) => void
+  onApproveVoucher: (voucher: PaymentVoucher) => void
+  onRejectVoucher: (voucher: PaymentVoucher) => void
 }) {
   type PaymentListRow =
     | { id: string; kind: "payment"; payment: Payment; voucher?: never }
@@ -776,9 +786,9 @@ function PaymentsTable({
       kind: "payment" as const,
       payment,
     }))
-    const pendingVoucherRows = showPendingVouchers
+    const unappliedVoucherRows = showUnappliedVouchers
       ? vouchers
-          .filter((voucher) => isPendingVoucherForClient(voucher))
+          .filter((voucher) => isUnappliedVoucher(voucher))
           .map((voucher) => ({
             id: `voucher-${voucher.id}`,
             kind: "voucher" as const,
@@ -786,8 +796,8 @@ function PaymentsTable({
           }))
       : []
 
-    return [...paymentRows, ...pendingVoucherRows]
-  }, [payments, showPendingVouchers, vouchers])
+    return [...paymentRows, ...unappliedVoucherRows]
+  }, [payments, showUnappliedVouchers, vouchers])
 
   const columns = useMemo<ColumnDef<PaymentListRow>[]>(
     () => [
@@ -852,11 +862,11 @@ function PaymentsTable({
         header: () => <DataTableStaticHeader title="Evidencia" />,
         cell: ({ row }) => (
           <EvidenceButton
-            url={row.original.kind === "payment" ? row.original.payment.evidenceUrl : row.original.voucher.evidenceUrl}
+            url={row.original.kind === "payment" ? getPaymentEvidenceUrl(row.original.payment) : getVoucherEvidenceUrl(row.original.voucher)}
           />
         ),
       },
-      ...(canManage || rows.some((row) => row.kind === "voucher" && canManageVoucher(row.voucher))
+      ...(canManage || rows.some((row) => row.kind === "voucher" && hasVoucherPaymentRowActions(row.voucher, canEditVoucher, canDeleteVoucher, canProcessVoucher))
         ? [{
             id: "actions",
             enableSorting: false,
@@ -864,14 +874,35 @@ function PaymentsTable({
             cell: ({ row }) => {
               const items = row.original.kind === "payment"
                 ? getPaymentActions(row.original.payment, canManage, onEdit, onDelete)
-                : getVoucherPaymentRowActions(row.original.voucher, canManageVoucher, onEditVoucher, onDeleteVoucher)
+                : getVoucherPaymentRowActions(
+                    row.original.voucher,
+                    canEditVoucher,
+                    canDeleteVoucher,
+                    canProcessVoucher,
+                    onEditVoucher,
+                    onDeleteVoucher,
+                    onApproveVoucher,
+                    onRejectVoucher,
+                  )
 
               return items.length ? <RowActions items={items} /> : <span className="text-muted-foreground">-</span>
             },
           } satisfies ColumnDef<PaymentListRow>]
         : []),
     ],
-    [canManage, canManageVoucher, onDelete, onDeleteVoucher, onEdit, onEditVoucher, rows],
+    [
+      canManage,
+      canDeleteVoucher,
+      canEditVoucher,
+      canProcessVoucher,
+      onApproveVoucher,
+      onDelete,
+      onDeleteVoucher,
+      onEdit,
+      onEditVoucher,
+      onRejectVoucher,
+      rows,
+    ],
   )
 
   if (rows.length === 0) {
@@ -910,16 +941,41 @@ function getPaymentActions(
 
 function getVoucherPaymentRowActions(
   voucher: PaymentVoucher,
-  canManageVoucher: (voucher: PaymentVoucher) => boolean,
+  canEditVoucher: (voucher: PaymentVoucher) => boolean,
+  canDeleteVoucher: (voucher: PaymentVoucher) => boolean,
+  canProcessVoucher: (voucher: PaymentVoucher) => boolean,
   onEditVoucher: (voucher: PaymentVoucher) => void,
   onDeleteVoucher: (voucher: PaymentVoucher) => void,
+  onApproveVoucher: (voucher: PaymentVoucher) => void,
+  onRejectVoucher: (voucher: PaymentVoucher) => void,
 ) {
-  if (!canManageVoucher(voucher)) return []
+  const actions: ReturnType<typeof getPaymentActions> = []
 
-  return [
-    { label: "Editar voucher", icon: EditIcon, onClick: () => onEditVoucher(voucher) },
-    { label: "Eliminar voucher", icon: Trash2Icon, destructive: true, onClick: () => onDeleteVoucher(voucher) },
-  ]
+  if (canProcessVoucher(voucher)) {
+    actions.push(
+      { label: "Aprobar", icon: CheckIcon, onClick: () => onApproveVoucher(voucher) },
+      { label: "Rechazar", icon: XIcon, destructive: true, onClick: () => onRejectVoucher(voucher) },
+    )
+  }
+
+  if (canEditVoucher(voucher)) {
+    actions.push({ label: "Editar voucher", icon: EditIcon, onClick: () => onEditVoucher(voucher) })
+  }
+
+  if (canDeleteVoucher(voucher)) {
+    actions.push({ label: "Eliminar voucher", icon: Trash2Icon, destructive: true, onClick: () => onDeleteVoucher(voucher) })
+  }
+
+  return actions
+}
+
+function hasVoucherPaymentRowActions(
+  voucher: PaymentVoucher,
+  canEditVoucher: (voucher: PaymentVoucher) => boolean,
+  canDeleteVoucher: (voucher: PaymentVoucher) => boolean,
+  canProcessVoucher: (voucher: PaymentVoucher) => boolean,
+) {
+  return canProcessVoucher(voucher) || canEditVoucher(voucher) || canDeleteVoucher(voucher)
 }
 
 function VouchersTable({
@@ -1119,9 +1175,13 @@ function VouchersTable({
 }
 
 function getVoucherImageUrl(voucher: PaymentVoucher) {
-  const imageUrl = voucher.evidenceUrl ?? voucher.fileUrl
-  if (!imageUrl || imageUrl.startsWith("storage://")) return null
-  return imageUrl
+  return getVoucherEvidenceUrl(voucher)
+}
+
+function getVoucherEvidenceUrl(voucher: PaymentVoucher) {
+  const url = voucher.evidenceUrl ?? voucher.fileUrl
+  if (!url || url.startsWith("storage://")) return null
+  return url
 }
 
 function getPaymentEvidenceUrl(payment: Payment) {
@@ -1139,6 +1199,10 @@ function getVoucherImageClassName(index: number) {
 
 function isPendingVoucherForClient(voucher: PaymentVoucher) {
   return ["draft", "pending_investor_review", "pending_admin_review"].includes(voucher.status ?? "")
+}
+
+function isUnappliedVoucher(voucher: PaymentVoucher) {
+  return ["draft", "pending_investor_review", "pending_admin_review", "investor_approved"].includes(voucher.status ?? "")
 }
 
 function RowActions({
@@ -1207,7 +1271,7 @@ function canProcessVoucher(
 
   if (perspective !== "admin") return false
 
-  return ["pending_investor_review", "pending_admin_review", "investor_approved"].includes(voucher.status ?? "")
+  return ["pending_admin_review", "investor_approved"].includes(voucher.status ?? "")
 }
 
 function getErrorText(error: unknown) {
