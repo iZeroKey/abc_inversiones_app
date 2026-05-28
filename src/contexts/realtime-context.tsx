@@ -1,6 +1,8 @@
+import { useQueryClient } from "@tanstack/react-query"
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react"
 
 import { useAuth } from "@/contexts/auth-context"
+import { queryKeys } from "@/lib/query-keys"
 import { buildWebSocketUrl, dispatchDomainUpdated, dispatchNotificationsUpdated } from "@/lib/realtime"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
@@ -34,10 +36,70 @@ function getReconnectDelay(attempt: number) {
 
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { session } = useAuth()
+  const queryClient = useQueryClient()
   const [status, setStatus] = useState<RealtimeStatus>("idle")
   const [lastMessage, setLastMessage] = useState<RealtimeMessage | null>(null)
   const socketRef = useRef<WebSocket | null>(null)
   const reconnectAttemptRef = useRef(0)
+  const invalidationQueueRef = useRef<RealtimeMessage[]>([])
+  const invalidationTimeoutRef = useRef<number | undefined>(undefined)
+
+  const flushRealtimeInvalidations = useMemo(
+    () => () => {
+      invalidationTimeoutRef.current = undefined
+      const messages = invalidationQueueRef.current
+      invalidationQueueRef.current = []
+
+      const shouldInvalidateLoans = messages.some((message) =>
+        ["loan.", "payment.", "voucher."].some((prefix) =>
+          message.type?.startsWith(prefix),
+        ),
+      )
+      const shouldInvalidateUsers = messages.some((message) =>
+        ["user.", "access-request."].some((prefix) =>
+          message.type?.startsWith(prefix),
+        ),
+      )
+      const shouldInvalidateNotifications = messages.some((message) =>
+        message.type?.startsWith("notification."),
+      )
+      const shouldInvalidateAudit = messages.some(
+        (message) => message.type === "audit.created",
+      )
+
+      if (shouldInvalidateLoans) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.loans.all })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all })
+      }
+
+      if (shouldInvalidateUsers) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all })
+      }
+
+      if (shouldInvalidateNotifications) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all })
+      }
+
+      if (shouldInvalidateAudit) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.audit.all })
+      }
+    },
+    [queryClient],
+  )
+
+  const scheduleRealtimeInvalidation = useMemo(
+    () => (message: RealtimeMessage) => {
+      invalidationQueueRef.current.push(message)
+      if (invalidationTimeoutRef.current !== undefined) return
+
+      invalidationTimeoutRef.current = window.setTimeout(
+        flushRealtimeInvalidations,
+        300,
+      )
+    },
+    [flushRealtimeInvalidations],
+  )
 
   useEffect(() => {
     const token = session?.access_token
@@ -106,6 +168,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (message.type.startsWith("notification.")) {
+          scheduleRealtimeInvalidation(message)
           dispatchNotificationsUpdated({
             source: "websocket",
             type: message.type,
@@ -122,6 +185,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
           message.type.startsWith("access-request.") ||
           message.type.startsWith("audit.")
         ) {
+          scheduleRealtimeInvalidation(message)
           dispatchDomainUpdated({
             source: "websocket",
             type: message.type,
@@ -152,9 +216,13 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       if (reconnectTimeoutId !== undefined) {
         window.clearTimeout(reconnectTimeoutId)
       }
+      if (invalidationTimeoutRef.current !== undefined) {
+        window.clearTimeout(invalidationTimeoutRef.current)
+        invalidationTimeoutRef.current = undefined
+      }
       cleanupSocket()
     }
-  }, [session?.access_token])
+  }, [scheduleRealtimeInvalidation, session?.access_token])
 
   const value = useMemo(
     () => ({
