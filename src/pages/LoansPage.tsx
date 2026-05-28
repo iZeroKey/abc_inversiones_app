@@ -105,6 +105,20 @@ export default function LoansPage() {
   const pendingDetailIdRef = useRef<string | null>(null)
   const visibleLoanIdsRef = useRef<Set<string>>(new Set())
   const newLoanTimeoutRef = useRef<number | undefined>(undefined)
+  const highlightLoanIds = useCallback((ids: string[]) => {
+    const highlightedIds = Array.from(new Set(ids.filter(Boolean)))
+    if (highlightedIds.length === 0) return
+
+    if (newLoanTimeoutRef.current !== undefined) {
+      window.clearTimeout(newLoanTimeoutRef.current)
+    }
+
+    setNewLoanIds(new Set(highlightedIds))
+    newLoanTimeoutRef.current = window.setTimeout(() => {
+      setNewLoanIds(new Set())
+      newLoanTimeoutRef.current = undefined
+    }, 2200)
+  }, [])
   const selectedLoanFromList = useMemo(
     () =>
       loans.find(
@@ -161,30 +175,23 @@ export default function LoansPage() {
     }
   }, [filteredLoans.length, page])
 
-  const rememberVisibleLoans = useCallback((nextLoans: Loan[], highlightNew: boolean) => {
-    const previousIds = visibleLoanIdsRef.current
-    const nextIds = new Set(nextLoans.map((loan) => loan.id))
-    const addedIds =
-      highlightNew && previousIds.size > 0
-        ? nextLoans
-            .map((loan) => loan.id)
-            .filter((id) => !previousIds.has(id))
-        : []
+  const rememberVisibleLoans = useCallback(
+    (nextLoans: Loan[], highlightNew: boolean) => {
+      const previousIds = visibleLoanIdsRef.current
+      const nextIds = new Set(nextLoans.map((loan) => loan.id))
+      const addedIds =
+        highlightNew && previousIds.size > 0
+          ? nextLoans
+              .map((loan) => loan.id)
+              .filter((id) => !previousIds.has(id))
+          : []
 
-    visibleLoanIdsRef.current = nextIds
+      visibleLoanIdsRef.current = nextIds
 
-    if (addedIds.length === 0) return
-
-    if (newLoanTimeoutRef.current !== undefined) {
-      window.clearTimeout(newLoanTimeoutRef.current)
-    }
-
-    setNewLoanIds(new Set(addedIds))
-    newLoanTimeoutRef.current = window.setTimeout(() => {
-      setNewLoanIds(new Set())
-      newLoanTimeoutRef.current = undefined
-    }, 2200)
-  }, [])
+      highlightLoanIds(addedIds)
+    },
+    [highlightLoanIds],
+  )
 
   const loadLoans = useCallback(
     async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
@@ -425,7 +432,11 @@ export default function LoansPage() {
           ...prevLoans.filter((loan) => loan.id !== createdLoan.id),
         ])
         setPage(1)
-        rememberVisibleLoans([createdLoan], true)
+        visibleLoanIdsRef.current = new Set([
+          createdLoan.id,
+          ...visibleLoanIdsRef.current,
+        ])
+        highlightLoanIds([createdLoan.id])
         handleSelectLoan(createdLoan)
       } else {
         await loadLoans({ keepContent: true })

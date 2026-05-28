@@ -84,7 +84,7 @@ export function LoansListPanel({
           </InputGroupAddon>
           <InputGroupInput
             type="search"
-            placeholder="Buscar por código, cliente o inversionista"
+            placeholder="Buscar por código, cliente, inversionista o monto"
             value={searchQuery}
             onChange={(event) => onSearchQueryChange(event.target.value)}
           />
@@ -195,11 +195,11 @@ function LoanCardRow({
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <h3 className="min-w-0 truncate text-base font-semibold leading-tight">
+        <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+          <h3 className="shrink-0 whitespace-nowrap text-base font-semibold leading-tight tabular-nums">
             <AnimatedNumber value={loan.principal} isCurrency />
           </h3>
-          <LoanStatusBadge status={normalizeStatus(loan)} />
+          <LoanStatusBadge status={normalizeStatus(loan)} size="sm" />
         </div>
         <p className="mt-1 truncate text-xs text-muted-foreground">
           <span className="font-mono">{loanPublicCode(loan)}</span>

@@ -129,6 +129,38 @@ export function formatPreciseCurrencyWithSymbol(
   return `S/ ${formatCurrencyPrecise(toNumber(value))}`;
 }
 
+function createAmountSearchTokens(value: string | number | undefined | null) {
+  if (value === undefined || value === null || value === "") return [];
+
+  const amount = toNumber(value);
+  if (!Number.isFinite(amount)) return [];
+
+  const fixed = amount.toFixed(2);
+  const whole = fixed.replace(/\.00$/, "");
+  const formatted = formatCurrencyPrecise(amount);
+  const formattedWithoutThousands = formatted.replace(/,/g, "");
+  const compactFormatted = formatted.replace(/[,\s]/g, "");
+
+  return Array.from(
+    new Set(
+      [
+        String(value),
+        fixed,
+        whole,
+        formatted,
+        formattedWithoutThousands,
+        compactFormatted,
+        `S/ ${fixed}`,
+        `S/${fixed}`,
+        `S/ ${formatted}`,
+        `S/${formatted}`,
+        `S/ ${formattedWithoutThousands}`,
+        `S/${formattedWithoutThousands}`,
+      ].filter(Boolean),
+    ),
+  );
+}
+
 export function createLoanSearchText(loan: Loan) {
   return [
     loan.publicCode,
@@ -136,6 +168,10 @@ export function createLoanSearchText(loan: Loan) {
     loan.investorCode,
     loanClientName(loan),
     loanInvestorName(loan),
+    ...createAmountSearchTokens(loan.principal),
+    ...createAmountSearchTokens(loan.totalDebt),
+    ...createAmountSearchTokens(getRemainingDebt(loan)),
+    ...createAmountSearchTokens(getLoanPaidAmount(loan)),
   ]
     .filter(Boolean)
     .join(" ")

@@ -5,11 +5,19 @@ import {
   ClockIcon,
 } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
+import { Badge, type BadgeProps } from "@/components/ui/badge"
 import { statusLabels, voucherStatusLabels } from "@/features/loans/loan-constants"
 import { cn } from "@/lib/utils"
 
-export function LoanStatusBadge({ status }: { status: string }) {
+export function LoanStatusBadge({
+  status,
+  size,
+  className,
+}: {
+  status: string
+  size?: BadgeProps["size"]
+  className?: string
+}) {
   const [animate, setAnimate] = useState(false)
   const prevStatusRef = useRef(status)
 
@@ -34,8 +42,10 @@ export function LoanStatusBadge({ status }: { status: string }) {
   return (
     <Badge
       variant={variant}
+      size={size}
       className={cn(
         "relative transition-all duration-300",
+        className,
         animate && "animate-badge-change",
       )}
     >
@@ -125,4 +135,3 @@ export function VoucherStatusBadge({ status }: { status?: string }) {
     </Badge>
   )
 }
-
