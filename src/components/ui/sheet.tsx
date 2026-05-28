@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useIsMobile } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 import { mergeProps } from "@base-ui/react/merge-props";
@@ -21,11 +22,19 @@ const sheetBackStack: {
   id: number;
 }[] = [];
 
+export type SheetHistoryMode = "auto" | "always" | "never";
+
+export type SheetProps<Payload = unknown> =
+  SheetPrimitive.Root.Props<Payload> & {
+    historyMode?: SheetHistoryMode;
+  };
+
 export function Sheet<Payload = unknown>(
-  props: SheetPrimitive.Root.Props<Payload>,
+  props: SheetProps<Payload>,
 ): React.ReactElement {
-  const { onOpenChange, open, ...rootProps } = props;
-  useSheetBackNavigation(open, onOpenChange);
+  const { historyMode = "auto", onOpenChange, open, ...rootProps } = props;
+  const sheetHistoryEnabled = useSheetHistoryEnabled(historyMode);
+  useSheetBackNavigation(sheetHistoryEnabled ? open : false, onOpenChange);
 
   return (
     <SheetPrimitive.Root
@@ -37,6 +46,14 @@ export function Sheet<Payload = unknown>(
 }
 
 export const SheetPortal: typeof SheetPrimitive.Portal = SheetPrimitive.Portal;
+
+function useSheetHistoryEnabled(historyMode: SheetHistoryMode) {
+  const isMobile = useIsMobile();
+
+  if (historyMode === "always") return true;
+  if (historyMode === "never") return false;
+  return isMobile;
+}
 
 function useSheetBackNavigation<Payload>(
   open: boolean | undefined,

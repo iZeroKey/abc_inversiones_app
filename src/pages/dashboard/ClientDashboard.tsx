@@ -300,7 +300,7 @@ function MainLoanCard({ loan }: { loan: Loan }) {
   const publicCode = loan.publicCode
 
   return (
-    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} state={{ appBackTarget: "/home" }} className="block">
+    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} className="block">
       <Card className="bg-primary text-primary-foreground shadow-lg border-none rounded-3xl overflow-hidden hover:opacity-95 transition-opacity">
         <CardContent className="p-8 space-y-8">
           <div className="flex justify-between items-start">
@@ -364,7 +364,7 @@ function OtherLoanCard({ loan }: { loan: Loan }) {
   const publicCode = loan.publicCode
 
   return (
-    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} state={{ appBackTarget: "/home" }} className="block group">
+    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} className="block group">
       <Card className="border-border shadow-sm hover:shadow-md transition-shadow rounded-2xl overflow-hidden">
         <CardContent className="p-4 md:p-5 flex items-center justify-between">
           <div className="flex items-center gap-4">

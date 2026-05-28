@@ -16,6 +16,17 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar"
+import {
+  getAppBackTarget,
+  getBackTargetPath,
+  getCameFromHome,
+  getPopBackTargetPath,
+  getRouteDepth,
+  getRouteKey,
+  getSectionNavigationState,
+  homePath,
+  shouldReplaceSectionNavigation,
+} from "@/lib/navigation"
 import { cn } from "@/lib/utils"
 import { BellIcon, ChevronRightIcon, LogOutIcon } from "lucide-react"
 import type { ElementType, MouseEvent, ReactNode } from "react"
@@ -23,13 +34,6 @@ import { useEffect, useRef } from "react"
 import { Link, useLocation, useNavigate, useNavigationType } from "react-router-dom"
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
-const homePath = "/home"
-
-const routeBackTargets = [
-  { prefix: "/investments/", target: "/investments" },
-  { prefix: "/loans/", target: "/loans" },
-  { prefix: "/requests", target: "/users" },
-]
 
 export type NavItem = {
   title: string
@@ -112,8 +116,11 @@ function AppLayoutContent({
     const previousRoute = getRouteKey(previousLocation)
     const currentRoute = getRouteKey(location)
 
-    if (navigationType === "POP" && previousRoute !== currentRoute) {
-      const previousBackTarget = getAppBackTarget(previousLocation.state)
+    if (isMobile && navigationType === "POP" && previousRoute !== currentRoute) {
+      const previousBackTarget = getPopBackTargetPath(
+        previousLocation.pathname,
+        previousLocation.state,
+      )
 
       if (previousBackTarget && location.pathname !== previousBackTarget) {
         navigate(previousBackTarget, { replace: true })
@@ -122,7 +129,7 @@ function AppLayoutContent({
     }
 
     previousLocationRef.current = location
-  }, [location, navigate, navigationType])
+  }, [isMobile, location, navigate, navigationType])
 
   return (
     <div
@@ -149,7 +156,6 @@ function AppLayoutContent({
           <ScrollArea
             viewportRef={viewportRef}
             className="flex-1 min-h-0"
-            scrollbarGutter
           >
             <div className={cn(isMobile ? "pb-28 px-4" : "")}>
               {children}
@@ -195,6 +201,7 @@ function AppSidebar({
     }
 
     if (
+      isMobile &&
       href === homePath &&
       getAppBackTarget(location.state) === homePath &&
       getCameFromHome(location.state)
@@ -244,8 +251,8 @@ function AppSidebar({
                     <SidebarMenuButton isActive={isActive} tooltip={item.title} render={
                       <Link 
                         to={item.href} 
-                        replace={shouldReplaceSectionNavigation(location.pathname, item.href)}
-                        state={getSectionNavigationState(location.pathname, item.href)}
+                        replace={shouldReplaceSectionNavigation(location.pathname, item.href, isMobile)}
+                        state={getSectionNavigationState(location.pathname, item.href, isMobile)}
                         onClick={(event) => handleSectionNavigation(event, item.href)}
                         className={cn(
                           "group/link flex items-center gap-2 w-full",
@@ -301,8 +308,8 @@ function AppSidebar({
                   render={
                     <Link
                       to="/notifications"
-                      replace={shouldReplaceSectionNavigation(location.pathname, "/notifications")}
-                      state={getSectionNavigationState(location.pathname, "/notifications")}
+                      replace={shouldReplaceSectionNavigation(location.pathname, "/notifications", isMobile)}
+                      state={getSectionNavigationState(location.pathname, "/notifications", isMobile)}
                       onClick={(event) => handleSectionNavigation(event, "/notifications")}
                       className="flex items-center gap-2 w-full"
                     >
@@ -366,48 +373,6 @@ function resolveAvatarUrl(url?: string | null) {
   return url
 }
 
-function getRouteDepth(pathname: string) {
-  return pathname.split("/").filter(Boolean).length
-}
-
-function shouldReplaceSectionNavigation(currentPath: string, targetPath: string) {
-  if (currentPath === targetPath) return false
-  if (targetPath === homePath) return true
-  if (currentPath === homePath) return false
-  return true
-}
-
-function getSectionNavigationState(currentPath: string, targetPath: string) {
-  if (targetPath === homePath) return undefined
-
-  const backTarget = getBackTargetPath(targetPath)
-  return {
-    appBackTarget: backTarget,
-    cameFromHome: currentPath === homePath,
-  }
-}
-
-function getAppBackTarget(state: unknown) {
-  if (!state || typeof state !== "object") return null
-  const backTarget = (state as { appBackTarget?: unknown }).appBackTarget
-  return typeof backTarget === "string" ? backTarget : null
-}
-
-function getCameFromHome(state: unknown) {
-  return Boolean(state && typeof state === "object" && (state as { cameFromHome?: unknown }).cameFromHome === true)
-}
-
-function getBackTargetPath(pathname: string, state?: unknown) {
-  const stateBackTarget = getAppBackTarget(state)
-  if (stateBackTarget && stateBackTarget !== pathname) return stateBackTarget
-
-  return routeBackTargets.find((route) => pathname.startsWith(route.prefix))?.target ?? homePath
-}
-
-function getRouteKey(location: { hash: string; pathname: string; search: string }) {
-  return `${location.pathname}${location.search}${location.hash}`
-}
-
 function AppHeader({
   onLogout,
   onBack,
@@ -462,8 +427,8 @@ function AppHeader({
       <div className="flex items-center gap-4">
         <Link
           to="/notifications"
-          replace={shouldReplaceSectionNavigation(location.pathname, "/notifications")}
-          state={getSectionNavigationState(location.pathname, "/notifications")}
+          replace={shouldReplaceSectionNavigation(location.pathname, "/notifications", isMobile)}
+          state={getSectionNavigationState(location.pathname, "/notifications", isMobile)}
           onClick={handleNotificationsClick}
           className="relative text-white/80 hover:text-white transition-colors cursor-pointer block"
         >
@@ -511,6 +476,7 @@ function AppBottomNav({ navigationItems }: Pick<AppLayoutProps, "navigationItems
     }
 
     if (
+      isMobile &&
       href === homePath &&
       getAppBackTarget(location.state) === homePath &&
       getCameFromHome(location.state)
@@ -532,8 +498,8 @@ function AppBottomNav({ navigationItems }: Pick<AppLayoutProps, "navigationItems
             <Link
               key={item.href}
               to={item.href}
-              replace={shouldReplaceSectionNavigation(location.pathname, item.href)}
-              state={getSectionNavigationState(location.pathname, item.href)}
+              replace={shouldReplaceSectionNavigation(location.pathname, item.href, isMobile)}
+              state={getSectionNavigationState(location.pathname, item.href, isMobile)}
               onClick={(event) => handleSectionNavigation(event, item.href)}
               className={cn(
                 "group relative flex flex-col items-center justify-center gap-1 flex-1 min-w-0 outline-none transition-colors duration-300 ease-out",
