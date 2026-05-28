@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState, type ElementType } from "react"
 import { ResponsivePagination } from "@/components/ResponsivePagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Empty,
   EmptyContent,
@@ -65,116 +66,97 @@ type ApiResponse<T> = {
 const typeDetails: Record<
   string,
   {
-    label: string
     title?: string
     icon: ElementType
     className: string
   }
 > = {
   SYSTEM: {
-    label: "Sistema",
     title: "Aviso del sistema",
     icon: BellIcon,
     className: "bg-muted text-muted-foreground",
   },
   LOAN_SUBMITTED: {
-    label: "Préstamo",
     title: "Solicitud de préstamo enviada",
     icon: LandmarkIcon,
     className: "bg-info/10 text-info-foreground",
   },
   LOAN_INVESTOR_APPROVED: {
-    label: "Préstamo",
     title: "Préstamo en revisión final",
     icon: LandmarkIcon,
     className: "bg-info/10 text-info-foreground",
   },
   LOAN_ACTIVE: {
-    label: "Préstamo",
     title: "Préstamo aprobado",
     icon: CheckCircleIcon,
     className: "bg-success/10 text-success-foreground",
   },
   LOAN_ACTIVE_INVESTOR: {
-    label: "Préstamo",
     title: "Préstamo activado",
     icon: CheckCircleIcon,
     className: "bg-success/10 text-success-foreground",
   },
   LOAN_REJECTED: {
-    label: "Préstamo",
     title: "Préstamo rechazado",
     icon: AlertCircleIcon,
     className: "bg-destructive/10 text-destructive",
   },
   LOAN_APPROVED: {
-    label: "Préstamo",
     title: "Préstamo aprobado",
     icon: CheckCircleIcon,
     className: "bg-success/10 text-success-foreground",
   },
   VOUCHER_PENDING_REVIEW: {
-    label: "Voucher",
     title: "Voucher pendiente de revisión",
     icon: CreditCardIcon,
     className: "bg-warning/10 text-warning-foreground",
   },
   VOUCHER_APPROVED: {
-    label: "Voucher",
     title: "Pago confirmado",
     icon: CheckCircleIcon,
     className: "bg-success/10 text-success-foreground",
   },
   VOUCHER_REJECTED: {
-    label: "Voucher",
     title: "Voucher rechazado",
     icon: AlertCircleIcon,
     className: "bg-destructive/10 text-destructive",
   },
   VOUCHER_ADMIN_APPROVED: {
-    label: "Voucher",
     title: "Pago confirmado por administración",
     icon: CheckCircleIcon,
     className: "bg-success/10 text-success-foreground",
   },
   VOUCHER_ADMIN_REJECTED: {
-    label: "Voucher",
     title: "Pago rechazado por administración",
     icon: AlertCircleIcon,
     className: "bg-destructive/10 text-destructive",
   },
   INSTALLMENT_REMINDER: {
-    label: "Cuota",
     title: "Recordatorio de cuota",
     icon: ClockIcon,
     className: "bg-warning/10 text-warning-foreground",
   },
   INSTALLMENT_OVERDUE: {
-    label: "Cuota",
     title: "Cuota vencida",
     icon: AlertCircleIcon,
     className: "bg-destructive/10 text-destructive",
   },
   ACCESS_APPROVED: {
-    label: "Acceso",
     title: "Acceso aprobado",
     icon: ShieldCheckIcon,
     className: "bg-success/10 text-success-foreground",
   },
   PAYMENT_RECEIVED: {
-    label: "Pago",
     title: "Pago recibido",
     icon: CreditCardIcon,
     className: "bg-info/10 text-info-foreground",
   },
   PAYMENT_DUE: {
-    label: "Cuota",
     title: "Pago por vencer",
     icon: ClockIcon,
     className: "bg-warning/10 text-warning-foreground",
   },
   ACCESS_REQUEST: {
-    label: "Acceso",
     title: "Solicitud de acceso",
     icon: ShieldCheckIcon,
     className: "bg-secondary/40 text-secondary-foreground",
@@ -215,7 +197,6 @@ function getNotificationTypeDetails(type: string) {
 
   return (
     typeDetails[normalizedType] ?? {
-      label: "General",
       icon: BellIcon,
       className: "bg-muted text-muted-foreground",
     }
@@ -525,9 +506,9 @@ export default function NotificationsPage() {
       ) : notifications.length === 0 ? (
         <EmptyState filter={filter} />
       ) : (
-        <div className="divide-y rounded-lg border">
+        <div className="flex flex-col gap-3">
           {notifications.map((notification) => (
-            <NotificationRow
+            <NotificationCard
               key={notification.id}
               notification={notification}
               isMarking={markingIds.has(notification.id)}
@@ -550,24 +531,22 @@ export default function NotificationsPage() {
 
 function LoadingList() {
   return (
-    <div className="divide-y rounded-lg border bg-card">
+    <div className="flex flex-col gap-3">
       {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="flex gap-3 px-4 py-3.5 md:px-5">
-          <Skeleton className="mt-0.5 size-9 shrink-0 rounded-lg" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1 space-y-2">
-                <Skeleton className="h-4 w-2/5 min-w-32" />
+        <Card key={index} className="border-border/70">
+          <CardContent className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 p-4 md:p-5">
+            <Skeleton className="size-11 shrink-0 rounded-full" />
+            <div className="min-w-0 flex flex-col gap-2">
+              <Skeleton className="h-4 w-2/5 min-w-32" />
+              <div className="flex flex-col gap-1.5">
                 <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-4 w-3/5" />
               </div>
-              <Skeleton className="size-8 shrink-0 rounded-md" />
+              <Skeleton className="mt-1 h-3 w-28" />
             </div>
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-5 w-16 rounded-full" />
-              <Skeleton className="h-3 w-28" />
-            </div>
-          </div>
-        </div>
+            <Skeleton className="size-8 shrink-0 rounded-md" />
+          </CardContent>
+        </Card>
       ))}
     </div>
   )
@@ -620,7 +599,7 @@ function ErrorState({
   )
 }
 
-function NotificationRow({
+function NotificationCard({
   notification,
   isMarking,
   onMarkAsRead,
@@ -634,25 +613,27 @@ function NotificationRow({
   const Icon = details.icon
 
   return (
-    <article
+    <Card
       className={cn(
-        "group flex gap-3 px-4 py-3.5 transition-colors hover:bg-muted/50 md:px-5",
-        !notification.isRead && "bg-accent/35",
+        "overflow-hidden border-border/70 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md motion-reduce:transform-none",
+        !notification.isRead && "border-primary/20 bg-accent/35 shadow-xs",
       )}
     >
-      <div
-        className={cn(
-          "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg [&_svg]:size-4.5",
-          details.className,
-        )}
-      >
-        <Icon />
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+      <CardContent className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 p-4 md:p-5">
+        <div
+          className={cn(
+            "flex size-11 shrink-0 items-center justify-center rounded-full [&_svg]:size-5",
+            details.className,
+          )}
+        >
+          <Icon />
+        </div>
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-col gap-1.5">
             <div className="flex min-w-0 items-center gap-2">
-              <h2 className="truncate font-medium leading-tight">{title}</h2>
+              <h2 className="truncate text-[0.95rem] font-semibold leading-5">
+                {title}
+              </h2>
               {!notification.isRead && (
                 <span
                   className="size-2 shrink-0 rounded-full bg-primary"
@@ -660,37 +641,31 @@ function NotificationRow({
                 />
               )}
             </div>
-            <p className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
+            <p className="line-clamp-2 text-sm leading-5 text-muted-foreground">
               {notification.body}
             </p>
-          </div>
-          {!notification.isRead && (
-            <Button
-              variant="outline"
-              size="icon-sm"
-              onClick={() => onMarkAsRead(notification)}
-              disabled={isMarking}
-              aria-label="Marcar como leída"
-              title="Marcar como leída"
-              className="shrink-0"
+            <time
+              dateTime={notification.createdAt}
+              className="mt-1 text-xs font-medium text-muted-foreground"
             >
-              {isMarking ? <Spinner /> : <CheckCircleIcon />}
-            </Button>
-          )}
-        </div>
-
-        <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="outline" className="w-fit shrink-0 px-1.5">
-            {details.label}
-          </Badge>
-          <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-            <ClockIcon />
-            <span className="truncate">
               {formatNotificationDate(notification.createdAt)}
-            </span>
-          </span>
+            </time>
+          </div>
         </div>
-      </div>
-    </article>
+        {!notification.isRead && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onMarkAsRead(notification)}
+            disabled={isMarking}
+            aria-label="Marcar como leída"
+            title="Marcar como leída"
+            className="size-9 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            {isMarking ? <Spinner /> : <CheckCheckIcon />}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   )
 }
