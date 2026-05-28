@@ -51,24 +51,26 @@ export function ReviewLoanDialog({
               : "Puedes añadir una observación para dejar el motivo de rechazo."}
           </SheetDescription>
         </SheetHeader>
-        <SheetPanel className="flex flex-col gap-4">
-          <div className="flex gap-3 rounded-xl border bg-muted/35 p-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              {approving ? <CheckCircleIcon /> : <XCircleIcon />}
+        <div className="min-h-0 flex-1">
+          <SheetPanel className="flex flex-col gap-4">
+            <div className="flex gap-3 rounded-xl border bg-muted/35 p-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                {approving ? <CheckCircleIcon /> : <XCircleIcon />}
+              </div>
+              <div className="min-w-0">
+                <p className="font-medium">{loan ? loanClientName(loan) : "Préstamo seleccionado"}</p>
+                <p className="font-mono text-xs text-muted-foreground">{loanPublicCode(loan)}</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="font-medium">{loan ? loanClientName(loan) : "Préstamo seleccionado"}</p>
-              <p className="font-mono text-xs text-muted-foreground">{loanPublicCode(loan)}</p>
-            </div>
-          </div>
-          {!approving && (
-            <Field>
-              <FieldLabel htmlFor="reject-observation">Observación</FieldLabel>
-              <Textarea id="reject-observation" value={observation} onChange={(event) => onObservationChange(event.target.value)} placeholder="Motivo del rechazo..." />
-            </Field>
-          )}
-        </SheetPanel>
-        <SheetFooter>
+            {!approving && (
+              <Field>
+                <FieldLabel htmlFor="reject-observation">Observación</FieldLabel>
+                <Textarea id="reject-observation" value={observation} onChange={(event) => onObservationChange(event.target.value)} placeholder="Motivo del rechazo..." />
+              </Field>
+            )}
+          </SheetPanel>
+        </div>
+        <SheetFooter className="shrink-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>

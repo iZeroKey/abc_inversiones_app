@@ -148,121 +148,123 @@ export function PaymentDialog({
           </SheetHeader>
         )}
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-          <SheetPanel className={cn("flex flex-col gap-4", isPanel && "p-0")}>
-            {!editing && (
-              <EvidenceSection
-                file={form.evidence}
-                title="Evidencia opcional"
-                uploadState={uploadState}
-                onFileSelected={(file) => {
-                  scanAbortRef.current?.abort()
-                  const abortController = new AbortController()
-                  scanAbortRef.current = abortController
-                  setForm((current) => ({ ...current, evidence: file }))
-                  runAutomaticOcr({
-                    file,
-                    setUploadState,
-                    analyze: onAnalyze,
-                    signal: abortController.signal,
-                    apply: (analyzed) =>
-                      setForm((current) => ({
-                        ...current,
-                        ...removeEmptyValues(analyzed),
-                        evidence: file,
-                      })),
-                    onFinish: () => {
-                      if (scanAbortRef.current === abortController) scanAbortRef.current = null
-                    },
-                  })
-                }}
-                onRemove={() => {
-                  scanAbortRef.current?.abort()
-                  scanAbortRef.current = null
-                  setForm((current) => ({ ...current, evidence: null }))
-                  setUploadState(idleScanState)
-                }}
-                onCancelScan={cancelScan}
-              />
-            )}
-            <div className="grid gap-3 sm:grid-cols-2">
+          <div className="min-h-0 flex-1">
+            <SheetPanel className={cn("flex flex-col gap-4", isPanel && "p-0")}>
+              {!editing && (
+                <EvidenceSection
+                  file={form.evidence}
+                  title="Evidencia opcional"
+                  uploadState={uploadState}
+                  onFileSelected={(file) => {
+                    scanAbortRef.current?.abort()
+                    const abortController = new AbortController()
+                    scanAbortRef.current = abortController
+                    setForm((current) => ({ ...current, evidence: file }))
+                    runAutomaticOcr({
+                      file,
+                      setUploadState,
+                      analyze: onAnalyze,
+                      signal: abortController.signal,
+                      apply: (analyzed) =>
+                        setForm((current) => ({
+                          ...current,
+                          ...removeEmptyValues(analyzed),
+                          evidence: file,
+                        })),
+                      onFinish: () => {
+                        if (scanAbortRef.current === abortController) scanAbortRef.current = null
+                      },
+                    })
+                  }}
+                  onRemove={() => {
+                    scanAbortRef.current?.abort()
+                    scanAbortRef.current = null
+                    setForm((current) => ({ ...current, evidence: null }))
+                    setUploadState(idleScanState)
+                  }}
+                  onCancelScan={cancelScan}
+                />
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="payment-amount">Monto</FieldLabel>
+                  {fieldsLoading ? (
+                    <LoadingInputShell />
+                  ) : (
+                    <MoneyNumberField
+                      id="payment-amount"
+                      min="0.01"
+                      step="0.01"
+                      value={form.amount}
+                      onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
+                    />
+                  )}
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="payment-reference">Referencia</FieldLabel>
+                  {fieldsLoading ? (
+                    <LoadingInputShell />
+                  ) : (
+                    <Input
+                      id="payment-reference"
+                      size="lg"
+                      value={form.reference}
+                      onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))}
+                      placeholder="Nro. operación"
+                    />
+                  )}
+                </Field>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel>Fecha de pago</FieldLabel>
+                  {fieldsLoading ? (
+                    <LoadingInputShell />
+                  ) : (
+                    <DatePicker
+                      value={form.paymentDate}
+                      onChange={(paymentDate) => setForm((current) => ({ ...current, paymentDate }))}
+                    />
+                  )}
+                </Field>
+                <Field>
+                  <FieldLabel>Método</FieldLabel>
+                  <Select
+                    items={methodItems}
+                    value={form.method}
+                    onValueChange={(value) =>
+                      setForm((current) => ({ ...current, method: (value ?? "cash") as PaymentMethod }))
+                    }
+                  >
+                    <SelectTrigger size="lg">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {methodItems.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
               <Field>
-                <FieldLabel htmlFor="payment-amount">Monto</FieldLabel>
-                {fieldsLoading ? (
-                  <LoadingInputShell />
-                ) : (
-                  <MoneyNumberField
-                    id="payment-amount"
-                    min="0.01"
-                    step="0.01"
-                    value={form.amount}
-                    onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
-                  />
-                )}
+                <FieldLabel htmlFor="payment-observation">Observación</FieldLabel>
+                <Textarea
+                  id="payment-observation"
+                  value={form.observation}
+                  onChange={(event) => setForm((current) => ({ ...current, observation: event.target.value }))}
+                  placeholder="Detalle administrativo opcional"
+                />
               </Field>
-              <Field>
-                <FieldLabel htmlFor="payment-reference">Referencia</FieldLabel>
-                {fieldsLoading ? (
-                  <LoadingInputShell />
-                ) : (
-                  <Input
-                    id="payment-reference"
-                    size="lg"
-                    value={form.reference}
-                    onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))}
-                    placeholder="Nro. operación"
-                  />
-                )}
-              </Field>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field>
-                <FieldLabel>Fecha de pago</FieldLabel>
-                {fieldsLoading ? (
-                  <LoadingInputShell />
-                ) : (
-                  <DatePicker
-                    value={form.paymentDate}
-                    onChange={(paymentDate) => setForm((current) => ({ ...current, paymentDate }))}
-                  />
-                )}
-              </Field>
-              <Field>
-                <FieldLabel>Método</FieldLabel>
-                <Select
-                  items={methodItems}
-                  value={form.method}
-                  onValueChange={(value) =>
-                    setForm((current) => ({ ...current, method: (value ?? "cash") as PaymentMethod }))
-                  }
-                >
-                  <SelectTrigger size="lg">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {methodItems.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-            <Field>
-              <FieldLabel htmlFor="payment-observation">Observación</FieldLabel>
-              <Textarea
-                id="payment-observation"
-                value={form.observation}
-                onChange={(event) => setForm((current) => ({ ...current, observation: event.target.value }))}
-                placeholder="Detalle administrativo opcional"
-              />
-            </Field>
-          </SheetPanel>
+            </SheetPanel>
+          </div>
           <SheetFooter
             variant={isPanel ? "bare" : "default"}
-            className={cn(isPanel && "mt-4 border-t bg-transparent px-0 pb-0 pt-4")}
+            className={cn("shrink-0", isPanel && "mt-4 border-t bg-transparent px-0 pb-0 pt-4")}
           >
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
@@ -354,85 +356,87 @@ export function VoucherDialog({
           </SheetDescription>
         </SheetHeader>
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-          <SheetPanel className="flex flex-col gap-4">
-            {!editing && (
-              <EvidenceSection
-                file={form.evidence}
-                title="Evidencia"
-                uploadState={uploadState}
-                onFileSelected={(file) => {
-                  scanAbortRef.current?.abort()
-                  const abortController = new AbortController()
-                  scanAbortRef.current = abortController
-                  setForm((current) => ({ ...current, evidence: file }))
-                  runAutomaticOcr({
-                    file,
-                    setUploadState,
-                    analyze: onAnalyze,
-                    signal: abortController.signal,
-                    apply: (analyzed) =>
-                      setForm((current) => ({
-                        ...current,
-                        ...removeEmptyValues(analyzed),
-                        evidence: file,
-                      })),
-                    onFinish: () => {
-                      if (scanAbortRef.current === abortController) scanAbortRef.current = null
-                    },
-                  })
-                }}
-                onRemove={() => {
-                  scanAbortRef.current?.abort()
-                  scanAbortRef.current = null
-                  setForm((current) => ({ ...current, evidence: null }))
-                  setUploadState(idleScanState)
-                }}
-                onCancelScan={cancelScan}
-              />
-            )}
+          <div className="min-h-0 flex-1">
+            <SheetPanel className="flex flex-col gap-4">
+              {!editing && (
+                <EvidenceSection
+                  file={form.evidence}
+                  title="Evidencia"
+                  uploadState={uploadState}
+                  onFileSelected={(file) => {
+                    scanAbortRef.current?.abort()
+                    const abortController = new AbortController()
+                    scanAbortRef.current = abortController
+                    setForm((current) => ({ ...current, evidence: file }))
+                    runAutomaticOcr({
+                      file,
+                      setUploadState,
+                      analyze: onAnalyze,
+                      signal: abortController.signal,
+                      apply: (analyzed) =>
+                        setForm((current) => ({
+                          ...current,
+                          ...removeEmptyValues(analyzed),
+                          evidence: file,
+                        })),
+                      onFinish: () => {
+                        if (scanAbortRef.current === abortController) scanAbortRef.current = null
+                      },
+                    })
+                  }}
+                  onRemove={() => {
+                    scanAbortRef.current?.abort()
+                    scanAbortRef.current = null
+                    setForm((current) => ({ ...current, evidence: null }))
+                    setUploadState(idleScanState)
+                  }}
+                  onCancelScan={cancelScan}
+                />
+              )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="voucher-amount">Monto</FieldLabel>
+                  <MoneyNumberField
+                    id="voucher-amount"
+                    min="0.01"
+                    step="0.01"
+                    value={form.amount}
+                    onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="voucher-operation">Operación</FieldLabel>
+                  <Input
+                    id="voucher-operation"
+                    size="lg"
+                    value={form.operationId}
+                    onChange={(event) => setForm((current) => ({ ...current, operationId: event.target.value }))}
+                    placeholder="Código bancario"
+                  />
+                </Field>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel>Fecha de operación</FieldLabel>
+                  <DatePicker
+                    value={form.operationDate}
+                    onChange={(operationDate) => setForm((current) => ({ ...current, operationDate }))}
+                  />
+                </Field>
+              </div>
               <Field>
-                <FieldLabel htmlFor="voucher-amount">Monto</FieldLabel>
-                <MoneyNumberField
-                  id="voucher-amount"
-                  min="0.01"
-                  step="0.01"
-                  value={form.amount}
-                  onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
+                <FieldLabel htmlFor="voucher-observation">Observación</FieldLabel>
+                <Textarea
+                  id="voucher-observation"
+                  value={form.observation}
+                  onChange={(event) => setForm((current) => ({ ...current, observation: event.target.value }))}
+                  placeholder="Comentario opcional para revisión"
                 />
               </Field>
-              <Field>
-                <FieldLabel htmlFor="voucher-operation">Operación</FieldLabel>
-                <Input
-                  id="voucher-operation"
-                  size="lg"
-                  value={form.operationId}
-                  onChange={(event) => setForm((current) => ({ ...current, operationId: event.target.value }))}
-                  placeholder="Código bancario"
-                />
-              </Field>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field>
-                <FieldLabel>Fecha de operación</FieldLabel>
-                <DatePicker
-                  value={form.operationDate}
-                  onChange={(operationDate) => setForm((current) => ({ ...current, operationDate }))}
-                />
-              </Field>
-            </div>
-            <Field>
-              <FieldLabel htmlFor="voucher-observation">Observación</FieldLabel>
-              <Textarea
-                id="voucher-observation"
-                value={form.observation}
-                onChange={(event) => setForm((current) => ({ ...current, observation: event.target.value }))}
-                placeholder="Comentario opcional para revisión"
-              />
-            </Field>
-          </SheetPanel>
-          <SheetFooter>
+            </SheetPanel>
+          </div>
+          <SheetFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
@@ -478,19 +482,21 @@ export function ProcessVoucherDialog({
             {voucher?.operationId ? `Operación ${voucher.operationId}` : "La decisión quedará registrada en auditoría."}
           </SheetDescription>
         </SheetHeader>
-        <form onSubmit={handleSubmit}>
-          <SheetPanel>
-            <Field>
-              <FieldLabel htmlFor="process-observation">Observación</FieldLabel>
-              <Textarea
-                id="process-observation"
-                value={observation}
-                onChange={(event) => setObservation(event.target.value)}
-                placeholder={mode === "approve" ? "Comentario opcional" : "Motivo del rechazo"}
-              />
-            </Field>
-          </SheetPanel>
-          <SheetFooter>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+          <div className="min-h-0 flex-1">
+            <SheetPanel>
+              <Field>
+                <FieldLabel htmlFor="process-observation">Observación</FieldLabel>
+                <Textarea
+                  id="process-observation"
+                  value={observation}
+                  onChange={(event) => setObservation(event.target.value)}
+                  placeholder={mode === "approve" ? "Comentario opcional" : "Motivo del rechazo"}
+                />
+              </Field>
+            </SheetPanel>
+          </div>
+          <SheetFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
@@ -527,7 +533,8 @@ export function DeleteWorkflowDialog({
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
-        <SheetFooter>
+        <div className="min-h-0 flex-1" />
+        <SheetFooter className="shrink-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
