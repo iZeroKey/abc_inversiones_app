@@ -267,6 +267,8 @@ const columnGroups: Array<ColumnDefinition["group"]> = [
   "Seguimiento",
 ]
 const operationsPreferencesKey = "abc-loans-operations-preferences"
+const operationsPreferencesVersion = 1
+let operationsPreferencesCache: OperationsPreferences | null = null
 
 type OperationsPreferences = {
   view?: OperationsView
@@ -275,16 +277,25 @@ type OperationsPreferences = {
 }
 
 function readOperationsPreferences(): OperationsPreferences {
+  if (operationsPreferencesCache) return operationsPreferencesCache
+
   try {
-    return JSON.parse(localStorage.getItem(operationsPreferencesKey) ?? "{}") as OperationsPreferences
+    const preferences = JSON.parse(localStorage.getItem(operationsPreferencesKey) ?? "{}") as OperationsPreferences & { version?: number }
+    operationsPreferencesCache =
+      preferences.version === undefined || preferences.version === operationsPreferencesVersion
+        ? preferences
+        : {}
+    return operationsPreferencesCache
   } catch {
+    operationsPreferencesCache = {}
     return {}
   }
 }
 
 function writeOperationsPreferences(nextPreferences: OperationsPreferences) {
   const currentPreferences = readOperationsPreferences()
-  localStorage.setItem(operationsPreferencesKey, JSON.stringify({ ...currentPreferences, ...nextPreferences }))
+  operationsPreferencesCache = { ...currentPreferences, ...nextPreferences }
+  localStorage.setItem(operationsPreferencesKey, JSON.stringify({ ...operationsPreferencesCache, version: operationsPreferencesVersion }))
 }
 
 function getUserName(user?: RelatedUser | null) {

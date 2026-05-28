@@ -1,3 +1,10 @@
+import {
+  buildApiUrl as buildUrl,
+  getApiBaseUrl,
+  readApiPath as readApiResponse,
+  readApiUrl,
+  type FetchWithAuth,
+} from "@/lib/api-client";
 import type {
   AdminLoanSummaryRow,
   ApiResponse,
@@ -11,13 +18,6 @@ import type {
   PaymentVoucher,
   RelatedUser,
 } from "@/types/loans";
-
-export type FetchWithAuth = (
-  input: RequestInfo | URL,
-  init?: RequestInit,
-) => Promise<Response>;
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 type LoanListEnvelope = {
   loans?: Loan[];
@@ -67,74 +67,28 @@ export type VoucherAnalysis = {
   warnings?: string[];
 };
 
+export type LoanBundle = {
+  installments: Installment[];
+  loan: Loan | null;
+  payments: Payment[];
+  vouchers: PaymentVoucher[];
+};
+
 type MultipartRequestOptions = {
   accessToken?: string;
   onUploadProgress?: (progress: number) => void;
   signal?: AbortSignal;
 };
 
-function getApiBaseUrl() {
-  if (!API_BASE_URL) {
-    throw new Error("No se encontró VITE_API_URL para consultar el servidor.");
-  }
-
-  return API_BASE_URL;
-}
-
-function buildUrl(
-  path: string,
-  params?: Record<string, string | number | undefined>,
-) {
-  const url = new URL(`${getApiBaseUrl()}${path}`);
-
-  Object.entries(params ?? {}).forEach(([key, value]) => {
-    if (value !== undefined && value !== "") {
-      url.searchParams.set(key, String(value));
-    }
-  });
-
-  return url.toString();
-}
-
-async function readApiResponse<T>(
-  fetchWithAuth: FetchWithAuth,
-  path: string,
-  init?: RequestInit,
-): Promise<ApiResponse<T>> {
-  const response = await fetchWithAuth(`${getApiBaseUrl()}${path}`, init);
-  const payload = (await response
-    .json()
-    .catch(() => null)) as ApiResponse<T> | null;
-
-  if (!response.ok || !payload?.success) {
-    throw new Error(payload?.message || "No se pudo completar la solicitud.");
-  }
-
-  return payload;
-}
-
-async function readApiUrl<T>(
-  fetchWithAuth: FetchWithAuth,
-  url: string,
-  init?: RequestInit,
-): Promise<ApiResponse<T>> {
-  const response = await fetchWithAuth(url, init);
-  const payload = (await response
-    .json()
-    .catch(() => null)) as ApiResponse<T> | null;
-
-  if (!response.ok || !payload?.success) {
-    throw new Error(payload?.message || "No se pudo completar la solicitud.");
-  }
-
-  return payload;
-}
-
 function unwrapList<T>(
   data: T[] | { items?: T[]; results?: T[] } | null | undefined,
 ) {
   if (Array.isArray(data)) return data;
   return data?.items ?? data?.results ?? [];
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === "AbortError";
 }
 
 function readMultipartApiResponse<T>(
@@ -190,26 +144,31 @@ function safeParseJson<T>(value: string): T | null {
 export async function fetchLoans(
   fetchWithAuth: FetchWithAuth,
   params?: { page?: number; limit?: number; status?: string; search?: string },
+  init?: RequestInit,
 ): Promise<{ loans: Loan[]; meta: PaginationMeta }> {
   const payload = await readApiUrl<Loan[] | LoanListEnvelope>(
     fetchWithAuth,
     buildUrl("/api/v1/loans", params),
+    init,
   );
 
   const data = payload.data;
   const loans = Array.isArray(data)
     ? data
     : (data?.loans ?? data?.items ?? data?.results ?? []);
+  const meta = payload.meta?.pagination ?? payload.meta;
 
   return {
     loans,
     meta: {
-      page: params?.page ?? 1,
-      limit: params?.limit ?? loans.length,
-      total: loans.length,
-      totalPages: params?.limit
-        ? Math.max(Math.ceil(loans.length / params.limit), 1)
-        : 1,
+      page: meta?.page ?? params?.page ?? 1,
+      limit: meta?.limit ?? params?.limit ?? loans.length,
+      total: meta?.total ?? loans.length,
+      totalPages:
+        meta?.totalPages ??
+        (params?.limit
+          ? Math.max(Math.ceil(loans.length / params.limit), 1)
+          : 1),
     },
   };
 }
@@ -235,10 +194,12 @@ export async function fetchAdminLoansSummary(fetchWithAuth: FetchWithAuth) {
 export async function fetchLoanDetail(
   fetchWithAuth: FetchWithAuth,
   loanId: string,
+  init?: RequestInit,
 ) {
   const payload = await readApiResponse<Loan>(
     fetchWithAuth,
     `/api/v1/loans/${loanId}`,
+    init,
   );
   return payload.data;
 }
@@ -246,10 +207,11 @@ export async function fetchLoanDetail(
 export async function fetchLoanInstallments(
   fetchWithAuth: FetchWithAuth,
   loanId: string,
+  init?: RequestInit,
 ) {
   const payload = await readApiResponse<
     Installment[] | { installments?: Installment[] }
-  >(fetchWithAuth, `/api/v1/loans/${loanId}/installments`);
+  >(fetchWithAuth, `/api/v1/loans/${loanId}/installments`, init);
 
   return Array.isArray(payload.data)
     ? payload.data
@@ -259,10 +221,12 @@ export async function fetchLoanInstallments(
 export async function fetchLoanPayments(
   fetchWithAuth: FetchWithAuth,
   loanId: string,
+  init?: RequestInit,
 ) {
   const payload = await readApiResponse<Payment[] | { payments?: Payment[] }>(
     fetchWithAuth,
     `/api/v1/payments/loan/${loanId}`,
+    init,
   );
 
   return Array.isArray(payload.data)
@@ -273,14 +237,59 @@ export async function fetchLoanPayments(
 export async function fetchLoanVouchers(
   fetchWithAuth: FetchWithAuth,
   loanId: string,
+  init?: RequestInit,
 ) {
   const payload = await readApiUrl<
     PaymentVoucher[] | { vouchers?: PaymentVoucher[] }
-  >(fetchWithAuth, buildUrl("/api/v1/payment-vouchers", { loanId }));
+  >(fetchWithAuth, buildUrl("/api/v1/payment-vouchers", { loanId }), init);
 
   return Array.isArray(payload.data)
     ? payload.data
     : (payload.data?.vouchers ?? []);
+}
+
+export async function fetchLoanBundle(
+  fetchWithAuth: FetchWithAuth,
+  loanId: string,
+  init?: RequestInit,
+): Promise<LoanBundle> {
+  try {
+    const payload = await readApiResponse<
+      | LoanBundle
+      | {
+          installments?: Installment[];
+          loan?: Loan | null;
+          payments?: Payment[];
+          vouchers?: PaymentVoucher[];
+        }
+    >(fetchWithAuth, `/api/v1/loans/${loanId}/bundle`, init);
+
+    return {
+      installments: payload.data?.installments ?? [],
+      loan: payload.data?.loan ?? null,
+      payments: payload.data?.payments ?? [],
+      vouchers: payload.data?.vouchers ?? [],
+    };
+  } catch (error) {
+    if (isAbortError(error)) throw error;
+  }
+
+  const [detailResult, installmentsResult, paymentsResult, vouchersResult] =
+    await Promise.allSettled([
+      fetchLoanDetail(fetchWithAuth, loanId, init),
+      fetchLoanInstallments(fetchWithAuth, loanId, init),
+      fetchLoanPayments(fetchWithAuth, loanId, init),
+      fetchLoanVouchers(fetchWithAuth, loanId, init),
+    ]);
+
+  return {
+    installments:
+      installmentsResult.status === "fulfilled" ? installmentsResult.value : [],
+    loan:
+      detailResult.status === "fulfilled" ? (detailResult.value ?? null) : null,
+    payments: paymentsResult.status === "fulfilled" ? paymentsResult.value : [],
+    vouchers: vouchersResult.status === "fulfilled" ? vouchersResult.value : [],
+  };
 }
 
 export async function createPayment(
@@ -494,10 +503,12 @@ export async function fetchUserById(
 export async function fetchUsersByRole(
   fetchWithAuth: FetchWithAuth,
   role: string,
+  init?: RequestInit,
 ) {
   const payload = await readApiUrl<RelatedUser[] | UserListEnvelope>(
     fetchWithAuth,
     buildUrl("/api/v1/users", { role, active: "true", limit: 100 }),
+    init,
   );
 
   const data = payload.data;

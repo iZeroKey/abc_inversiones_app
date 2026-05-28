@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useQueryClient } from "@tanstack/react-query"
 import { PlusIcon } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useNavigate, useParams } from "react-router-dom"
 
 import { Button } from "@/components/ui/button"
@@ -21,6 +23,12 @@ import {
   getRoleCopy,
 } from "@/features/loans/loan-permissions"
 import {
+  getAuthQueryScope,
+  useLoanBundleQuery,
+  useLoanUsersByRoleQuery,
+  useLoansQuery,
+} from "@/features/loans/loan-queries"
+import {
   createLoanSearchText,
   getErrorMessage,
   getLoanPaidAmount,
@@ -28,16 +36,11 @@ import {
 import {
   approveLoan,
   createLoan,
-  fetchLoanDetail,
-  fetchLoanInstallments,
-  fetchLoanPayments,
-  fetchLoanVouchers,
-  fetchLoans,
+  fetchLoanBundle,
   fetchUserById,
-  fetchUsersByRole,
   rejectLoan,
 } from "@/lib/loans-api"
-import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
+import { queryKeys } from "@/lib/query-keys"
 import type {
   Loan,
   LoanCreatePayload,
@@ -62,6 +65,9 @@ function withPaymentProgress(loan: Loan, installments: RelatedData["installments
 
 export default function LoansPage() {
   const { user, session, fetchWithAuth } = useAuth()
+  const queryClient = useQueryClient()
+  const queryScope = useMemo(() => getAuthQueryScope(user), [user])
+  const loansQuery = useLoansQuery()
   const { loanId } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
@@ -95,14 +101,21 @@ export default function LoansPage() {
   const [clients, setClients] = useState<RelatedUser[]>([])
   const [investors, setInvestors] = useState<RelatedUser[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
-  const [loanUsersLoaded, setLoanUsersLoaded] = useState(false)
   const [adminView, setAdminView] = useState(() => routeState?.adminView === "advanced" ? "advanced" : "simple")
   const [selectedUserForSheet, setSelectedUserForSheet] = useState<UserDetailProfile | null>(null)
   const [newLoanIds, setNewLoanIds] = useState<Set<string>>(() => new Set())
+  const deferredSearchQuery = useDeferredValue(searchQuery)
+  const clientsQuery = useLoanUsersByRoleQuery("client", {
+    enabled: canCreateLoan(user) && createOpen,
+  })
+  const investorsQuery = useLoanUsersByRoleQuery("investor", {
+    enabled: canCreateLoan(user) && createOpen,
+  })
 
   const activeLoanLookup = loanId ?? manualSelectedLoanId
   const activeLoanIdRef = useRef<string | null>(loanId ?? null)
   const pendingDetailIdRef = useRef<string | null>(null)
+  const listSyncedRef = useRef(false)
   const visibleLoanIdsRef = useRef<Set<string>>(new Set())
   const newLoanTimeoutRef = useRef<number | undefined>(undefined)
   const highlightLoanIds = useCallback((ids: string[]) => {
@@ -135,6 +148,9 @@ export default function LoansPage() {
       selectedLoan.publicCode === activeLoanLookup)
   const visibleSelectedLoan = selectedLoanMatchesLookup ? selectedLoan : selectedLoanFromList
   const detailLoanId = selectedLoanFromList?.id ?? (activeLoanLookup && isUuid(activeLoanLookup) ? activeLoanLookup : null)
+  const detailQuery = useLoanBundleQuery(detailLoanId, {
+    enabled: Boolean(detailLoanId),
+  })
   const detailDataMatchesLoan = Boolean(detailLoanId && relatedDataLoanId === detailLoanId)
   const visibleRelatedData = detailDataMatchesLoan ? relatedData : emptyRelatedData
   const detailLoadingVisible = Boolean(
@@ -150,13 +166,13 @@ export default function LoansPage() {
       result = result.filter((loan) => loan.status === statusFilter)
     }
 
-    const query = searchQuery.trim().toLowerCase()
+    const query = deferredSearchQuery.trim().toLowerCase()
     if (query) {
       result = result.filter((loan) => createLoanSearchText(loan).includes(query))
     }
 
     return result
-  }, [loans, statusFilter, searchQuery])
+  }, [deferredSearchQuery, loans, statusFilter])
 
   const paginatedLoans = useMemo(() => {
     const startIndex = (page - 1) * PAGE_SIZE
@@ -205,7 +221,9 @@ export default function LoansPage() {
       setListError(null)
 
       try {
-        const loansResult = await fetchLoans(fetchWithAuth)
+        const { data: loansResult, error } = await loansQuery.refetch()
+        if (error) throw error
+        if (!loansResult) return
 
         rememberVisibleLoans(loansResult.loans, keepContent)
         setLoans(loansResult.loans)
@@ -221,8 +239,34 @@ export default function LoansPage() {
         setRefreshingList(false)
       }
     },
-    [adminView, fetchWithAuth, rememberVisibleLoans, session?.access_token],
+    [adminView, loansQuery, rememberVisibleLoans, session?.access_token],
   )
+
+  // TanStack Query is the external source here; this bridges it into the legacy local UI state.
+  useEffect(() => {
+    if (!loansQuery.data) return
+
+    const highlightNew = listSyncedRef.current
+    rememberVisibleLoans(loansQuery.data.loans, highlightNew)
+    setLoans(loansQuery.data.loans)
+    setListError(null)
+    setLoadingList(false)
+    setRefreshingList(false)
+    listSyncedRef.current = true
+
+    if (adminView === "advanced" && !activeLoanIdRef.current && loansQuery.data.loans[0]) {
+      activeLoanIdRef.current = loansQuery.data.loans[0].id
+      setManualSelectedLoanId(loansQuery.data.loans[0].id)
+    }
+  }, [adminView, loansQuery.data, rememberVisibleLoans])
+
+  useEffect(() => {
+    if (!loansQuery.error) return
+
+    setListError(getErrorMessage(loansQuery.error, "No se pudieron cargar los préstamos."))
+    setLoadingList(false)
+    setRefreshingList(false)
+  }, [loansQuery.error])
 
   useEffect(() => {
     return () => {
@@ -250,31 +294,27 @@ export default function LoansPage() {
       }
 
       try {
-        const [detailResult, installmentsResult, paymentsResult, vouchersResult] =
-          await Promise.allSettled([
-            fetchLoanDetail(fetchWithAuth, id),
-            fetchLoanInstallments(fetchWithAuth, id),
-            fetchLoanPayments(fetchWithAuth, id),
-            fetchLoanVouchers(fetchWithAuth, id),
-          ])
+        const bundle = await queryClient.fetchQuery({
+          queryFn: ({ signal }) => fetchLoanBundle(fetchWithAuth, id, { signal }),
+          queryKey: queryKeys.loans.detail(queryScope, id),
+        })
 
         if (pendingDetailIdRef.current !== id) return
 
-        const installments = installmentsResult.status === "fulfilled" ? installmentsResult.value : []
+        const installments = bundle.installments
 
-        if (detailResult.status === "fulfilled") {
-          const detailLoan = detailResult.value ?? fallbackLoan ?? null
-          setSelectedLoan(detailLoan ? withPaymentProgress(detailLoan, installments) : null)
+        if (bundle.loan) {
+          setSelectedLoan(withPaymentProgress(bundle.loan, installments))
         } else if (fallbackLoan) {
           setSelectedLoan(withPaymentProgress(fallbackLoan, installments))
         } else {
-          throw detailResult.reason
+          throw new Error("No se pudo cargar el detalle del préstamo.")
         }
 
         setRelatedData({
           installments,
-          payments: paymentsResult.status === "fulfilled" ? paymentsResult.value : [],
-          vouchers: vouchersResult.status === "fulfilled" ? vouchersResult.value : [],
+          payments: bundle.payments,
+          vouchers: bundle.vouchers,
         })
         setRelatedDataLoanId(id)
       } catch (error) {
@@ -290,7 +330,7 @@ export default function LoansPage() {
         }
       }
     },
-    [fetchWithAuth, session?.access_token],
+    [fetchWithAuth, queryClient, queryScope, session?.access_token],
   )
 
   useEffect(() => {
@@ -298,30 +338,28 @@ export default function LoansPage() {
   }, [activeLoanLookup])
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadLoans()
-    }, 0)
+    if (!detailLoanId || !detailQuery.data) return
 
-    return () => window.clearTimeout(timeoutId)
-  }, [loadLoans])
+    const detailLoan = detailQuery.data.loan ?? selectedLoanFromList
+    if (detailLoan) {
+      setSelectedLoan(withPaymentProgress(detailLoan, detailQuery.data.installments))
+    }
+    setRelatedData({
+      installments: detailQuery.data.installments,
+      payments: detailQuery.data.payments,
+      vouchers: detailQuery.data.vouchers,
+    })
+    setRelatedDataLoanId(detailLoanId)
+    setDetailError(null)
+    setLoadingDetail(false)
+  }, [detailLoanId, detailQuery.data, selectedLoanFromList])
 
   useEffect(() => {
-    if (!detailLoanId) return
+    if (!detailLoanId || !detailQuery.error) return
 
-    if (
-      selectedLoan?.id === detailLoanId &&
-      relatedDataLoanId === detailLoanId &&
-      !detailError
-    ) {
-      return
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      void loadDetail(detailLoanId, selectedLoanFromList)
-    }, 0)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [detailError, detailLoanId, loadDetail, relatedDataLoanId, selectedLoan?.id, selectedLoanFromList])
+    setDetailError(getErrorMessage(detailQuery.error, "No se pudo cargar el detalle del préstamo."))
+    setLoadingDetail(false)
+  }, [detailLoanId, detailQuery.error])
 
   useEffect(() => {
     if (adminView !== "advanced" || isDetailRoute || activeLoanIdRef.current || !loans[0]) return
@@ -331,24 +369,21 @@ export default function LoansPage() {
   }, [adminView, isDetailRoute, loans])
 
   useEffect(() => {
-    if (!canCreateLoan(user) || !session?.access_token || !createOpen) return
-    if (loanUsersLoaded) return
+    if (!createOpen || !canCreateLoan(user)) return
 
-    const timeoutId = window.setTimeout(() => {
-      setLoadingUsers(true)
-      void Promise.allSettled([
-        fetchUsersByRole(fetchWithAuth, "client"),
-        fetchUsersByRole(fetchWithAuth, "investor"),
-      ]).then(([clientsResult, investorsResult]) => {
-        if (clientsResult.status === "fulfilled") setClients(clientsResult.value)
-        if (investorsResult.status === "fulfilled") setInvestors(investorsResult.value)
-        setLoanUsersLoaded(true)
-        setLoadingUsers(false)
-      })
-    }, 0)
+    if (clientsQuery.data) setClients(clientsQuery.data)
+    if (investorsQuery.data) setInvestors(investorsQuery.data)
 
-    return () => window.clearTimeout(timeoutId)
-  }, [createOpen, fetchWithAuth, loanUsersLoaded, session?.access_token, user])
+    const loading = clientsQuery.isFetching || investorsQuery.isFetching
+    setLoadingUsers(loading)
+  }, [
+    clientsQuery.data,
+    clientsQuery.isFetching,
+    createOpen,
+    investorsQuery.data,
+    investorsQuery.isFetching,
+    user,
+  ])
 
   const handleSelectLoan = (loan: Loan) => {
     if (activeLoanIdRef.current === loan.id && relatedDataLoanId === loan.id) return
@@ -427,10 +462,18 @@ export default function LoansPage() {
       setLoanForm(defaultLoanForm)
 
       if (createdLoan?.id) {
-        setLoans((prevLoans) => [
+        const upsertCreatedLoan = (prevLoans: Loan[]) => [
           createdLoan,
           ...prevLoans.filter((loan) => loan.id !== createdLoan.id),
-        ])
+        ]
+        setLoans(upsertCreatedLoan)
+        queryClient.setQueryData(
+          queryKeys.loans.list(queryScope),
+          (currentData: { loans: Loan[]; meta: PaginationMeta } | undefined) =>
+            currentData
+              ? { ...currentData, loans: upsertCreatedLoan(currentData.loans) }
+              : currentData,
+        )
         setPage(1)
         visibleLoanIdsRef.current = new Set([
           createdLoan.id,
@@ -470,6 +513,10 @@ export default function LoansPage() {
       })
       setReviewDialog(null)
       setRejectObservation("")
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.loans.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+      ])
       await Promise.all([loadLoans({ keepContent: true }), loadDetail(visibleSelectedLoan.id, visibleSelectedLoan)])
     } catch (error) {
       toastManager.add({
@@ -490,39 +537,14 @@ export default function LoansPage() {
     }
 
     await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.loans.list(queryScope) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.loans.detail(queryScope, id) }),
+    ])
+    await Promise.all([
       loadLoans({ keepContent: true }),
       loadDetail(id, visibleSelectedLoan, { silent: true }),
     ])
-  }, [detailLoanId, loadDetail, loadLoans, visibleSelectedLoan])
-
-  useEffect(() => {
-    const refreshFromRealtime = (event: Event) => {
-      const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
-      if (!detail?.type) return
-
-      if (
-        !detail.type.startsWith("loan.") &&
-        !detail.type.startsWith("payment.") &&
-        !detail.type.startsWith("voucher.")
-      ) {
-        return
-      }
-
-      const payload = detail.data as { loanId?: string } | undefined
-      const eventLoanId = payload?.loanId
-      const activeId = detailLoanId ?? visibleSelectedLoan?.id
-
-      if (eventLoanId && activeId && eventLoanId !== activeId) {
-        void loadLoans({ keepContent: true })
-        return
-      }
-
-      void refreshSelectedLoanData()
-    }
-
-    window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
-    return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
-  }, [detailLoanId, loadLoans, refreshSelectedLoanData, visibleSelectedLoan?.id])
+  }, [detailLoanId, loadDetail, loadLoans, queryClient, queryScope, visibleSelectedLoan])
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5 px-3 py-4 md:px-8 md:py-8">
