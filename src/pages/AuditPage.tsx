@@ -21,18 +21,18 @@ import {
   DataTableSkeleton,
   DataTableStaticHeader,
 } from "@/components/data-table-card"
-import {
-  Autocomplete,
-  AutocompleteEmpty,
-  AutocompleteInput,
-  AutocompleteItem,
-  AutocompleteList,
-  AutocompletePopup,
-} from "@/components/ui/autocomplete"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  Combobox,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxPopup,
+} from "@/components/ui/combobox"
 import {
   Empty,
   EmptyContent,
@@ -395,6 +395,8 @@ export default function AuditPage() {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
   const [moduleQuery, setModuleQuery] = useState("")
   const [actionQuery, setActionQuery] = useState("")
+  const [moduleOpen, setModuleOpen] = useState(false)
+  const [actionOpen, setActionOpen] = useState(false)
   const [newLogIds, setNewLogIds] = useState<Set<string>>(() => new Set())
   const visibleLogIdsRef = useRef<Set<string>>(new Set())
   const newLogTimeoutRef = useRef<number | undefined>(undefined)
@@ -730,11 +732,13 @@ export default function AuditPage() {
       >
         <Field>
           <FieldLabel htmlFor="audit-module">Módulo</FieldLabel>
-          <Autocomplete>
-            <AutocompleteInput
+          <Combobox open={moduleOpen} onOpenChange={setModuleOpen}>
+            <ComboboxInput
               id="audit-module"
               placeholder="Ej. Préstamos"
               value={moduleQuery || (filters.module ? (moduleLabels[filters.module] ?? filters.module) : "")}
+              onFocus={() => setModuleOpen(true)}
+              onClick={() => setModuleOpen(true)}
               onChange={(event) => {
                 const nextQuery = event.target.value
                 setModuleQuery(nextQuery)
@@ -751,33 +755,37 @@ export default function AuditPage() {
               }}
               startAddon={<DatabaseIcon />}
             />
-            <AutocompletePopup className="min-w-(--anchor-width) w-auto max-w-[90vw] sm:max-w-md">
-              <AutocompleteList>
+            <ComboboxPopup className="min-w-(--anchor-width) w-auto max-w-[90vw] sm:max-w-md">
+              <ComboboxList>
                 {filteredModuleKeys.map((key) => (
-                  <AutocompleteItem
+                  <ComboboxItem
                     key={key}
+                    value={key}
                     onClick={() => {
                       setFilters((current) => ({ ...current, module: key }))
                       setModuleQuery(moduleLabels[key] ?? key)
+                      setModuleOpen(false)
                     }}
                   >
                     {moduleLabels[key]}
-                  </AutocompleteItem>
+                  </ComboboxItem>
                 ))}
                 {filteredModuleKeys.length === 0 && (
-                  <AutocompleteEmpty>No hay coincidencias.</AutocompleteEmpty>
+                  <ComboboxEmpty>No hay coincidencias.</ComboboxEmpty>
                 )}
-              </AutocompleteList>
-            </AutocompletePopup>
-          </Autocomplete>
+              </ComboboxList>
+            </ComboboxPopup>
+          </Combobox>
         </Field>
         <Field>
           <FieldLabel htmlFor="audit-action">Acción</FieldLabel>
-          <Autocomplete>
-            <AutocompleteInput
+          <Combobox open={actionOpen} onOpenChange={setActionOpen}>
+            <ComboboxInput
               id="audit-action"
               placeholder="Ej. Inicio de sesión"
               value={actionQuery || (filters.action ? (actionLabels[filters.action] ?? filters.action) : "")}
+              onFocus={() => setActionOpen(true)}
+              onClick={() => setActionOpen(true)}
               onChange={(event) => {
                 const nextQuery = event.target.value
                 setActionQuery(nextQuery)
@@ -794,25 +802,27 @@ export default function AuditPage() {
               }}
               startAddon={<ActivityIcon />}
             />
-            <AutocompletePopup className="min-w-(--anchor-width) w-auto max-w-[90vw] sm:max-w-md">
-              <AutocompleteList>
+            <ComboboxPopup className="min-w-(--anchor-width) w-auto max-w-[90vw] sm:max-w-md">
+              <ComboboxList>
                 {filteredActionKeys.map((key) => (
-                  <AutocompleteItem
+                  <ComboboxItem
                     key={key}
+                    value={key}
                     onClick={() => {
                       setFilters((current) => ({ ...current, action: key }))
                       setActionQuery(actionLabels[key] ?? key)
+                      setActionOpen(false)
                     }}
                   >
                     {actionLabels[key]}
-                  </AutocompleteItem>
+                  </ComboboxItem>
                 ))}
                 {filteredActionKeys.length === 0 && (
-                  <AutocompleteEmpty>No hay coincidencias.</AutocompleteEmpty>
+                  <ComboboxEmpty>No hay coincidencias.</ComboboxEmpty>
                 )}
-              </AutocompleteList>
-            </AutocompletePopup>
-          </Autocomplete>
+              </ComboboxList>
+            </ComboboxPopup>
+          </Combobox>
         </Field>
         <Field>
           <FieldLabel htmlFor="audit-user">Usuario</FieldLabel>

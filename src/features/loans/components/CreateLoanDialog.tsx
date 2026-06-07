@@ -10,19 +10,19 @@ import {
 import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react"
 
 import { DataTableCard, DataTableColumnHeader } from "@/components/data-table-card"
-import {
-  Autocomplete,
-  AutocompleteEmpty,
-  AutocompleteInput,
-  AutocompleteItem,
-  AutocompleteList,
-  AutocompletePopup,
-} from "@/components/ui/autocomplete"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  Combobox,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxPopup,
+} from "@/components/ui/combobox"
 import { Empty, EmptyDescription, EmptyMedia } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Fieldset, FieldsetLegend } from "@/components/ui/fieldset"
@@ -501,6 +501,7 @@ function UserSearchSelect({
 }) {
   const [query, setQuery] = useState("")
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [open, setOpen] = useState(false)
   const selectedUser = users.find((user) => user.id === value)
   const filteredUsers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -517,12 +518,14 @@ function UserSearchSelect({
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
-      <Autocomplete>
-        <AutocompleteInput
+      <Combobox open={open} onOpenChange={setOpen}>
+        <ComboboxInput
           className="w-full"
           id={id}
           size="sm"
           value={query || (selectedUser ? personName(selectedUser) : "")}
+          onFocus={() => setOpen(true)}
+          onClick={() => setOpen(true)}
           onChange={(event) => {
             const nextQuery = event.target.value
             setQuery(nextQuery)
@@ -542,36 +545,40 @@ function UserSearchSelect({
             },
           }}
         />
-        <AutocompletePopup className="w-(--anchor-width)">
-          <AutocompleteList>
+        <ComboboxPopup className="w-(--anchor-width)">
+          <ComboboxList>
             {allowClear && value && (
-              <AutocompleteItem
+              <ComboboxItem
+                value=""
                 onClick={() => {
                   onValueChange("")
                   setQuery("")
                   setDetailsOpen(false)
+                  setOpen(false)
                 }}
               >
                 Sin inversionista
-              </AutocompleteItem>
+              </ComboboxItem>
             )}
             {filteredUsers.map((user) => (
-              <AutocompleteItem
+              <ComboboxItem
                 className="w-full min-w-0 px-2"
                 key={user.id}
+                value={user.id}
                 onClick={() => {
                   onValueChange(user.id)
                   setQuery(personName(user))
                   setDetailsOpen(false)
+                  setOpen(false)
                 }}
               >
                 <UserOption user={user} />
-              </AutocompleteItem>
+              </ComboboxItem>
             ))}
-            {filteredUsers.length === 0 && <AutocompleteEmpty>No hay coincidencias.</AutocompleteEmpty>}
-          </AutocompleteList>
-        </AutocompletePopup>
-      </Autocomplete>
+            {filteredUsers.length === 0 && <ComboboxEmpty>No hay coincidencias.</ComboboxEmpty>}
+          </ComboboxList>
+        </ComboboxPopup>
+      </Combobox>
       <div className="min-h-16">
         {selectedUser ? (
           <SelectedUserDetails
