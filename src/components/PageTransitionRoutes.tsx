@@ -23,11 +23,8 @@ export function PageTransitionRoutes({ children }: RoutesProps) {
   useEffect(() => {
     if (location.key === latestTransitionKey.current) return
 
-    const currentRoute =
-      transition.displayLocation.pathname +
-      transition.displayLocation.search +
-      transition.displayLocation.hash
-    const nextRoute = location.pathname + location.search + location.hash
+    const currentRoute = transition.displayLocation.pathname
+    const nextRoute = location.pathname
 
     if (currentRoute === nextRoute) {
       const sameRouteTimeoutId = window.setTimeout(() => {
@@ -65,7 +62,7 @@ export function PageTransitionRoutes({ children }: RoutesProps) {
       window.clearTimeout(exitTimeoutId)
       window.clearTimeout(enterTimeoutId)
     }
-  }, [location, navigationType, transition.displayLocation.hash, transition.displayLocation.pathname, transition.displayLocation.search])
+  }, [location, navigationType, transition.displayLocation.pathname])
 
   return (
     <div

@@ -15,8 +15,8 @@ export function getRouteDepth(pathname: string) {
   return pathname.split("/").filter(Boolean).length
 }
 
-export function getRouteKey(location: { hash: string; pathname: string; search: string }) {
-  return `${location.pathname}${location.search}${location.hash}`
+export function getRouteKey(location: { pathname: string }) {
+  return location.pathname
 }
 
 export function getAppBackTarget(state: unknown) {
