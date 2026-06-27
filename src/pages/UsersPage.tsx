@@ -58,6 +58,14 @@ import {
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import {
+  ResponsiveDrawer,
+  ResponsiveDrawerContent,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerTitle,
+  DrawerDescription,
+} from "@/components/ui/responsive-drawer"
+import {
   ResponsiveSheetContent,
   Sheet,
   SheetDescription,
@@ -1116,7 +1124,6 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
       <RequestDetailSheet
         request={selectedRequest}
-        open={Boolean(selectedRequest)}
         onOpenChange={(open) => {
           if (!open) setSelectedRequest(null)
         }}
@@ -2478,12 +2485,10 @@ function AccessStatusField({
 
 function RequestDetailSheet({
   request,
-  open,
   onOpenChange,
   onReview,
 }: {
   request: AccessRequest | null
-  open: boolean
   onOpenChange: (open: boolean) => void
   onReview: (request: AccessRequest, action: "approved" | "rejected") => void
 }) {
@@ -2492,23 +2497,22 @@ function RequestDetailSheet({
   const pending = Boolean(request && isPendingRequest(request.status))
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <ResponsiveSheetContent
+    <ResponsiveDrawer open={Boolean(request)} onOpenChange={onOpenChange}>
+      <ResponsiveDrawerContent
         contentKey={`request-${request.id}`}
         defaultDesktopWidth={620}
         minDesktopWidth={460}
         maxDesktopWidth={840}
-        showCloseButton
       >
-        <SheetHeader>
-          <SheetTitle>Detalle de solicitud</SheetTitle>
-          <SheetDescription>
+        <DrawerHeader>
+          <DrawerTitle>Detalle de solicitud</DrawerTitle>
+          <DrawerDescription>
             {request
               ? `${displayPersonName(request)} solicitó acceso como ${getRoleLabel(request.roleRequested).toLowerCase()}.`
               : "Selecciona una solicitud para revisar su información."}
-          </SheetDescription>
-        </SheetHeader>
-        <SheetPanel className="p-4 sm:p-6">
+          </DrawerDescription>
+        </DrawerHeader>
+        <DrawerPanel className="p-4 sm:p-6">
           {request && (
             <div className="flex flex-col gap-5">
               <div className="flex items-start justify-between gap-3 border-b pb-4">
@@ -2561,9 +2565,9 @@ function RequestDetailSheet({
               )}
             </div>
           )}
-        </SheetPanel>
-      </ResponsiveSheetContent>
-    </Sheet>
+        </DrawerPanel>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }
 
