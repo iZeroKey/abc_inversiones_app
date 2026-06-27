@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/auth-context";
 import {
   fetchLoanBundle,
   fetchLoans,
+  fetchLoansSummary,
   fetchUsersByRole,
   type LoanBundle,
 } from "@/lib/loans-api";
@@ -12,7 +13,7 @@ import {
   type LoanListParams,
   type QueryScope,
 } from "@/lib/query-keys";
-import type { Loan, PaginationMeta, RelatedUser } from "@/types/loans";
+import type { Loan, LoanSummary, PaginationMeta, RelatedUser } from "@/types/loans";
 
 export type LoansQueryData = {
   loans: Loan[];
@@ -76,5 +77,16 @@ export function useLoanUsersByRoleQuery(
     queryFn: ({ signal }) => fetchUsersByRole(fetchWithAuth, role, { signal }),
     queryKey: queryKeys.loans.usersByRole(scope, role),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useLoansSummaryQuery() {
+  const { fetchWithAuth, session, user } = useAuth();
+  const scope = getAuthQueryScope(user);
+
+  return useQuery<LoanSummary>({
+    enabled: Boolean(session?.access_token),
+    queryFn: () => fetchLoansSummary(fetchWithAuth),
+    queryKey: queryKeys.loans.summary(scope),
   });
 }

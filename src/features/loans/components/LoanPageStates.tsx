@@ -69,25 +69,33 @@ export function LoanListSkeleton({
   }
 
   return (
-    <div className="grid gap-3 xl:grid-cols-2">
+    <div className="grid gap-3 md:grid-cols-2">
       {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="rounded-2xl border bg-card px-4 py-4 shadow-sm md:px-5">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <Skeleton className="size-11 shrink-0 rounded-2xl sm:size-12" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-5 w-28" />
-                <Skeleton className="h-5 w-16 rounded-full" />
-              </div>
-              <Skeleton className="mt-2 h-3 w-48" />
-              <Skeleton className="mt-2 h-3 w-36" />
+        <div key={index} className="relative rounded-2xl bg-card px-4 py-4">
+          <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-muted-foreground/20" />
+          <div className="flex items-center justify-between gap-2 pl-4">
+            <div className="flex items-center gap-1">
+              <Skeleton className="h-3 w-5" />
+              <Skeleton className="h-4 w-24" />
             </div>
-            <div className="hidden shrink-0 grid-cols-3 gap-4 md:grid">
-              <Skeleton className="h-8 w-16" />
-              <Skeleton className="h-8 w-16" />
-              <Skeleton className="h-8 w-12" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-x-4 pl-4">
+            <div>
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="mt-1 h-5 w-28" />
             </div>
-            <Skeleton className="h-5 w-5 shrink-0 rounded-full" />
+            <div>
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="mt-1 h-5 w-28" />
+            </div>
+          </div>
+          <Skeleton className="mt-3 h-1.5 w-full rounded-full" />
+          <div className="mt-3 grid grid-cols-2 gap-x-4 pl-4">
+            <Skeleton className="h-3 w-32" />
+            <div className="flex justify-end">
+              <Skeleton className="h-3 w-12" />
+            </div>
           </div>
         </div>
       ))}

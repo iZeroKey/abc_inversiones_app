@@ -177,3 +177,93 @@ export function createLoanSearchText(loan: Loan) {
     .join(" ")
     .toLowerCase();
 }
+
+export function getStatusGroup(status: string) {
+  if (isPendingStatus(status)) return "pending" as const;
+  return status as "active" | "paid" | "defaulted" | "rejected";
+}
+
+function isPendingStatus(status: string) {
+  return ["pending", "pending_investor_review", "pending_admin_review", "approved", "draft"].includes(status);
+}
+
+export function isPaidOrPending(status: string) {
+  return status === "paid" || isPendingStatus(status);
+}
+
+export function getLoanStatusColor(status: string) {
+  const group = getStatusGroup(status);
+  const colors: Record<string, string> = {
+    active: "border-l-success",
+    pending: "border-l-warning",
+    paid: "border-l-muted-foreground/20",
+    defaulted: "border-l-destructive",
+    rejected: "border-l-muted-foreground/40",
+  };
+  return colors[group] ?? "border-l-muted-foreground/20";
+}
+
+export function getLoanStatusLabel(status: string) {
+  const group = getStatusGroup(status);
+  const labels: Record<string, string> = {
+    active: "Activo",
+    pending: "Pendiente",
+    paid: "Pagado",
+    defaulted: "Vencido",
+    rejected: "Rechazado",
+  };
+  return labels[group] ?? status;
+}
+
+export function getLoanCardTitle(loan: Loan) {
+  const group = getStatusGroup(loan.status ?? "");
+  if (group === "pending" || group === "rejected") {
+    return "Monto solicitado";
+  }
+  return "Monto total";
+}
+
+export function getLoanCardSecondaryLabel(loan: Loan) {
+  const group = getStatusGroup(loan.status ?? "");
+  if (group === "paid") return "Fecha fin";
+  if (group === "pending") return "Fecha solicitud";
+  if (group === "rejected") return "Fecha rechazo";
+  return "Saldo pendiente";
+}
+
+export function getLoanCardSecondaryValue(loan: Loan) {
+  const group = getStatusGroup(loan.status ?? "");
+  if (group === "paid") return formatDate(loan.endDate);
+  if (group === "pending") return formatDate(loan.startDate ?? loan.createdAt);
+  if (group === "rejected") return formatDate(loan.rejectedAt ?? loan.updatedAt);
+  return getRemainingDebt(loan);
+}
+
+export function getLoanCardFooterIcon(status: string) {
+  const group = getStatusGroup(status);
+  const icons: Record<string, string> = {
+    active: "calendar",
+    pending: "hourglass",
+    paid: "check",
+    defaulted: "alert",
+    rejected: "x",
+  };
+  return icons[group] ?? "";
+}
+
+export function getLoanCardFooterText(status: string) {
+  const group = getStatusGroup(status);
+  const texts: Record<string, string> = {
+    active: "Próximo pago",
+    pending: "Pendiente de revisión",
+    paid: "Préstamo pagado",
+    defaulted: "Cuota(s) vencida(s)",
+    rejected: "Solicitud rechazada",
+  };
+  return texts[group] ?? "";
+}
+
+export function normalizeStatusFilter(status: string) {
+  if (isPendingStatus(status)) return "pending";
+  return status;
+}

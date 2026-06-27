@@ -59,6 +59,8 @@ export const queryKeys = {
       ["abc", "loans", "detail", scopeKey(scope), loanId] as const,
     list: (scope: QueryScope | undefined, params: LoanListParams = {}) =>
       ["abc", "loans", "list", scopeKey(scope), compactParams(params)] as const,
+    summary: (scope?: QueryScope) =>
+      ["abc", "loans", "summary", scopeKey(scope)] as const,
     usersByRole: (scope: QueryScope | undefined, role: string) =>
       ["abc", "loans", "users-by-role", scopeKey(scope), role] as const,
   },

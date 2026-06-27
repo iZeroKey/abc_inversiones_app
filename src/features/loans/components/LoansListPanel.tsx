@@ -1,9 +1,15 @@
 import {
+  AlertCircleIcon,
+  CalendarIcon,
+  CheckCircleIcon,
   ChevronRightIcon,
-  ReceiptTextIcon,
+  HourglassIcon,
   RefreshCwIcon,
   SearchIcon,
+  XCircleIcon,
+  type LucideIcon,
 } from "lucide-react"
+import type { ReactNode } from "react"
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { ResponsivePagination } from "@/components/ResponsivePagination"
@@ -14,7 +20,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { Progress } from "@/components/ui/progress"
+import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Spinner } from "@/components/ui/spinner"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
@@ -26,15 +32,28 @@ import {
 import { frequencyLabels, statusFilters } from "@/features/loans/loan-constants"
 import {
   formatDate,
+  getLoanCardFooterIcon,
+  getLoanCardFooterText,
+  getLoanCardSecondaryLabel,
+  getLoanCardSecondaryValue,
+  getLoanCardTitle,
   getLoanProgress,
-  getRemainingDebt,
-  loanClientName,
-  loanInvestorName,
+  getLoanStatusColor,
+  getStatusGroup,
   loanPublicCode,
   normalizeStatus,
+  toNumber,
 } from "@/features/loans/loan-utils"
 import { cn } from "@/lib/utils"
 import type { Loan, LoanStatus, PaginationMeta } from "@/types/loans"
+
+const statusIconMap: Record<string, LucideIcon> = {
+  calendar: CalendarIcon,
+  hourglass: HourglassIcon,
+  check: CheckCircleIcon,
+  alert: AlertCircleIcon,
+  x: XCircleIcon,
+}
 
 export function LoansListPanel({
   loans,
@@ -84,7 +103,7 @@ export function LoansListPanel({
           </InputGroupAddon>
           <InputGroupInput
             type="search"
-            placeholder="Buscar por código, cliente, inversionista o monto"
+            placeholder="Buscar por código, cliente o monto"
             value={searchQuery}
             onChange={(event) => onSearchQueryChange(event.target.value)}
           />
@@ -121,14 +140,13 @@ export function LoansListPanel({
       ) : loans.length === 0 ? (
         <EmptyLoanList message={emptyMessage} />
       ) : variant === "cards" ? (
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           {loans.map((loan) => (
             <LoanCardRow
               key={loan.id}
               loan={loan}
               isNew={highlightedLoanIds?.has(loan.id) ?? false}
               selected={loan.id === selectedLoan?.id}
-              perspective={perspective}
               onSelect={onSelectLoan}
             />
           ))}
@@ -163,67 +181,138 @@ function LoanCardRow({
   loan,
   isNew,
   selected,
-  perspective,
   onSelect,
 }: {
   loan: Loan
   isNew: boolean
   selected: boolean
-  perspective: "admin" | "client" | "investor"
   onSelect: (loan: Loan) => void
 }) {
-  const progress = Math.round(getLoanProgress(loan))
-  const title =
-    perspective === "client"
-      ? "Préstamo con ABC Inversiones"
-      : `Préstamo de ${loanClientName(loan)}`
-  const date = formatDate(loan.startDate ?? loan.createdAt)
-  const frequency = frequencyLabels[String(loan.frequency)] ?? loan.frequency ?? "Frecuencia"
+  const status = normalizeStatus(loan)
+  const group = getStatusGroup(status)
+  const progress = group === "active" || group === "defaulted" ? Math.round(loan.progress ?? getLoanProgress(loan)) : 0
+  const showProgress = group === "active" || group === "defaulted"
+  const hasRightFooter = group === "active" || group === "defaulted"
+  const isPaid = group === "paid"
+  const borderColor = isPaid ? "border-l-muted-foreground/20" : getLoanStatusColor(status)
+
+  function getNextPaymentDate() {
+    if (group !== "active" && group !== "defaulted") return null
+    if (!loan.nextInstallment?.dueDate) return null
+    return formatDate(loan.nextInstallment.dueDate)
+  }
+
+  const showNextPaymentDate = getNextPaymentDate()
 
   return (
     <button
       type="button"
       className={cn(
-        "group flex w-full items-center gap-3 rounded-2xl border bg-card px-4 py-4 text-left shadow-sm transition-shadow hover:shadow-md sm:gap-4 md:px-5",
+        "relative flex w-full flex-col rounded-2xl bg-card text-left",
+        "border-l-4",
+        borderColor,
         isNew && "realtime-row-enter",
-        selected && "border-primary/40 bg-accent/30",
+        selected && "bg-accent/30",
+        isPaid && "text-muted-foreground",
       )}
       onClick={() => onSelect(loan)}
     >
-      <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted text-primary sm:size-12">
-        <ReceiptTextIcon />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-          <h3 className="shrink-0 whitespace-nowrap text-base font-semibold leading-tight tabular-nums">
-            <AnimatedNumber value={loan.principal} isCurrency />
-          </h3>
-          <LoanStatusBadge status={normalizeStatus(loan)} size="sm" />
-        </div>
-        <p className="mt-1 truncate text-xs text-muted-foreground">
-          <span className="font-mono">{loanPublicCode(loan)}</span>
-          <span className="hidden sm:inline">
-            <span className="px-1.5">-</span>
-            <span>{title}</span>
+      {/* Top row: ID + code + badge */}
+      <div className="flex items-center justify-between gap-2 px-4 pt-4">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="text-xs font-semibold text-[#D2D2DE]">ID</span>
+          <span className="truncate font-mono text-sm font-semibold text-[#00236F]">
+            #{loanPublicCode(loan)}
           </span>
-        </p>
-        <p className="mt-1 truncate text-xs font-medium text-muted-foreground">
-          {frequency} · <span className="text-success"><AnimatedNumber value={progress} decimals={0} suffix="% pagado" /></span>
-          <span className="hidden sm:inline"> · {date}</span>
-        </p>
+        </div>
+        <LoanStatusBadge status={status} size="default" className={cn(isPaid && "opacity-60")} />
       </div>
 
-      <div className="hidden shrink-0 grid-cols-3 gap-4 text-right text-xs text-muted-foreground md:grid">
-        <LoanPlainMetric label="Deuda" value={<AnimatedNumber value={loan.totalDebt} isCurrency />} />
-        <LoanPlainMetric label="Restante" value={<AnimatedNumber value={getRemainingDebt(loan)} isCurrency />} />
-        <LoanPlainMetric label="Cuotas" value={<AnimatedNumber value={loan.installmentsCount} />} />
+      {/* Loan name */}
+      <p className="mt-2 truncate px-4 text-xl font-semibold text-foreground">
+        {loan.name ?? `Préstamo #${loanPublicCode(loan)}`}
+      </p>
+
+      {/* Two-column content */}
+      <div className="mt-3 grid grid-cols-2 gap-x-4 px-4">
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">{getLoanCardTitle(loan)}</p>
+          <p className="mt-0.5 font-semibold tabular-nums">
+            <AnimatedNumber value={toNumber(loan.principal)} isCurrency />
+          </p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">{getLoanCardSecondaryLabel(loan)}</p>
+          <p className="mt-0.5 font-semibold">
+            {typeof getLoanCardSecondaryValue(loan) === "number" ? (
+              <span className="tabular-nums">
+                <AnimatedNumber value={getLoanCardSecondaryValue(loan) as number} isCurrency />
+              </span>
+            ) : (
+              <span className="text-muted-foreground">{getLoanCardSecondaryValue(loan) as string}</span>
+            )}
+          </p>
+        </div>
       </div>
 
-      <ChevronRightIcon className="shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
+      {/* Progress bar (active / defaulted only) — no label, no percentage text */}
+      {showProgress && (
+        <div className="mt-3 px-4">
+          <Progress value={progress}>
+            <ProgressTrack>
+              <ProgressIndicator
+                className={cn(
+                  "transition-all duration-500",
+                  isPaid ? "bg-muted-foreground/30" : group === "defaulted" ? "bg-destructive" : "bg-primary",
+                )}
+              />
+            </ProgressTrack>
+          </Progress>
+        </div>
+      )}
+
+      {/* Footer with status icon and text — two columns */}
+      <div className="mt-3 grid grid-cols-[1fr_auto] gap-x-4 px-4 pb-4">
+        <div className={cn("flex items-center gap-2 min-w-0", !hasRightFooter && "col-span-2")}>
+          <FooterIcon status={status} group={group} />
+          <span className="text-xs font-medium text-muted-foreground">
+            {showNextPaymentDate
+              ? `Próx: ${showNextPaymentDate}`
+              : getLoanCardFooterText(status)}
+          </span>
+        </div>
+        {hasRightFooter && (
+          <div className="flex items-center justify-end">
+            <span className="text-xs font-medium text-muted-foreground">
+              {progress}% pagado
+            </span>
+          </div>
+        )}
+      </div>
     </button>
   )
 }
+
+function FooterIcon({ status, group }: { status: string; group: string }) {
+  const iconName = getLoanCardFooterIcon(status)
+  const Icon = statusIconMap[iconName]
+
+  const iconColor =
+    group === "paid"
+      ? "text-muted-foreground"
+      : group === "active"
+        ? "text-success"
+        : group === "pending"
+          ? "text-warning"
+          : group === "defaulted"
+            ? "text-destructive"
+            : "text-muted-foreground"
+
+  if (!Icon) return null
+  return <Icon className={cn("size-3.5 shrink-0", iconColor)} />
+}
+
+/* ---- Legacy row variant (kept for admin "rows" view) ---- */
 
 function LoanRow({
   loan,
@@ -301,22 +390,25 @@ function LoanRow({
   )
 }
 
-function LoanPlainMetric({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <p className="truncate font-semibold text-foreground tabular-nums">{value}</p>
-      <p>{label}</p>
-    </div>
-  )
-}
-
-function LoanTinyMetric({ label, value }: { label: string; value: React.ReactNode }) {
+function LoanTinyMetric({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="min-w-0 border-l pl-3 first:border-l-0 first:pl-0">
       <p className="truncate font-semibold tabular-nums">{value}</p>
       <p className="text-muted-foreground">{label}</p>
     </div>
   )
+}
+
+function loanClientName(loan: Loan) {
+  return loan.clientName ?? "Cliente"
+}
+
+function loanInvestorName(loan: Loan) {
+  return loan.investorName ?? "Inversor"
+}
+
+function getRemainingDebt(loan: Loan) {
+  return Math.max(toNumber(loan.totalDebt) - toNumber(loan.totalPaid), 0)
 }
 
 export function RefreshButton({

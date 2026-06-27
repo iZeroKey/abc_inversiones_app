@@ -44,11 +44,12 @@ export function LoanStatusBadge({
       variant={variant}
       size={size}
       className={cn(
-        "relative transition-all duration-300",
+        "relative rounded-full font-semibold uppercase transition-all duration-300 px-2",
         className,
         animate && "animate-badge-change",
       )}
     >
+      <span className="size-1.5 rounded-full bg-current shrink-0" />
       {statusLabels[status] ?? status}
     </Badge>
   )

@@ -5,6 +5,13 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { useLocation } from "react-router-dom"
 
 import { Button } from "@/components/ui/button"
+import {
+  Drawer,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerPopup,
+  DrawerTitle,
+} from "@/components/ui/drawer"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { UserDetailSheet, type UserDetailProfile } from "@/components/UserDetailSheet"
@@ -12,16 +19,8 @@ import { useAuth } from "@/contexts/auth-context"
 import { AdminLoansOperationsPanel } from "@/features/loans/components/AdminLoansOperationsPanel"
 import { CreateLoanDialog } from "@/features/loans/components/CreateLoanDialog"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
-import {
-  Drawer,
-  DrawerPopup,
-  DrawerHeader,
-  DrawerPanel,
-  DrawerTitle,
-} from "@/components/ui/drawer"
-import { useIsMobile } from "@/hooks/use-media-query"
-import { useDrawerHistory } from "@/hooks/use-drawer-history"
-import { LoansListPanel, RefreshButton } from "@/features/loans/components/LoansListPanel"
+import { LoansListPanel } from "@/features/loans/components/LoansListPanel"
+import { LoanSummaryCard } from "@/features/loans/components/LoanSummaryCard"
 import { ReviewLoanDialog } from "@/features/loans/components/ReviewLoanDialog"
 import { PAGE_SIZE } from "@/features/loans/loan-constants"
 import { defaultLoanForm, type LoanFormState } from "@/features/loans/loan-form"
@@ -34,14 +33,18 @@ import {
 import {
   getAuthQueryScope,
   useLoanBundleQuery,
-  useLoanUsersByRoleQuery,
   useLoansQuery,
+  useLoansSummaryQuery,
+  useLoanUsersByRoleQuery,
 } from "@/features/loans/loan-queries"
 import {
   createLoanSearchText,
   getErrorMessage,
   getLoanPaidAmount,
+  normalizeStatusFilter,
 } from "@/features/loans/loan-utils"
+import { useDrawerHistory } from "@/hooks/use-drawer-history"
+import { useIsMobile } from "@/hooks/use-media-query"
 import {
   approveLoan,
   createLoan,
@@ -96,7 +99,6 @@ export default function LoansPage() {
   const [relatedData, setRelatedData] = useState<RelatedData>(emptyRelatedData)
   const [relatedDataLoanId, setRelatedDataLoanId] = useState<string | null>(null)
   const [loadingList, setLoadingList] = useState(true)
-  const [refreshingList, setRefreshingList] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [listError, setListError] = useState<string | null>(null)
   const [detailError, setDetailError] = useState<string | null>(null)
@@ -119,6 +121,7 @@ export default function LoansPage() {
   const [selectedUserForSheet, setSelectedUserForSheet] = useState<UserDetailProfile | null>(null)
   const [newLoanIds, setNewLoanIds] = useState<Set<string>>(() => new Set())
   const deferredSearchQuery = useDeferredValue(searchQuery)
+  const summaryQuery = useLoansSummaryQuery()
   const clientsQuery = useLoanUsersByRoleQuery("client", {
     enabled: canCreateLoan(user) && createOpen,
   })
@@ -177,7 +180,7 @@ export default function LoansPage() {
     let result = loans
 
     if (statusFilter !== "all") {
-      result = result.filter((loan) => loan.status === statusFilter)
+      result = result.filter((loan) => normalizeStatusFilter(loan.status ?? "") === statusFilter)
     }
 
     const query = deferredSearchQuery.trim().toLowerCase()
@@ -224,14 +227,10 @@ export default function LoansPage() {
   )
 
   const loadLoans = useCallback(
-    async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
+    async () => {
       if (!session?.access_token) return
 
-      if (keepContent) {
-        setRefreshingList(true)
-      } else {
-        setLoadingList(true)
-      }
+      setLoadingList(true)
       setListError(null)
 
       try {
@@ -239,7 +238,7 @@ export default function LoansPage() {
         if (error) throw error
         if (!loansResult) return
 
-        rememberVisibleLoans(loansResult.loans, keepContent)
+        rememberVisibleLoans(loansResult.loans, true)
         setLoans(loansResult.loans)
 
         if (adminView === "advanced" && !activeLoanIdRef.current && loansResult.loans[0]) {
@@ -250,7 +249,6 @@ export default function LoansPage() {
         setListError(getErrorMessage(error, "No se pudieron cargar los préstamos."))
       } finally {
         setLoadingList(false)
-        setRefreshingList(false)
       }
     },
     [adminView, loansQuery, rememberVisibleLoans, session?.access_token],
@@ -265,7 +263,6 @@ export default function LoansPage() {
     setLoans(loansQuery.data.loans)
     setListError(null)
     setLoadingList(false)
-    setRefreshingList(false)
     listSyncedRef.current = true
 
     if (adminView === "advanced" && !activeLoanIdRef.current && loansQuery.data.loans[0]) {
@@ -279,7 +276,6 @@ export default function LoansPage() {
 
     setListError(getErrorMessage(loansQuery.error, "No se pudieron cargar los préstamos."))
     setLoadingList(false)
-    setRefreshingList(false)
   }, [loansQuery.error])
 
   useEffect(() => {
@@ -497,7 +493,7 @@ export default function LoansPage() {
         highlightLoanIds([createdLoan.id])
         handleSelectLoan(createdLoan)
       } else {
-        await loadLoans({ keepContent: true })
+        await loadLoans()
       }
     } catch (error) {
       toastManager.add({
@@ -532,7 +528,7 @@ export default function LoansPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.loans.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
       ])
-      await Promise.all([loadLoans({ keepContent: true }), loadDetail(visibleSelectedLoan.id, visibleSelectedLoan)])
+      await Promise.all([loadLoans(), loadDetail(visibleSelectedLoan.id, visibleSelectedLoan)])
     } catch (error) {
       toastManager.add({
         type: "error",
@@ -547,7 +543,7 @@ export default function LoansPage() {
   const refreshSelectedLoanData = useCallback(async () => {
     const id = detailLoanId ?? visibleSelectedLoan?.id
     if (!id) {
-      await loadLoans({ keepContent: true })
+      await loadLoans()
       return
     }
 
@@ -556,13 +552,14 @@ export default function LoansPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.loans.detail(queryScope, id) }),
     ])
     await Promise.all([
-      loadLoans({ keepContent: true }),
+      loadLoans(),
       loadDetail(id, visibleSelectedLoan, { silent: true }),
     ])
   }, [detailLoanId, loadDetail, loadLoans, queryClient, queryScope, visibleSelectedLoan])
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-5 px-3 py-4 md:px-8 md:py-8">
+    <div>
+      <div className="mx-auto flex max-w-7xl flex-col gap-5">
       <header className="flex items-start justify-between gap-3 border-b border-border pb-5">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -576,10 +573,6 @@ export default function LoansPage() {
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-2">
-          <RefreshButton
-            loading={loadingList || refreshingList}
-            onClick={() => void loadLoans({ keepContent: true })}
-          />
           {canCreateLoan(user) && (
             <Button className="max-sm:px-2" onClick={() => setCreateOpen(true)}>
               <PlusIcon data-icon="inline-start" />
@@ -588,6 +581,11 @@ export default function LoansPage() {
           )}
         </div>
       </header>
+
+      <LoanSummaryCard
+        summary={summaryQuery.data}
+        loading={summaryQuery.isFetching}
+      />
 
       {isAdminView ? (
         <Tabs value={adminView} onValueChange={setAdminView} className="gap-5">
@@ -611,7 +609,7 @@ export default function LoansPage() {
               listError={listError}
               emptyMessage={roleCopy.empty}
               perspective={role}
-              onRetryList={() => void loadLoans({ keepContent: true })}
+              onRetryList={() => void loadLoans()}
               onOpenLoan={handleOpenLoanDetail}
               onPageChange={setPage}
               onStatusFilterChange={handleStatusFilterChange}
@@ -635,7 +633,7 @@ export default function LoansPage() {
               detailError={detailError}
               canReview={canReviewLoan(visibleSelectedLoan, user)}
               basePath={basePath}
-              onRetryList={() => void loadLoans({ keepContent: true })}
+              onRetryList={() => void loadLoans()}
               onSelectLoan={handleSelectLoan}
               onPageChange={setPage}
               onStatusFilterChange={handleStatusFilterChange}
@@ -660,7 +658,7 @@ export default function LoansPage() {
           listError={listError}
           emptyMessage={roleCopy.empty}
           perspective={role}
-          onRetryList={() => void loadLoans({ keepContent: true })}
+          onRetryList={() => void loadLoans()}
           onOpenLoan={handleOpenLoanDetail}
           onPageChange={setPage}
           onStatusFilterChange={handleStatusFilterChange}
@@ -738,6 +736,7 @@ export default function LoansPage() {
         }}
         fetchUserById={(id) => fetchUserById(fetchWithAuth, id)}
       />
+    </div>
     </div>
   )
 }

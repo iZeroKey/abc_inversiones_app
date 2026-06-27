@@ -81,6 +81,12 @@ export type Loan = {
   investor?: RelatedUser | null;
   clientName?: string;
   investorName?: string;
+  name?: string | null;
+  nextInstallment?: {
+    dueDate: string;
+    amount: number;
+  } | null;
+  progress?: number;
 };
 
 export type LoanSummary = {
