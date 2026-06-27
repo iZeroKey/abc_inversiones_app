@@ -13,13 +13,13 @@ import { useEffect, useRef, useState } from "react"
 import iconAbc from "@/assets/icon-abc.png"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
-  ResponsiveSheetContent,
-  Sheet,
-  SheetDescription,
-  SheetHeader,
-  SheetPanel,
-  SheetTitle,
-} from "@/components/ui/responsive-sheet"
+  ResponsiveDrawer,
+  ResponsiveDrawerContent,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerTitle,
+  DrawerDescription,
+} from "@/components/ui/responsive-drawer"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -162,18 +162,18 @@ export function UserDetailSheet({
   const displayUser = loadedUser ?? user
 
   return (
-    <Sheet open={Boolean(user)} onOpenChange={onOpenChange}>
-      <ResponsiveSheetContent
+    <ResponsiveDrawer open={Boolean(user)} onOpenChange={onOpenChange}>
+      <ResponsiveDrawerContent
         contentKey={user?.id ?? "user-details"}
         defaultDesktopWidth={520}
         minDesktopWidth={420}
         maxDesktopWidth={720}
       >
-        <SheetHeader>
-          <SheetTitle>{getSheetTitle(user)}</SheetTitle>
-          <SheetDescription>Detalles de contacto y perfil del usuario.</SheetDescription>
-        </SheetHeader>
-        <SheetPanel className="space-y-5">
+        <DrawerHeader>
+          <DrawerTitle>{getSheetTitle(user)}</DrawerTitle>
+          <DrawerDescription>Detalles de contacto y perfil del usuario.</DrawerDescription>
+        </DrawerHeader>
+        <DrawerPanel className="space-y-5">
           {loading ? (
             <ProfileSkeleton />
           ) : displayUser ? (
@@ -218,8 +218,8 @@ export function UserDetailSheet({
               )}
             </>
           ) : null}
-        </SheetPanel>
-      </ResponsiveSheetContent>
-    </Sheet>
+        </DrawerPanel>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }

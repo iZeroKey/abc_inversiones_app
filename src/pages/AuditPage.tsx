@@ -44,13 +44,13 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import {
-  ResponsiveSheetContent,
-  Sheet,
-  SheetDescription,
-  SheetHeader,
-  SheetPanel,
-  SheetTitle,
-} from "@/components/ui/responsive-sheet"
+  ResponsiveDrawer,
+  ResponsiveDrawerContent,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerTitle,
+  DrawerDescription,
+} from "@/components/ui/responsive-drawer"
 import { UserDetailSheet } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
 import { getAuthQueryScope } from "@/features/loans/loan-queries"
@@ -953,20 +953,20 @@ function AuditDetailsSheet({
   const newData = log ? parseMaybeJson(log.newData) : null
 
   return (
-    <Sheet open={Boolean(log)} onOpenChange={onOpenChange}>
-      <ResponsiveSheetContent
+    <ResponsiveDrawer open={Boolean(log)} onOpenChange={onOpenChange}>
+      <ResponsiveDrawerContent
         contentKey={log?.id ?? "audit-details"}
         defaultDesktopWidth={760}
         minDesktopWidth={520}
         maxDesktopWidth={1040}
       >
-        <SheetHeader>
-          <SheetTitle>{log ? formatActionName(log.action) : "Detalles"}</SheetTitle>
-          <SheetDescription>
+        <DrawerHeader>
+          <DrawerTitle>{log ? formatActionName(log.action) : "Detalles"}</DrawerTitle>
+          <DrawerDescription>
             {log ? `${formatModuleName(log.module)} · ${formatAuditDate(log.createdAt)}` : ""}
-          </SheetDescription>
-        </SheetHeader>
-        <SheetPanel className="space-y-5">
+          </DrawerDescription>
+        </DrawerHeader>
+        <DrawerPanel className="space-y-5">
           {log ? (
             <>
               <section className="rounded-lg border bg-card p-4">
@@ -1014,9 +1014,9 @@ function AuditDetailsSheet({
               </section>
             </>
           ) : null}
-        </SheetPanel>
-      </ResponsiveSheetContent>
-    </Sheet>
+        </DrawerPanel>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }
 
