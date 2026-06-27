@@ -44,13 +44,14 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import {
-  ResponsiveDrawer,
-  ResponsiveDrawerContent,
+  Drawer,
+  DrawerPopup,
   DrawerHeader,
   DrawerPanel,
   DrawerTitle,
   DrawerDescription,
-} from "@/components/ui/responsive-drawer"
+} from "@/components/ui/drawer"
+import { useIsMobile } from "@/hooks/use-media-query"
 import { UserDetailSheet } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
 import { getAuthQueryScope } from "@/features/loans/loan-queries"
@@ -565,7 +566,7 @@ export default function AuditPage() {
               type="button"
               variant="ghost"
               size="sm"
-              className="-ml-2 h-auto max-w-64 justify-start px-2 py-1 text-left"
+               className="-ml-2 h-auto sm:h-auto max-w-64 justify-start px-2 py-1 text-left transition-colors"
               onClick={() => setSelectedUser(auditUser)}
             >
               <Avatar className="size-7">
@@ -949,16 +950,16 @@ function AuditDetailsSheet({
   log: AuditLog | null
   onOpenChange: (open: boolean) => void
 }) {
+  const isMobile = useIsMobile()
   const oldData = log ? parseMaybeJson(log.oldData) : null
   const newData = log ? parseMaybeJson(log.newData) : null
 
   return (
-    <ResponsiveDrawer open={Boolean(log)} onOpenChange={onOpenChange}>
-      <ResponsiveDrawerContent
-        contentKey={log?.id ?? "audit-details"}
-        defaultDesktopWidth={760}
-        minDesktopWidth={520}
-        maxDesktopWidth={1040}
+    <Drawer open={Boolean(log)} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+        style={!isMobile ? { width: 760, maxWidth: "min(1040px, calc(100vw - 2rem))", minWidth: 520 } : undefined}
       >
         <DrawerHeader>
           <DrawerTitle>{log ? formatActionName(log.action) : "Detalles"}</DrawerTitle>
@@ -1015,8 +1016,8 @@ function AuditDetailsSheet({
             </>
           ) : null}
         </DrawerPanel>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }
 

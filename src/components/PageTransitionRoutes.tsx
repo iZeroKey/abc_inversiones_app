@@ -66,7 +66,7 @@ export function PageTransitionRoutes({ children }: RoutesProps) {
 
   return (
     <div
-      key={transition.displayLocation.key}
+      key={transition.displayLocation.pathname}
       className={cn(
         "route-transition",
         `route-transition--${transition.stage}`,

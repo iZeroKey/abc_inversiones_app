@@ -25,7 +25,7 @@ export default function NotFoundPage() {
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button nativeButton={false} render={<Link to="/home" replace />}>
+          <Button render={<Link to="/home" replace />}>
             <HomeIcon data-icon="inline-start" />
             Ir al inicio
           </Button>

@@ -332,7 +332,7 @@ export default function LoginPage() {
   const { onChange: onPasswordChange, ...passwordRest } = register("password")
 
   return (
-    <ScrollArea className="h-svh w-full bg-linear-to-b from-[#09152E] via-[#192541] to-[#1F2A44]">
+    <ScrollArea fill className="h-svh w-full bg-linear-to-b from-[#09152E] via-[#192541] to-[#1F2A44]">
       <div className="flex min-h-full w-full flex-col items-center justify-center p-4 md:p-8">
         <div className="mb-10 w-full max-w-xs md:max-w-sm">
           <img

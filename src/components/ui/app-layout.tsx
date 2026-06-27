@@ -98,15 +98,15 @@ function AppLayoutContent({
   const location = useLocation()
   const navigate = useNavigate()
   const navigationType = useNavigationType()
-  const viewportRef = useRef<HTMLDivElement>(null)
   const previousLocationRef = useRef(location)
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (viewportRef.current) {
-        viewportRef.current.scrollTop = 0
+      const viewport = document.querySelector<HTMLDivElement>('[data-slot="scroll-area-viewport"]')
+      if (viewport) {
+        viewport.scrollTop = 0
       }
-    }, 140) // 140ms coincide con EXIT_DURATION_MS de PageTransitionRoutes
+    }, 140)
 
     return () => clearTimeout(timer)
   }, [location.pathname])
@@ -153,10 +153,7 @@ function AppLayoutContent({
           headerTitle={headerTitle}
         />
         <main className="flex-1 min-w-0 relative flex flex-col min-h-0">
-          <ScrollArea
-            viewportRef={viewportRef}
-            className="flex-1 min-h-0"
-          >
+          <ScrollArea className="flex-1 min-h-0">
             <div className={cn(isMobile ? "pb-28 px-4" : "")}>
               {children}
             </div>
