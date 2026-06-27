@@ -2,13 +2,13 @@ import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Label } from "@/components/ui/label"
 import {
-  ResponsiveSheetContent,
-  Sheet,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/responsive-sheet"
+  ResponsiveDrawer,
+  ResponsiveDrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/responsive-drawer"
 import { Spinner } from "@/components/ui/spinner"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
@@ -105,16 +105,16 @@ export function ChangePasswordDialog({ isOpen, onClose }: ChangePasswordDialogPr
   }
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => {
+    <ResponsiveDrawer historyMode="auto" open={isOpen} onOpenChange={(open) => {
       if (!open) handleClose()
     }}>
-      <ResponsiveSheetContent contentKey="change-password" defaultDesktopWidth={460} minDesktopWidth={380} maxDesktopWidth={640}>
-        <SheetHeader>
-          <SheetTitle>Cambiar Contraseña</SheetTitle>
-          <SheetDescription>
+      <ResponsiveDrawerContent contentKey="change-password" defaultDesktopWidth={460} minDesktopWidth={380} maxDesktopWidth={640}>
+        <DrawerHeader>
+          <DrawerTitle>Cambiar Contraseña</DrawerTitle>
+          <DrawerDescription>
             Ingresa tu contraseña actual y la nueva contraseña que deseas utilizar.
-          </SheetDescription>
-        </SheetHeader>
+          </DrawerDescription>
+        </DrawerHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 px-6 py-5">
           <div className="space-y-2">
@@ -190,7 +190,7 @@ export function ChangePasswordDialog({ isOpen, onClose }: ChangePasswordDialogPr
           </div>
         </div>
 
-          <SheetFooter variant="bare">
+          <DrawerFooter variant="bare">
             <Button type="button" variant="outline" onClick={handleClose} disabled={saving} className="w-full sm:w-auto">
               <XIcon data-icon="inline-start" />
               Cancelar
@@ -199,9 +199,9 @@ export function ChangePasswordDialog({ isOpen, onClose }: ChangePasswordDialogPr
               {saving ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
               Guardar Contraseña
             </Button>
-          </SheetFooter>
+          </DrawerFooter>
         </form>
-      </ResponsiveSheetContent>
-    </Sheet>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }
