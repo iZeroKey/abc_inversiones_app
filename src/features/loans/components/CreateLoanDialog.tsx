@@ -36,13 +36,13 @@ import {
 } from "@/components/ui/number-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
-  ResponsiveSheetContent,
-  Sheet,
-  SheetFooter,
-  SheetHeader,
-  SheetPanel,
-  SheetTitle,
-} from "@/components/ui/responsive-sheet"
+  ResponsiveDrawer,
+  ResponsiveDrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerTitle,
+} from "@/components/ui/responsive-drawer"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -191,14 +191,14 @@ export function CreateLoanDialog({
   }, [form])
 
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
-      <ResponsiveSheetContent contentKey="create-loan" defaultDesktopWidth={860} minDesktopWidth={620}>
-        <SheetHeader>
-          <SheetTitle>Nuevo préstamo</SheetTitle>
-        </SheetHeader>
+    <ResponsiveDrawer historyMode="auto" open={open} onOpenChange={handleOpenChange}>
+      <ResponsiveDrawerContent contentKey="create-loan" defaultDesktopWidth={860} minDesktopWidth={620}>
+        <DrawerHeader>
+          <DrawerTitle>Nuevo préstamo</DrawerTitle>
+        </DrawerHeader>
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
           <div className="min-h-0 flex-1">
-            <SheetPanel className="flex flex-col gap-4">
+            <DrawerPanel className="flex flex-col gap-4">
               <Fieldset className="flex flex-col gap-3">
                 <FieldsetLegend>Cliente e inversionista</FieldsetLegend>
                 <div className="grid gap-3 md:grid-cols-2">
@@ -329,9 +329,9 @@ export function CreateLoanDialog({
                 <FieldLabel htmlFor="loan-observation">Observación</FieldLabel>
                 <Textarea id="loan-observation" value={form.observation} onChange={(event) => update("observation", event.target.value)} placeholder="Notas internas para revisión..." />
               </Field>
-            </SheetPanel>
+            </DrawerPanel>
           </div>
-          <SheetFooter className="shrink-0">
+          <DrawerFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Cancelar
             </Button>
@@ -339,10 +339,10 @@ export function CreateLoanDialog({
               {creating ? <Spinner /> : <PlusIcon data-icon="inline-start" />}
               Crear préstamo
             </Button>
-          </SheetFooter>
+          </DrawerFooter>
         </form>
-      </ResponsiveSheetContent>
-    </Sheet>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }
 
