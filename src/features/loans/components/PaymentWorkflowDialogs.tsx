@@ -474,17 +474,17 @@ export function ProcessVoucherDialog({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <ResponsiveSheetContent contentKey={mode} defaultDesktopWidth={520} minDesktopWidth={420} maxDesktopWidth={720}>
-        <SheetHeader>
-          <SheetTitle>{mode === "approve" ? "Aprobar voucher" : "Rechazar voucher"}</SheetTitle>
-          <SheetDescription>
+    <ResponsiveDrawer historyMode="never" open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDrawerContent contentKey={mode} defaultDesktopWidth={520} minDesktopWidth={420} maxDesktopWidth={720}>
+        <DrawerHeader>
+          <DrawerTitle>{mode === "approve" ? "Aprobar voucher" : "Rechazar voucher"}</DrawerTitle>
+          <DrawerDescription>
             {voucher?.operationId ? `Operación ${voucher.operationId}` : "La decisión quedará registrada en auditoría."}
-          </SheetDescription>
-        </SheetHeader>
+          </DrawerDescription>
+        </DrawerHeader>
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <div className="min-h-0 flex-1">
-            <SheetPanel>
+            <DrawerPanel>
               <Field>
                 <FieldLabel htmlFor="process-observation">Observación</FieldLabel>
                 <Textarea
@@ -494,9 +494,9 @@ export function ProcessVoucherDialog({
                   placeholder={mode === "approve" ? "Comentario opcional" : "Motivo del rechazo"}
                 />
               </Field>
-            </SheetPanel>
+            </DrawerPanel>
           </div>
-          <SheetFooter className="shrink-0">
+          <DrawerFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
@@ -504,10 +504,10 @@ export function ProcessVoucherDialog({
               {submitting ? <Spinner /> : mode === "approve" ? <CheckIcon data-icon="inline-start" /> : <XIcon data-icon="inline-start" />}
               {mode === "approve" ? "Aprobar" : "Rechazar"}
             </Button>
-          </SheetFooter>
+          </DrawerFooter>
         </form>
-      </ResponsiveSheetContent>
-    </Sheet>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }
 
@@ -527,14 +527,14 @@ export function DeleteWorkflowDialog({
   onConfirm: () => void
 }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <ResponsiveSheetContent contentKey={title} defaultDesktopWidth={480} minDesktopWidth={380} maxDesktopWidth={640}>
-        <SheetHeader>
-          <SheetTitle>{title}</SheetTitle>
-          <SheetDescription>{description}</SheetDescription>
-        </SheetHeader>
+    <ResponsiveDrawer historyMode="never" open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDrawerContent contentKey={title} defaultDesktopWidth={480} minDesktopWidth={380} maxDesktopWidth={640}>
+        <DrawerHeader>
+          <DrawerTitle>{title}</DrawerTitle>
+          <DrawerDescription>{description}</DrawerDescription>
+        </DrawerHeader>
         <div className="min-h-0 flex-1" />
-        <SheetFooter className="shrink-0">
+        <DrawerFooter className="shrink-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
@@ -542,9 +542,9 @@ export function DeleteWorkflowDialog({
             {submitting ? <Spinner /> : <Trash2Icon data-icon="inline-start" />}
             Eliminar
           </Button>
-        </SheetFooter>
-      </ResponsiveSheetContent>
-    </Sheet>
+        </DrawerFooter>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }
 
