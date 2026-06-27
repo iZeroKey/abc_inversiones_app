@@ -1,8 +1,6 @@
 export const homePath = "/home"
 
 const routeBackTargets = [
-  { prefix: "/investments/", target: "/investments" },
-  { prefix: "/loans/", target: "/loans" },
   { prefix: "/requests", target: "/users" },
 ]
 

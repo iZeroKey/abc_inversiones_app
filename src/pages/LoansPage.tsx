@@ -2,7 +2,7 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { PlusIcon } from "lucide-react"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
-import { useLocation, useNavigate, useParams } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -12,6 +12,13 @@ import { useAuth } from "@/contexts/auth-context"
 import { AdminLoansOperationsPanel } from "@/features/loans/components/AdminLoansOperationsPanel"
 import { CreateLoanDialog } from "@/features/loans/components/CreateLoanDialog"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
+import {
+  ResponsiveDrawer,
+  ResponsiveDrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/responsive-drawer"
+import { useDrawerQueryParam } from "@/hooks/use-drawer-query-param"
 import { LoansListPanel, RefreshButton } from "@/features/loans/components/LoansListPanel"
 import { ReviewLoanDialog } from "@/features/loans/components/ReviewLoanDialog"
 import { PAGE_SIZE } from "@/features/loans/loan-constants"
@@ -68,7 +75,8 @@ export default function LoansPage() {
   const queryClient = useQueryClient()
   const queryScope = useMemo(() => getAuthQueryScope(user), [user])
   const loansQuery = useLoansQuery()
-  const { loanId } = useParams()
+  const detailDrawer = useDrawerQueryParam("detail")
+  const loanId = detailDrawer.value
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -77,7 +85,7 @@ export default function LoansPage() {
   const basePath = location.pathname.startsWith("/investments") ? "/investments" : "/loans"
   const routeState = location.state as { adminView?: string } | null
   const pageTitle = basePath === "/investments" ? "Inversiones" : roleCopy.title
-  const isDetailRoute = Boolean(loanId)
+  const isDetailOpen = detailDrawer.isOpen
 
   const [loans, setLoans] = useState<Loan[]>([])
   const [page, setPage] = useState(1)
@@ -362,11 +370,11 @@ export default function LoansPage() {
   }, [detailLoanId, detailQuery.error])
 
   useEffect(() => {
-    if (adminView !== "advanced" || isDetailRoute || activeLoanIdRef.current || !loans[0]) return
+    if (adminView !== "advanced" || isDetailOpen || activeLoanIdRef.current || !loans[0]) return
 
     activeLoanIdRef.current = loans[0].id
     setManualSelectedLoanId(loans[0].id)
-  }, [adminView, isDetailRoute, loans])
+  }, [adminView, isDetailOpen, loans])
 
   useEffect(() => {
     if (!createOpen || !canCreateLoan(user)) return
@@ -397,7 +405,8 @@ export default function LoansPage() {
 
   const handleOpenLoanDetail = (loan: Loan) => {
     const routeId = loan.publicCode || loan.id
-    navigate(`${basePath}/${routeId}`, { state: { appBackTarget: basePath } })
+    handleSelectLoan(loan)
+    detailDrawer.open(routeId)
   }
 
   const handleStatusFilterChange = (nextStatus: "all" | LoanStatus) => {
@@ -574,22 +583,7 @@ export default function LoansPage() {
         </div>
       </header>
 
-      {isDetailRoute ? (
-        <LoanDetailRoute
-          selectedLoan={visibleSelectedLoan}
-          relatedData={visibleRelatedData}
-          loadingDetail={detailLoadingVisible || (loadingList && !visibleSelectedLoan)}
-          detailError={detailError}
-          canReview={canReviewLoan(visibleSelectedLoan, user)}
-          basePath={basePath}
-          perspective={role}
-          onApprove={() => setReviewDialog("approve")}
-          onReject={() => setReviewDialog("reject")}
-          onRetryDetail={() => detailLoanId && void loadDetail(detailLoanId, visibleSelectedLoan)}
-          onDataChanged={refreshSelectedLoanData}
-          onUserClick={setSelectedUserForSheet}
-        />
-      ) : isAdminView ? (
+      {isAdminView ? (
         <Tabs value={adminView} onValueChange={setAdminView} className="gap-5">
           <TabsList className="w-full overflow-x-auto md:w-fit">
             <TabsTrigger value="simple" className="flex-1 md:flex-none">
@@ -668,6 +662,44 @@ export default function LoansPage() {
         />
       )}
 
+      <ResponsiveDrawer
+        open={isDetailOpen}
+        onOpenChange={(open) => {
+          if (!open) detailDrawer.close()
+        }}
+        position={"bottom"}
+      >
+        <ResponsiveDrawerContent
+          contentKey={loanId}
+          defaultDesktopWidth={760}
+          minDesktopWidth={560}
+          maxDesktopWidth={1080}
+        >
+          <DrawerHeader>
+            <DrawerTitle className="text-lg font-semibold">
+              Detalle del préstamo
+            </DrawerTitle>
+          </DrawerHeader>
+          <DrawerPanel className="overflow-y-auto">
+            <LoanDetailPanel
+              loan={visibleSelectedLoan}
+              relatedData={visibleRelatedData}
+              loading={detailLoadingVisible || (loadingList && !visibleSelectedLoan)}
+              error={detailError}
+              canReview={canReviewLoan(visibleSelectedLoan, user)}
+              basePath={basePath}
+              perspective={role}
+              onApprove={() => setReviewDialog("approve")}
+              onReject={() => setReviewDialog("reject")}
+              onRetry={() => detailLoanId && void loadDetail(detailLoanId, visibleSelectedLoan)}
+              onDataChanged={refreshSelectedLoanData}
+              sticky={false}
+              onUserClick={setSelectedUserForSheet}
+            />
+          </DrawerPanel>
+        </ResponsiveDrawerContent>
+      </ResponsiveDrawer>
+
       <CreateLoanDialog
         open={createOpen}
         form={loanForm}
@@ -700,54 +732,6 @@ export default function LoansPage() {
         fetchUserById={(id) => fetchUserById(fetchWithAuth, id)}
       />
     </div>
-  )
-}
-
-function LoanDetailRoute({
-  selectedLoan,
-  relatedData,
-  loadingDetail,
-  detailError,
-  canReview,
-  basePath,
-  perspective,
-  onApprove,
-  onReject,
-  onRetryDetail,
-  onDataChanged,
-  onUserClick,
-}: {
-  selectedLoan: Loan | null
-  relatedData: RelatedData
-  loadingDetail: boolean
-  detailError: string | null
-  canReview: boolean
-  basePath: string
-  perspective: "admin" | "client" | "investor"
-  onApprove: () => void
-  onReject: () => void
-  onRetryDetail: () => void
-  onDataChanged: () => Promise<void> | void
-  onUserClick?: (user: UserDetailProfile) => void
-}) {
-  return (
-    <section className="mx-auto w-full max-w-7xl">
-      <LoanDetailPanel
-        loan={selectedLoan}
-        relatedData={relatedData}
-        loading={loadingDetail}
-        error={detailError}
-        canReview={canReview}
-        basePath={basePath}
-        perspective={perspective}
-        onApprove={onApprove}
-        onReject={onReject}
-        onRetry={onRetryDetail}
-        onDataChanged={onDataChanged}
-        sticky={false}
-        onUserClick={onUserClick}
-      />
-    </section>
   )
 }
 

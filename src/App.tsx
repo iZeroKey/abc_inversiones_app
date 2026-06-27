@@ -57,9 +57,7 @@ function ProtectedAppRoutes() {
         <PageTransitionRoutes>
           <Route path="home" element={<RouteChunk><HomePage /></RouteChunk>} />
           <Route path="loans" element={<RouteChunk><LoansPage /></RouteChunk>} />
-          <Route path="loans/:loanId" element={<RouteChunk><LoansPage /></RouteChunk>} />
           <Route path="investments" element={<RouteChunk><LoansPage /></RouteChunk>} />
-          <Route path="investments/:loanId" element={<RouteChunk><LoansPage /></RouteChunk>} />
           <Route path="users" element={<RouteChunk><UsersPage /></RouteChunk>} />
           <Route path="requests" element={<RouteChunk><UsersPage initialTab="requests" /></RouteChunk>} />
           <Route path="audit" element={<RouteChunk><AuditPage /></RouteChunk>} />
