@@ -2,13 +2,14 @@ import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Label } from "@/components/ui/label"
 import {
-  ResponsiveDrawer,
-  ResponsiveDrawerContent,
+  Drawer,
+  DrawerPopup,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
-} from "@/components/ui/responsive-drawer"
+} from "@/components/ui/drawer"
+import { useIsMobile } from "@/hooks/use-media-query"
 import { Spinner } from "@/components/ui/spinner"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
@@ -39,6 +40,7 @@ export function ChangePasswordDialog({ isOpen, onClose }: ChangePasswordDialogPr
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const isMobile = useIsMobile()
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -105,10 +107,14 @@ export function ChangePasswordDialog({ isOpen, onClose }: ChangePasswordDialogPr
   }
 
   return (
-    <ResponsiveDrawer historyMode="auto" open={isOpen} onOpenChange={(open) => {
+    <Drawer open={isOpen} onOpenChange={(open) => {
       if (!open) handleClose()
-    }}>
-      <ResponsiveDrawerContent contentKey="change-password" defaultDesktopWidth={460} minDesktopWidth={380} maxDesktopWidth={640}>
+    }} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+        style={!isMobile ? { width: 460, maxWidth: "min(640px, calc(100vw - 2rem))", minWidth: 380 } : undefined}
+      >
         <DrawerHeader>
           <DrawerTitle>Cambiar Contraseña</DrawerTitle>
           <DrawerDescription>
@@ -201,7 +207,7 @@ export function ChangePasswordDialog({ isOpen, onClose }: ChangePasswordDialogPr
             </Button>
           </DrawerFooter>
         </form>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }

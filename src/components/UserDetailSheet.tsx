@@ -13,15 +13,16 @@ import { useEffect, useRef, useState } from "react"
 import iconAbc from "@/assets/icon-abc.png"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
-  ResponsiveDrawer,
-  ResponsiveDrawerContent,
+  Drawer,
+  DrawerPopup,
   DrawerHeader,
   DrawerPanel,
   DrawerTitle,
   DrawerDescription,
-} from "@/components/ui/responsive-drawer"
+} from "@/components/ui/drawer"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useIsMobile } from "@/hooks/use-media-query"
 
 export type UserDetailProfile = {
   id: string
@@ -129,6 +130,7 @@ export function UserDetailSheet({
   const [loading, setLoading] = useState(false)
   const fetchedIdRef = useRef<string | null>(null)
   const [prevUserId, setPrevUserId] = useState<string | null>(null)
+  const isMobile = useIsMobile()
 
   // Sync state with props during render
   const currentUserId = user?.id ?? null
@@ -162,12 +164,11 @@ export function UserDetailSheet({
   const displayUser = loadedUser ?? user
 
   return (
-    <ResponsiveDrawer open={Boolean(user)} onOpenChange={onOpenChange}>
-      <ResponsiveDrawerContent
-        contentKey={user?.id ?? "user-details"}
-        defaultDesktopWidth={520}
-        minDesktopWidth={420}
-        maxDesktopWidth={720}
+    <Drawer open={Boolean(user)} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+        style={!isMobile ? { width: 520, maxWidth: "min(720px, calc(100vw - 2rem))", minWidth: 420 } : undefined}
       >
         <DrawerHeader>
           <DrawerTitle>{getSheetTitle(user)}</DrawerTitle>
@@ -219,7 +220,7 @@ export function UserDetailSheet({
             </>
           ) : null}
         </DrawerPanel>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }

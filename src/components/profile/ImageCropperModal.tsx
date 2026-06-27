@@ -1,13 +1,15 @@
 import { Button } from "@/components/ui/button"
 import {
-  ResponsiveDrawer,
-  ResponsiveDrawerContent,
+  Drawer,
+  DrawerPopup,
   DrawerDescription,
   DrawerHeader,
   DrawerTitle,
-} from "@/components/ui/responsive-drawer"
+} from "@/components/ui/drawer"
+import { useIsMobile } from "@/hooks/use-media-query"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Slider } from "@/components/ui/slider"
+import { cn } from "@/lib/utils"
 import { CheckIcon, XIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CircleStencil, FixedCropper, ImageRestriction, Priority, type CropperState, type FixedCropperRef } from "react-advanced-cropper"
@@ -79,6 +81,7 @@ const canvasToJpegBlob = (canvas: HTMLCanvasElement) =>
 const clampZoom = (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value))
 
 export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: ImageCropperModalProps) {
+  const isMobile = useIsMobile()
   const cropperRef = useRef<FixedCropperRef>(null)
   const zoomRef = useRef(MIN_ZOOM)
   const [zoom, setZoom] = useState(MIN_ZOOM)
@@ -203,14 +206,16 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
   }
 
   return (
-    <ResponsiveDrawer historyMode="never" open={isOpen} onOpenChange={(open) => {
+    <Drawer open={isOpen} onOpenChange={(open) => {
       if (!open) onClose()
-    }}>
-      <ResponsiveDrawerContent
-        className="gap-0 overflow-hidden p-0"
-        contentKey={image ?? "avatar-cropper"}
-        defaultDesktopWidth={460}
-        resizable={false}
+    }} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={cn(
+          isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : "",
+          "gap-0 overflow-hidden p-0",
+        )}
+        style={!isMobile ? { width: 460 } : undefined}
       >
         <DrawerHeader className="shrink-0 border-b bg-background px-6 py-4">
           <DrawerTitle className="text-xl">Ajustar Foto de Perfil</DrawerTitle>
@@ -326,7 +331,7 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
             </div>
           </div>
         </ScrollArea>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }

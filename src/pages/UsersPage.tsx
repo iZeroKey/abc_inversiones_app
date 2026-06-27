@@ -58,14 +58,15 @@ import {
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import {
-  ResponsiveDrawer,
-  ResponsiveDrawerContent,
+  Drawer,
+  DrawerPopup,
   DrawerHeader,
   DrawerPanel,
   DrawerTitle,
   DrawerDescription,
   DrawerFooter,
-} from "@/components/ui/responsive-drawer"
+} from "@/components/ui/drawer"
+import { useIsMobile } from "@/hooks/use-media-query"
 import {
   Select,
   SelectContent,
@@ -1882,13 +1883,17 @@ function UserDialog({
     })
   }
 
+  const isMobile = useIsMobile()
+
   return (
-    <ResponsiveDrawer historyMode="auto" open={open} onOpenChange={onOpenChange}>
-      <ResponsiveDrawerContent
-        className="overflow-hidden"
-        contentKey={isEditing ? `edit-${editingUser?.id}` : "create-user"}
-        defaultDesktopWidth={860}
-        minDesktopWidth={620}
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={cn(
+          isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : "",
+          "overflow-hidden",
+        )}
+        style={!isMobile ? { width: 860, minWidth: 620 } : undefined}
       >
         <DrawerHeader>
           <DrawerTitle>{title}</DrawerTitle>
@@ -2238,8 +2243,8 @@ function UserDialog({
             {saving ? "Guardando..." : "Guardar"}
           </Button>
         </DrawerFooter>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }
 
@@ -2275,13 +2280,14 @@ function LinkAuthDialog({
     })
   }
 
+  const isMobile = useIsMobile()
+
   return (
-    <ResponsiveDrawer historyMode="never" open={open} onOpenChange={onOpenChange}>
-      <ResponsiveDrawerContent
-        contentKey={`link-${user.id}`}
-        defaultDesktopWidth={520}
-        minDesktopWidth={420}
-        maxDesktopWidth={720}
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+        style={!isMobile ? { width: 520, maxWidth: "min(720px, calc(100vw - 2rem))", minWidth: 420 } : undefined}
       >
         <DrawerHeader>
           <DrawerTitle>Vincular cuenta de acceso</DrawerTitle>
@@ -2356,8 +2362,8 @@ function LinkAuthDialog({
             {saving ? "Vinculando..." : "Vincular acceso"}
           </Button>
         </DrawerFooter>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }
 
@@ -2487,14 +2493,14 @@ function RequestDetailSheet({
   if (!request) return null
 
   const pending = Boolean(request && isPendingRequest(request.status))
+  const isMobile = useIsMobile()
 
   return (
-    <ResponsiveDrawer open={Boolean(request)} onOpenChange={onOpenChange}>
-      <ResponsiveDrawerContent
-        contentKey={`request-${request.id}`}
-        defaultDesktopWidth={620}
-        minDesktopWidth={460}
-        maxDesktopWidth={840}
+    <Drawer open={Boolean(request)} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+        style={!isMobile ? { width: 620, maxWidth: "min(840px, calc(100vw - 2rem))", minWidth: 460 } : undefined}
       >
         <DrawerHeader>
           <DrawerTitle>Detalle de solicitud</DrawerTitle>
@@ -2558,8 +2564,8 @@ function RequestDetailSheet({
             </div>
           )}
         </DrawerPanel>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }
 
@@ -2600,14 +2606,14 @@ function ReviewRequestDialog({
   if (!request || !action) return null
 
   const approving = action === "approved"
+  const isMobile = useIsMobile()
 
   return (
-    <ResponsiveDrawer historyMode="never" open={Boolean(request && action)} onOpenChange={onOpenChange}>
-      <ResponsiveDrawerContent
-        contentKey={`${request.id}-${action}`}
-        defaultDesktopWidth={520}
-        minDesktopWidth={420}
-        maxDesktopWidth={720}
+    <Drawer open={Boolean(request && action)} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+        style={!isMobile ? { width: 520, maxWidth: "min(720px, calc(100vw - 2rem))", minWidth: 420 } : undefined}
       >
         <DrawerHeader>
           <DrawerTitle>{approving ? "Aprobar solicitud" : "Rechazar solicitud"}</DrawerTitle>
@@ -2686,8 +2692,8 @@ function ReviewRequestDialog({
             {submitting ? "Procesando..." : approving ? "Aprobar" : "Rechazar"}
           </Button>
         </DrawerFooter>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }
 
