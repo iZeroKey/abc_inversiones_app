@@ -26,14 +26,14 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Progress } from "@/components/ui/progress"
 import {
-  ResponsiveSheetContent,
-  Sheet,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetPanel,
-  SheetTitle,
-} from "@/components/ui/responsive-sheet"
+  ResponsiveDrawer,
+  ResponsiveDrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerTitle,
+} from "@/components/ui/responsive-drawer"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -140,16 +140,16 @@ export function PaymentDialog({
   const content = (
     <>
         {!isPanel && (
-          <SheetHeader className={cn(isPanel && "p-0 pb-4")}>
-            <SheetTitle>{editing ? "Editar pago" : "Registrar pago"}</SheetTitle>
-            <SheetDescription>
+          <DrawerHeader className={cn(isPanel && "p-0 pb-4")}>
+            <DrawerTitle>{editing ? "Editar pago" : "Registrar pago"}</DrawerTitle>
+            <DrawerDescription>
               El sistema aplicará el monto al cronograma y recalculará el préstamo.
-            </SheetDescription>
-          </SheetHeader>
+            </DrawerDescription>
+          </DrawerHeader>
         )}
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <div className="min-h-0 flex-1">
-            <SheetPanel className={cn("flex flex-col gap-4", isPanel && "p-0")}>
+            <DrawerPanel className={cn("flex flex-col gap-4", isPanel && "p-0")}>
               {!editing && (
                 <EvidenceSection
                   file={form.evidence}
@@ -260,9 +260,9 @@ export function PaymentDialog({
                   placeholder="Detalle administrativo opcional"
                 />
               </Field>
-            </SheetPanel>
+            </DrawerPanel>
           </div>
-          <SheetFooter
+          <DrawerFooter
             variant={isPanel ? "bare" : "default"}
             className={cn("shrink-0", isPanel && "mt-4 border-t bg-transparent px-0 pb-0 pt-4")}
           >
@@ -273,7 +273,7 @@ export function PaymentDialog({
               {submitting ? <Spinner /> : <ReceiptTextIcon data-icon="inline-start" />}
               {editing ? "Guardar pago" : "Registrar pago"}
             </Button>
-          </SheetFooter>
+          </DrawerFooter>
         </form>
     </>
   )
@@ -283,11 +283,11 @@ export function PaymentDialog({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <ResponsiveSheetContent contentKey={editing ? "payment-edit" : "payment-create"} defaultDesktopWidth={620}>
+    <ResponsiveDrawer historyMode="auto" open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDrawerContent contentKey={editing ? "payment-edit" : "payment-create"} defaultDesktopWidth={620}>
         {content}
-      </ResponsiveSheetContent>
-    </Sheet>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }
 
@@ -347,17 +347,17 @@ export function VoucherDialog({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <ResponsiveSheetContent contentKey={editing ? "voucher-edit" : "voucher-create"} defaultDesktopWidth={720} minDesktopWidth={520}>
-        <SheetHeader>
-          <SheetTitle>{editing ? "Editar voucher" : "Subir voucher"}</SheetTitle>
-          <SheetDescription>
+    <ResponsiveDrawer historyMode="auto" open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDrawerContent contentKey={editing ? "voucher-edit" : "voucher-create"} defaultDesktopWidth={720} minDesktopWidth={520}>
+        <DrawerHeader>
+          <DrawerTitle>{editing ? "Editar voucher" : "Subir voucher"}</DrawerTitle>
+          <DrawerDescription>
             Confirma los datos del comprobante antes de enviarlo a revisión.
-          </SheetDescription>
-        </SheetHeader>
+          </DrawerDescription>
+        </DrawerHeader>
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <div className="min-h-0 flex-1">
-            <SheetPanel className="flex flex-col gap-4">
+            <DrawerPanel className="flex flex-col gap-4">
               {!editing && (
                 <EvidenceSection
                   file={form.evidence}
@@ -434,9 +434,9 @@ export function VoucherDialog({
                   placeholder="Comentario opcional para revisión"
                 />
               </Field>
-            </SheetPanel>
+            </DrawerPanel>
           </div>
-          <SheetFooter className="shrink-0">
+          <DrawerFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
@@ -444,10 +444,10 @@ export function VoucherDialog({
               {submitting ? <Spinner /> : <UploadIcon data-icon="inline-start" />}
               {editing ? "Guardar voucher" : "Enviar voucher"}
             </Button>
-          </SheetFooter>
+          </DrawerFooter>
         </form>
-      </ResponsiveSheetContent>
-    </Sheet>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }
 
