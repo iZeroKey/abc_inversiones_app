@@ -64,16 +64,8 @@ import {
   DrawerPanel,
   DrawerTitle,
   DrawerDescription,
+  DrawerFooter,
 } from "@/components/ui/responsive-drawer"
-import {
-  ResponsiveSheetContent,
-  Sheet,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetPanel,
-  SheetTitle,
-} from "@/components/ui/responsive-sheet"
 import {
   Select,
   SelectContent,
@@ -2284,21 +2276,21 @@ function LinkAuthDialog({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <ResponsiveSheetContent
+    <ResponsiveDrawer historyMode="never" open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDrawerContent
         contentKey={`link-${user.id}`}
         defaultDesktopWidth={520}
         minDesktopWidth={420}
         maxDesktopWidth={720}
       >
-        <SheetHeader>
-          <SheetTitle>Vincular cuenta de acceso</SheetTitle>
-          <SheetDescription>
+        <DrawerHeader>
+          <DrawerTitle>Vincular cuenta de acceso</DrawerTitle>
+          <DrawerDescription>
             {displayPersonName(user)} podrá iniciar sesión con el correo y contraseña temporal.
-          </SheetDescription>
-        </SheetHeader>
+          </DrawerDescription>
+        </DrawerHeader>
 
-        <SheetPanel className="pt-4 max-sm:pt-4">
+        <DrawerPanel className="pt-4 max-sm:pt-4">
           <form id="link-auth-form" className="flex flex-col gap-4" onSubmit={onSubmit}>
             <Field>
               <FieldLabel htmlFor="link-email">Correo electrónico</FieldLabel>
@@ -2353,9 +2345,9 @@ function LinkAuthDialog({
               </InputGroup>
             </Field>
           </form>
-        </SheetPanel>
+        </DrawerPanel>
 
-        <SheetFooter>
+        <DrawerFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
@@ -2363,9 +2355,9 @@ function LinkAuthDialog({
             {saving ? <Spinner data-icon="inline-start" /> : <LinkIcon data-icon="inline-start" />}
             {saving ? "Vinculando..." : "Vincular acceso"}
           </Button>
-        </SheetFooter>
-      </ResponsiveSheetContent>
-    </Sheet>
+        </DrawerFooter>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }
 
@@ -2610,23 +2602,23 @@ function ReviewRequestDialog({
   const approving = action === "approved"
 
   return (
-    <Sheet open={Boolean(request && action)} onOpenChange={onOpenChange}>
-      <ResponsiveSheetContent
+    <ResponsiveDrawer historyMode="never" open={Boolean(request && action)} onOpenChange={onOpenChange}>
+      <ResponsiveDrawerContent
         contentKey={`${request.id}-${action}`}
         defaultDesktopWidth={520}
         minDesktopWidth={420}
         maxDesktopWidth={720}
       >
-        <SheetHeader>
-          <SheetTitle>{approving ? "Aprobar solicitud" : "Rechazar solicitud"}</SheetTitle>
-          <SheetDescription>
+        <DrawerHeader>
+          <DrawerTitle>{approving ? "Aprobar solicitud" : "Rechazar solicitud"}</DrawerTitle>
+          <DrawerDescription>
             {request
               ? `${displayPersonName(request)} solicitó acceso como ${getRoleLabel(request.roleRequested).toLowerCase()}.`
               : "Revisa la solicitud seleccionada."}
-          </SheetDescription>
-        </SheetHeader>
+          </DrawerDescription>
+        </DrawerHeader>
 
-        <SheetPanel className="pt-4 max-sm:pt-4">
+        <DrawerPanel className="pt-4 max-sm:pt-4">
           <div className="flex flex-col gap-4">
             {approving && (
               <Field>
@@ -2672,9 +2664,9 @@ function ReviewRequestDialog({
             />
             </Field>
           </div>
-        </SheetPanel>
+        </DrawerPanel>
 
-        <SheetFooter>
+        <DrawerFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancelar
           </Button>
@@ -2693,9 +2685,9 @@ function ReviewRequestDialog({
             )}
             {submitting ? "Procesando..." : approving ? "Aprobar" : "Rechazar"}
           </Button>
-        </SheetFooter>
-      </ResponsiveSheetContent>
-    </Sheet>
+        </DrawerFooter>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }
 

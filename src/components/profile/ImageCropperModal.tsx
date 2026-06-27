@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button"
 import {
-  ResponsiveSheetContent,
-  Sheet,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/responsive-sheet"
+  ResponsiveDrawer,
+  ResponsiveDrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/responsive-drawer"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Slider } from "@/components/ui/slider"
 import { CheckIcon, XIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react"
@@ -203,21 +203,21 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
   }
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => {
+    <ResponsiveDrawer historyMode="never" open={isOpen} onOpenChange={(open) => {
       if (!open) onClose()
     }}>
-      <ResponsiveSheetContent
+      <ResponsiveDrawerContent
         className="gap-0 overflow-hidden p-0"
         contentKey={image ?? "avatar-cropper"}
         defaultDesktopWidth={460}
         resizable={false}
       >
-        <SheetHeader className="shrink-0 border-b bg-background px-6 py-4">
-          <SheetTitle className="text-xl">Ajustar Foto de Perfil</SheetTitle>
-          <SheetDescription>
+        <DrawerHeader className="shrink-0 border-b bg-background px-6 py-4">
+          <DrawerTitle className="text-xl">Ajustar Foto de Perfil</DrawerTitle>
+          <DrawerDescription>
             Encuadra tu rostro perfectamente para el avatar
-          </SheetDescription>
-        </SheetHeader>
+          </DrawerDescription>
+        </DrawerHeader>
 
         <ScrollArea className="flex-1 min-h-0 bg-background">
           <div className="flex flex-col min-h-0">
@@ -326,7 +326,7 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
             </div>
           </div>
         </ScrollArea>
-      </ResponsiveSheetContent>
-    </Sheet>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }

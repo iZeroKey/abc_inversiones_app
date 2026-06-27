@@ -30,13 +30,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
-  ResponsiveSheetContent,
-  Sheet,
-  SheetDescription,
-  SheetHeader,
-  SheetPanel,
-  SheetTitle,
-} from "@/components/ui/responsive-sheet"
+  ResponsiveDrawer,
+  ResponsiveDrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerTitle,
+} from "@/components/ui/responsive-drawer"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toastManager } from "@/components/ui/toast"
@@ -842,20 +842,19 @@ export function AdminLoansOperationsPanel({
         />
       )}
 
-      <Sheet open={detailOpen} onOpenChange={(open) => {
+      <ResponsiveDrawer open={detailOpen} onOpenChange={(open) => {
         setDetailOpen(open)
         if (!open) {
           setSheetSubView(null)
         }
       }}>
-        <ResponsiveSheetContent
+        <ResponsiveDrawerContent
           contentKey={selectedLoan ? selectedLoan.id : "loan-detail"}
           defaultDesktopWidth={760}
           minDesktopWidth={560}
           maxDesktopWidth={1080}
-          showCloseButton
         >
-          <SheetHeader>
+          <DrawerHeader>
             <div className="flex items-center gap-3 pr-8">
               {sheetSubView && (
                 <Button
@@ -873,22 +872,22 @@ export function AdminLoansOperationsPanel({
                 </Button>
               )}
               <div className="min-w-0 flex-1">
-                <SheetTitle>
+                <DrawerTitle>
                   {sheetSubView === "payment-create"
                     ? "Registrar pago"
                     : sheetSubView === "payment-edit"
                       ? "Editar pago"
                       : "Detalle operativo"}
-                </SheetTitle>
-                <SheetDescription>
+                </DrawerTitle>
+                <DrawerDescription>
                   {sheetSubView
                     ? "El sistema aplicará el monto al cronograma y recalculará el préstamo."
                     : "Revisa cronograma, pagos, vouchers y acciones del préstamo seleccionado."}
-                </SheetDescription>
+                </DrawerDescription>
               </div>
             </div>
-          </SheetHeader>
-          <SheetPanel className="px-4 pb-4 pt-2 sm:px-5 sm:pb-5">
+          </DrawerHeader>
+          <DrawerPanel className="px-4 pb-4 pt-2 sm:px-5 sm:pb-5">
             <LoanDetailPanel
               loan={selectedLoan}
               relatedData={relatedData}
@@ -907,9 +906,9 @@ export function AdminLoansOperationsPanel({
               resetTrigger={resetTrigger}
               onUserClick={onUserClick}
             />
-          </SheetPanel>
-        </ResponsiveSheetContent>
-      </Sheet>
+          </DrawerPanel>
+        </ResponsiveDrawerContent>
+      </ResponsiveDrawer>
     </section>
   )
 }
