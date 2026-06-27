@@ -1891,23 +1891,23 @@ function UserDialog({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <ResponsiveSheetContent
+    <ResponsiveDrawer historyMode="auto" open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDrawerContent
         className="overflow-hidden"
         contentKey={isEditing ? `edit-${editingUser?.id}` : "create-user"}
         defaultDesktopWidth={860}
         minDesktopWidth={620}
       >
-        <SheetHeader>
-          <SheetTitle>{title}</SheetTitle>
-          <SheetDescription>
+        <DrawerHeader>
+          <DrawerTitle>{title}</DrawerTitle>
+          <DrawerDescription>
             {isEditing
               ? "Actualiza datos operativos y campos administrativos permitidos. El rol no se puede modificar."
               : "Crea clientes, inversionistas o administradores según las reglas de acceso actuales."}
-          </SheetDescription>
-        </SheetHeader>
+          </DrawerDescription>
+        </DrawerHeader>
 
-        <SheetPanel className="pt-4 max-sm:pt-4">
+        <DrawerPanel className="pt-4 max-sm:pt-4">
           <form
             id="user-form"
             className="flex flex-col gap-4"
@@ -2235,9 +2235,9 @@ function UserDialog({
               </div>
             )}
           </form>
-        </SheetPanel>
+        </DrawerPanel>
 
-        <SheetFooter>
+        <DrawerFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
@@ -2245,9 +2245,9 @@ function UserDialog({
             {saving ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
             {saving ? "Guardando..." : "Guardar"}
           </Button>
-        </SheetFooter>
-      </ResponsiveSheetContent>
-    </Sheet>
+        </DrawerFooter>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }
 
