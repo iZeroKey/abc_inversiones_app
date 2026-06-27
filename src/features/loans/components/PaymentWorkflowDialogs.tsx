@@ -26,14 +26,15 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Progress } from "@/components/ui/progress"
 import {
-  ResponsiveDrawer,
-  ResponsiveDrawerContent,
+  Drawer,
+  DrawerPopup,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerPanel,
   DrawerTitle,
-} from "@/components/ui/responsive-drawer"
+} from "@/components/ui/drawer"
+import { useIsMobile } from "@/hooks/use-media-query"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -92,6 +93,7 @@ export function PaymentDialog({
   payment,
   submitting,
   presentation = "dialog",
+  drawerWidth,
   onOpenChange,
   onAnalyze,
   onSubmit,
@@ -101,6 +103,7 @@ export function PaymentDialog({
   submitting: boolean
   analyzing: boolean
   presentation?: "dialog" | "panel"
+  drawerWidth?: number
   onOpenChange: (open: boolean) => void
   onAnalyze: (
     file: File,
@@ -112,6 +115,7 @@ export function PaymentDialog({
   const [form, setForm] = useState<PaymentFormState>(getPaymentDefaults(payment))
   const [uploadState, setUploadState] = useState<FileUploadState>(idleScanState)
   const scanAbortRef = useRef<AbortController | null>(null)
+  const isMobile = useIsMobile()
   const editing = Boolean(payment)
 
   const imageBusy = uploadState.phase === "uploading" || uploadState.phase === "processing"
@@ -263,7 +267,7 @@ export function PaymentDialog({
             </DrawerPanel>
           </div>
           <DrawerFooter
-            variant={isPanel ? "bare" : "default"}
+            variant="bare"
             className={cn("shrink-0", isPanel && "mt-4 border-t bg-transparent px-0 pb-0 pt-4")}
           >
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -283,11 +287,15 @@ export function PaymentDialog({
   }
 
   return (
-    <ResponsiveDrawer historyMode="auto" open={open} onOpenChange={onOpenChange}>
-      <ResponsiveDrawerContent contentKey={editing ? "payment-edit" : "payment-create"} defaultDesktopWidth={620}>
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+        style={!isMobile ? { width: drawerWidth ?? 620, maxWidth: "min(1080px, calc(100vw - 2rem))", minWidth: 560 } : undefined}
+      >
         {content}
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }
 
@@ -314,6 +322,7 @@ export function VoucherDialog({
   const [form, setForm] = useState<VoucherFormState>(getVoucherDefaults(voucher))
   const [uploadState, setUploadState] = useState<FileUploadState>(idleScanState)
   const scanAbortRef = useRef<AbortController | null>(null)
+  const isMobile = useIsMobile()
   const editing = Boolean(voucher)
 
   const imageBusy = uploadState.phase === "uploading" || uploadState.phase === "processing"
@@ -347,8 +356,12 @@ export function VoucherDialog({
   }
 
   return (
-    <ResponsiveDrawer historyMode="auto" open={open} onOpenChange={onOpenChange}>
-      <ResponsiveDrawerContent contentKey={editing ? "voucher-edit" : "voucher-create"} defaultDesktopWidth={720} minDesktopWidth={520}>
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+        style={!isMobile ? { width: 720, minWidth: 520 } : undefined}
+      >
         <DrawerHeader>
           <DrawerTitle>{editing ? "Editar voucher" : "Subir voucher"}</DrawerTitle>
           <DrawerDescription>
@@ -436,7 +449,7 @@ export function VoucherDialog({
               </Field>
             </DrawerPanel>
           </div>
-          <DrawerFooter className="shrink-0">
+          <DrawerFooter variant="bare" className="shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
@@ -446,8 +459,8 @@ export function VoucherDialog({
             </Button>
           </DrawerFooter>
         </form>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }
 
@@ -467,6 +480,7 @@ export function ProcessVoucherDialog({
   onSubmit: (form: ProcessFormState) => void
 }) {
   const [observation, setObservation] = useState("")
+  const isMobile = useIsMobile()
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -474,8 +488,12 @@ export function ProcessVoucherDialog({
   }
 
   return (
-    <ResponsiveDrawer historyMode="never" open={open} onOpenChange={onOpenChange}>
-      <ResponsiveDrawerContent contentKey={mode} defaultDesktopWidth={520} minDesktopWidth={420} maxDesktopWidth={720}>
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+        style={!isMobile ? { width: 520, minWidth: 420, maxWidth: 720 } : undefined}
+      >
         <DrawerHeader>
           <DrawerTitle>{mode === "approve" ? "Aprobar voucher" : "Rechazar voucher"}</DrawerTitle>
           <DrawerDescription>
@@ -496,7 +514,7 @@ export function ProcessVoucherDialog({
               </Field>
             </DrawerPanel>
           </div>
-          <DrawerFooter className="shrink-0">
+          <DrawerFooter variant="bare" className="shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
@@ -506,8 +524,8 @@ export function ProcessVoucherDialog({
             </Button>
           </DrawerFooter>
         </form>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }
 
@@ -526,15 +544,20 @@ export function DeleteWorkflowDialog({
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
+  const isMobile = useIsMobile()
   return (
-    <ResponsiveDrawer historyMode="never" open={open} onOpenChange={onOpenChange}>
-      <ResponsiveDrawerContent contentKey={title} defaultDesktopWidth={480} minDesktopWidth={380} maxDesktopWidth={640}>
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+        style={!isMobile ? { width: 480, minWidth: 380, maxWidth: 640 } : undefined}
+      >
         <DrawerHeader>
           <DrawerTitle>{title}</DrawerTitle>
           <DrawerDescription>{description}</DrawerDescription>
         </DrawerHeader>
         <div className="min-h-0 flex-1" />
-        <DrawerFooter className="shrink-0">
+        <DrawerFooter variant="bare" className="shrink-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
@@ -543,8 +566,8 @@ export function DeleteWorkflowDialog({
             Eliminar
           </Button>
         </DrawerFooter>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }
 

@@ -36,13 +36,14 @@ import {
 } from "@/components/ui/number-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
-  ResponsiveDrawer,
-  ResponsiveDrawerContent,
+  Drawer,
+  DrawerPopup,
   DrawerFooter,
   DrawerHeader,
   DrawerPanel,
   DrawerTitle,
-} from "@/components/ui/responsive-drawer"
+} from "@/components/ui/drawer"
+import { useIsMobile } from "@/hooks/use-media-query"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -172,6 +173,7 @@ export function CreateLoanDialog({
   const update = (key: keyof LoanFormState, value: string) => {
     onFormChange((current) => ({ ...current, [key]: value }))
   }
+  const isMobile = useIsMobile()
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) setPreviewOpen(false)
     onOpenChange(nextOpen)
@@ -191,8 +193,12 @@ export function CreateLoanDialog({
   }, [form])
 
   return (
-    <ResponsiveDrawer historyMode="auto" open={open} onOpenChange={handleOpenChange}>
-      <ResponsiveDrawerContent contentKey="create-loan" defaultDesktopWidth={860} minDesktopWidth={620}>
+    <Drawer open={open} onOpenChange={handleOpenChange} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+        style={!isMobile ? { width: 860, minWidth: 620 } : undefined}
+      >
         <DrawerHeader>
           <DrawerTitle>Nuevo préstamo</DrawerTitle>
         </DrawerHeader>
@@ -341,8 +347,8 @@ export function CreateLoanDialog({
             </Button>
           </DrawerFooter>
         </form>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }
 

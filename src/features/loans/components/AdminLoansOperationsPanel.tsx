@@ -1,6 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import {
-  ArrowLeftIcon,
   CalendarIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -30,13 +29,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
-  ResponsiveDrawer,
-  ResponsiveDrawerContent,
+  Drawer,
+  DrawerPopup,
   DrawerDescription,
   DrawerHeader,
   DrawerPanel,
   DrawerTitle,
-} from "@/components/ui/responsive-drawer"
+} from "@/components/ui/drawer"
+import { useIsMobile } from "@/hooks/use-media-query"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toastManager } from "@/components/ui/toast"
@@ -383,8 +383,6 @@ export function AdminLoansOperationsPanel({
   const [focus, setFocus] = useState<OperationsFocus>(() => readOperationsPreferences().focus ?? "all")
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [detailOpen, setDetailOpen] = useState(false)
-  const [sheetSubView, setSheetSubView] = useState<string | null>(null)
-  const [resetTrigger, setResetTrigger] = useState(0)
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<ColumnKey[]>(() => {
     const savedColumns = readOperationsPreferences().visibleColumns?.filter((key) =>
       columns.some((column) => column.key === key),
@@ -531,7 +529,7 @@ export function AdminLoansOperationsPanel({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="-ml-2 h-auto max-w-64 justify-start px-2 py-1 text-left"
+                  className="-ml-2 h-auto sm:h-auto max-w-64 justify-start px-2 py-1 text-left transition-colors"
                   onClick={(e) => {
                     e.stopPropagation()
                     onUserClick(client)
@@ -576,7 +574,7 @@ export function AdminLoansOperationsPanel({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="-ml-2 h-auto max-w-64 justify-start px-2 py-1 text-left"
+                  className="-ml-2 h-auto sm:h-auto max-w-64 justify-start px-2 py-1 text-left transition-colors"
                   onClick={(e) => {
                     e.stopPropagation()
                     onUserClick(investor as UserDetailProfile)
@@ -601,7 +599,7 @@ export function AdminLoansOperationsPanel({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="-ml-2 h-auto max-w-64 justify-start px-2 py-1 text-left"
+                  className="-ml-2 h-auto sm:h-auto max-w-64 justify-start px-2 py-1 text-left transition-colors"
                   onClick={(e) => {
                     e.stopPropagation()
                     onUserClick(inv)
@@ -655,6 +653,7 @@ export function AdminLoansOperationsPanel({
   )
 
   const exportRows = selectedRows
+  const isMobile = useIsMobile()
 
   return (
     <section className="flex flex-col gap-5">
@@ -842,50 +841,15 @@ export function AdminLoansOperationsPanel({
         />
       )}
 
-      <ResponsiveDrawer open={detailOpen} onOpenChange={(open) => {
-        setDetailOpen(open)
-        if (!open) {
-          setSheetSubView(null)
-        }
-      }}>
-        <ResponsiveDrawerContent
-          contentKey={selectedLoan ? selectedLoan.id : "loan-detail"}
-          defaultDesktopWidth={760}
-          minDesktopWidth={560}
-          maxDesktopWidth={1080}
+      <Drawer open={detailOpen} onOpenChange={setDetailOpen} position={isMobile ? "bottom" : "right"}>
+        <DrawerPopup
+          showCloseButton={!isMobile}
+          className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+          style={!isMobile ? { width: 760, maxWidth: "min(1080px, calc(100vw - 2rem))", minWidth: 560 } : undefined}
         >
           <DrawerHeader>
-            <div className="flex items-center gap-3 pr-8">
-              {sheetSubView && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-8 w-8 shrink-0"
-                  onClick={() => {
-                    setResetTrigger((prev) => prev + 1)
-                    setSheetSubView(null)
-                  }}
-                  aria-label="Volver al detalle del préstamo"
-                >
-                  <ArrowLeftIcon className="h-4 w-4" />
-                </Button>
-              )}
-              <div className="min-w-0 flex-1">
-                <DrawerTitle>
-                  {sheetSubView === "payment-create"
-                    ? "Registrar pago"
-                    : sheetSubView === "payment-edit"
-                      ? "Editar pago"
-                      : "Detalle operativo"}
-                </DrawerTitle>
-                <DrawerDescription>
-                  {sheetSubView
-                    ? "El sistema aplicará el monto al cronograma y recalculará el préstamo."
-                    : "Revisa cronograma, pagos, vouchers y acciones del préstamo seleccionado."}
-                </DrawerDescription>
-              </div>
-            </div>
+            <DrawerTitle>Detalle operativo</DrawerTitle>
+            <DrawerDescription>Revisa cronograma, pagos, vouchers y acciones del préstamo seleccionado.</DrawerDescription>
           </DrawerHeader>
           <DrawerPanel className="px-4 pb-4 pt-2 sm:px-5 sm:pb-5">
             <LoanDetailPanel
@@ -901,14 +865,12 @@ export function AdminLoansOperationsPanel({
               onDataChanged={onDataChanged}
               sticky={false}
               hideBackButton
-              paymentPresentation="panel"
-              onSubViewChange={setSheetSubView}
-              resetTrigger={resetTrigger}
+              drawerWidth={760}
               onUserClick={onUserClick}
             />
           </DrawerPanel>
-        </ResponsiveDrawerContent>
-      </ResponsiveDrawer>
+        </DrawerPopup>
+      </Drawer>
     </section>
   )
 }

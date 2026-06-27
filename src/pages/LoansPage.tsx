@@ -2,7 +2,7 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { PlusIcon } from "lucide-react"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
+import { useLocation } from "react-router-dom"
 
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -13,12 +13,14 @@ import { AdminLoansOperationsPanel } from "@/features/loans/components/AdminLoan
 import { CreateLoanDialog } from "@/features/loans/components/CreateLoanDialog"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
 import {
-  ResponsiveDrawer,
-  ResponsiveDrawerContent,
+  Drawer,
+  DrawerPopup,
   DrawerHeader,
+  DrawerPanel,
   DrawerTitle,
-} from "@/components/ui/responsive-drawer"
-import { useDrawerQueryParam } from "@/hooks/use-drawer-query-param"
+} from "@/components/ui/drawer"
+import { useIsMobile } from "@/hooks/use-media-query"
+import { useDrawerHistory } from "@/hooks/use-drawer-history"
 import { LoansListPanel, RefreshButton } from "@/features/loans/components/LoansListPanel"
 import { ReviewLoanDialog } from "@/features/loans/components/ReviewLoanDialog"
 import { PAGE_SIZE } from "@/features/loans/loan-constants"
@@ -75,17 +77,15 @@ export default function LoansPage() {
   const queryClient = useQueryClient()
   const queryScope = useMemo(() => getAuthQueryScope(user), [user])
   const loansQuery = useLoansQuery()
-  const detailDrawer = useDrawerQueryParam("detail")
-  const loanId = detailDrawer.value
+  const [drawerLoanId, setDrawerLoanId] = useState<string | null>(null)
+  const loanId = drawerLoanId
   const location = useLocation()
-  const navigate = useNavigate()
-
   const role = getLoanRole(user)
   const roleCopy = getRoleCopy(role)
   const basePath = location.pathname.startsWith("/investments") ? "/investments" : "/loans"
   const routeState = location.state as { adminView?: string } | null
   const pageTitle = basePath === "/investments" ? "Inversiones" : roleCopy.title
-  const isDetailOpen = detailDrawer.isOpen
+  const isDetailOpen = Boolean(drawerLoanId)
 
   const [loans, setLoans] = useState<Loan[]>([])
   const [page, setPage] = useState(1)
@@ -103,6 +103,12 @@ export default function LoansPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [reviewDialog, setReviewDialog] = useState<"approve" | "reject" | null>(null)
   const [rejectObservation, setRejectObservation] = useState("")
+  const isMobile = useIsMobile()
+
+  useDrawerHistory(isDetailOpen, (open) => {
+    if (!open) setDrawerLoanId(null)
+  })
+
   const [submittingAction, setSubmittingAction] = useState(false)
   const [loanForm, setLoanForm] = useState<LoanFormState>(defaultLoanForm)
   const [creatingLoan, setCreatingLoan] = useState(false)
@@ -406,7 +412,7 @@ export default function LoansPage() {
   const handleOpenLoanDetail = (loan: Loan) => {
     const routeId = loan.publicCode || loan.id
     handleSelectLoan(loan)
-    detailDrawer.open(routeId)
+    setDrawerLoanId(routeId)
   }
 
   const handleStatusFilterChange = (nextStatus: "all" | LoanStatus) => {
@@ -662,25 +668,24 @@ export default function LoansPage() {
         />
       )}
 
-      <ResponsiveDrawer
+      <Drawer
         open={isDetailOpen}
         onOpenChange={(open) => {
-          if (!open) detailDrawer.close()
+          if (!open) setDrawerLoanId(null)
         }}
-        position={"bottom"}
+        position={isMobile ? "bottom" : "right"}
       >
-        <ResponsiveDrawerContent
-          contentKey={loanId}
-          defaultDesktopWidth={760}
-          minDesktopWidth={560}
-          maxDesktopWidth={1080}
+        <DrawerPopup
+          showCloseButton={!isMobile}
+          className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+          style={!isMobile ? { width: 760, maxWidth: "min(1080px, calc(100vw - 2rem))", minWidth: 560 } : undefined}
         >
           <DrawerHeader>
             <DrawerTitle className="text-lg font-semibold">
               Detalle del préstamo
             </DrawerTitle>
           </DrawerHeader>
-          <DrawerPanel className="overflow-y-auto">
+          <DrawerPanel>
             <LoanDetailPanel
               loan={visibleSelectedLoan}
               relatedData={visibleRelatedData}
@@ -694,11 +699,13 @@ export default function LoansPage() {
               onRetry={() => detailLoanId && void loadDetail(detailLoanId, visibleSelectedLoan)}
               onDataChanged={refreshSelectedLoanData}
               sticky={false}
+              drawerWidth={760}
               onUserClick={setSelectedUserForSheet}
+              onBack={() => setDrawerLoanId(null)}
             />
           </DrawerPanel>
-        </ResponsiveDrawerContent>
-      </ResponsiveDrawer>
+        </DrawerPopup>
+      </Drawer>
 
       <CreateLoanDialog
         open={createOpen}

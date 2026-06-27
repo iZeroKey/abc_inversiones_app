@@ -6,14 +6,15 @@ import {
 import { Button } from "@/components/ui/button"
 import { Field, FieldLabel } from "@/components/ui/field"
 import {
-  ResponsiveDrawer,
-  ResponsiveDrawerContent,
+  Drawer,
+  DrawerPopup,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerPanel,
   DrawerTitle,
-} from "@/components/ui/responsive-drawer"
+} from "@/components/ui/drawer"
+import { useIsMobile } from "@/hooks/use-media-query"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { loanClientName, loanPublicCode } from "@/features/loans/loan-utils"
@@ -39,10 +40,15 @@ export function ReviewLoanDialog({
   if (!mode) return null
 
   const approving = mode === "approve"
+  const isMobile = useIsMobile()
 
   return (
-    <ResponsiveDrawer historyMode="never" open={mode !== null} onOpenChange={onOpenChange}>
-      <ResponsiveDrawerContent contentKey={mode} defaultDesktopWidth={520} minDesktopWidth={420} maxDesktopWidth={720}>
+    <Drawer open={mode !== null} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+      <DrawerPopup
+        showCloseButton={!isMobile}
+        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+        style={!isMobile ? { width: 520, maxWidth: "min(720px, calc(100vw - 2rem))", minWidth: 420 } : undefined}
+      >
         <DrawerHeader>
           <DrawerTitle>{approving ? "Aprobar préstamo" : "Rechazar préstamo"}</DrawerTitle>
           <DrawerDescription>
@@ -79,7 +85,7 @@ export function ReviewLoanDialog({
             {approving ? "Aprobar" : "Rechazar"}
           </Button>
         </DrawerFooter>
-      </ResponsiveDrawerContent>
-    </ResponsiveDrawer>
+      </DrawerPopup>
+    </Drawer>
   )
 }

@@ -16,7 +16,7 @@ import {
   UserRoundIcon,
   XIcon,
 } from "lucide-react"
-import { useEffect, useMemo, useState, type ElementType, type ReactNode } from "react"
+import { useMemo, useState, type ElementType, type ReactNode } from "react"
 import { PhotoProvider, PhotoView } from "react-photo-view"
 import { Link } from "react-router-dom"
 
@@ -171,11 +171,10 @@ export function LoanDetailPanel({
   perspective = "admin",
   sticky = true,
   hideBackButton = false,
-  onSubViewChange,
   onDataChanged,
-  paymentPresentation = "dialog",
-  resetTrigger,
+  drawerWidth,
   onUserClick,
+  onBack,
 }: {
   loan: Loan | null
   relatedData: RelatedData
@@ -189,11 +188,10 @@ export function LoanDetailPanel({
   perspective?: "admin" | "client" | "investor"
   sticky?: boolean
   hideBackButton?: boolean
+  drawerWidth?: number
   onDataChanged?: () => Promise<void> | void
-  paymentPresentation?: "dialog" | "panel"
-  onSubViewChange?: (subView: string | null) => void
-  resetTrigger?: number
   onUserClick?: (user: UserDetailProfile) => void
+  onBack?: () => void
 }) {
   const { user, session, fetchWithAuth } = useAuth()
   const [paymentDialogPayment, setPaymentDialogPayment] = useState<Payment | null | undefined>()
@@ -209,24 +207,6 @@ export function LoanDetailPanel({
   } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
-
-  const currentSubView = useMemo(() => {
-    if (paymentPresentation !== "panel") return null
-    if (paymentDialogPayment === null) return "payment-create"
-    if (paymentDialogPayment) return "payment-edit"
-    return null
-  }, [paymentPresentation, paymentDialogPayment])
-
-  useEffect(() => {
-    onSubViewChange?.(currentSubView)
-  }, [currentSubView, onSubViewChange])
-
-  useEffect(() => {
-    if (resetTrigger !== undefined && resetTrigger > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPaymentDialogPayment(undefined)
-    }
-  }, [resetTrigger])
 
   if (loading) {
     return (
@@ -439,32 +419,6 @@ export function LoanDetailPanel({
     }
   }
 
-  if (paymentPresentation === "panel" && paymentDialogPayment !== undefined) {
-    return (
-      <section className="flex min-h-0 flex-col transition-all duration-300 animate-in fade-in slide-in-from-right-6">
-        <PaymentDialog
-          open
-          payment={paymentDialogPayment}
-          submitting={submitting}
-          analyzing={analyzing}
-          presentation="panel"
-          onOpenChange={(open) => {
-            if (!open) setPaymentDialogPayment(undefined)
-          }}
-          onAnalyze={async (file, onUploadProgress, signal) => {
-            const analyzed = await handleVoucherAnalyze(file, onUploadProgress, signal)
-            return {
-              amount: analyzed.amount,
-              reference: analyzed.operationId,
-              paymentDate: analyzed.operationDate,
-            }
-          }}
-          onSubmit={(form, onUploadProgress) => handlePaymentSubmit(form, onUploadProgress)}
-        />
-      </section>
-    )
-  }
-
   return (
     <section
       className={cn(
@@ -475,9 +429,15 @@ export function LoanDetailPanel({
       <div className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           {!hideBackButton && (
-            <Button nativeButton={false} className="shrink-0" variant="ghost" size="icon-sm" render={<Link to={basePath} replace />}>
-              <ArrowLeftIcon />
-            </Button>
+            onBack ? (
+              <Button className="shrink-0" variant="ghost" size="icon-sm" onClick={onBack}>
+                <ArrowLeftIcon />
+              </Button>
+            ) : (
+              <Button className="shrink-0" variant="ghost" size="icon-sm" render={<Link to={basePath} replace />}>
+                <ArrowLeftIcon />
+              </Button>
+            )
           )}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -661,67 +621,60 @@ export function LoanDetailPanel({
         </Tabs>
       </div>
 
-      {paymentDialogPayment !== undefined && (
-        <PaymentDialog
-          open
-          payment={paymentDialogPayment}
-          submitting={submitting}
-          analyzing={analyzing}
-          onOpenChange={(open) => {
-            if (!open) setPaymentDialogPayment(undefined)
-          }}
-          onAnalyze={async (file, onUploadProgress, signal) => {
-            const analyzed = await handleVoucherAnalyze(file, onUploadProgress, signal)
-            return {
-              amount: analyzed.amount,
-              reference: analyzed.operationId,
-              paymentDate: analyzed.operationDate,
-            }
-          }}
-          onSubmit={(form, onUploadProgress) => handlePaymentSubmit(form, onUploadProgress)}
-        />
-      )}
-      {voucherDialogVoucher !== undefined && (
-        <VoucherDialog
-          open
-          voucher={voucherDialogVoucher}
-          submitting={submitting}
-          analyzing={analyzing}
-          onOpenChange={(open) => {
-            if (!open) setVoucherDialogVoucher(undefined)
-          }}
-          onAnalyze={handleVoucherAnalyze}
-          onSubmit={(form, onUploadProgress) => handleVoucherSubmit(form, onUploadProgress)}
-        />
-      )}
-      {processDialog && (
-        <ProcessVoucherDialog
-          open
-          voucher={processDialog.voucher}
-          mode={processDialog.mode}
-          submitting={submitting}
-          onOpenChange={(open) => {
-            if (!open) setProcessDialog(null)
-          }}
-          onSubmit={(form) => void handleProcessVoucher(form)}
-        />
-      )}
-      {deleteTarget && deleteTarget.source !== "gallery" && (
-        <DeleteWorkflowDialog
-          open={true}
-          title={deleteTarget.type === "payment" ? "Eliminar pago" : "Eliminar voucher"}
-          description={
-            deleteTarget.type === "payment"
-              ? "El pago se eliminará lógicamente y el préstamo se recalculará."
-              : "El voucher se eliminará lógicamente. Si ya generó un pago, el sistema lo revertirá."
+      <PaymentDialog
+        open={paymentDialogPayment !== undefined}
+        payment={paymentDialogPayment}
+        submitting={submitting}
+        analyzing={analyzing}
+        drawerWidth={drawerWidth}
+        onOpenChange={(open) => {
+          if (!open) setPaymentDialogPayment(undefined)
+        }}
+        onAnalyze={async (file, onUploadProgress, signal) => {
+          const analyzed = await handleVoucherAnalyze(file, onUploadProgress, signal)
+          return {
+            amount: analyzed.amount,
+            reference: analyzed.operationId,
+            paymentDate: analyzed.operationDate,
           }
-          submitting={submitting}
-          onOpenChange={(open) => {
-            if (!open) setDeleteTarget(null)
-          }}
-          onConfirm={() => void handleDeleteTarget()}
-        />
-      )}
+        }}
+        onSubmit={(form, onUploadProgress) => handlePaymentSubmit(form, onUploadProgress)}
+      />
+      <VoucherDialog
+        open={voucherDialogVoucher !== undefined}
+        voucher={voucherDialogVoucher}
+        submitting={submitting}
+        analyzing={analyzing}
+        onOpenChange={(open) => {
+          if (!open) setVoucherDialogVoucher(undefined)
+        }}
+        onAnalyze={handleVoucherAnalyze}
+        onSubmit={(form, onUploadProgress) => handleVoucherSubmit(form, onUploadProgress)}
+      />
+      <ProcessVoucherDialog
+        open={processDialog !== null}
+        voucher={processDialog?.voucher ?? null}
+        mode={processDialog?.mode ?? "approve"}
+        submitting={submitting}
+        onOpenChange={(open) => {
+          if (!open) setProcessDialog(null)
+        }}
+        onSubmit={(form) => void handleProcessVoucher(form)}
+      />
+      <DeleteWorkflowDialog
+        open={deleteTarget !== null && deleteTarget.source !== "gallery"}
+        title={deleteTarget?.type === "payment" ? "Eliminar pago" : "Eliminar voucher"}
+        description={
+          deleteTarget?.type === "payment"
+            ? "El pago se eliminará lógicamente y el préstamo se recalculará."
+            : "El voucher se eliminará lógicamente. Si ya generó un pago, el sistema lo revertirá."
+        }
+        submitting={submitting}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+        onConfirm={() => void handleDeleteTarget()}
+      />
     </section>
   )
 }
