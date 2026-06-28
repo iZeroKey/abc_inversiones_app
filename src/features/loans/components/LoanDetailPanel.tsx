@@ -1,34 +1,14 @@
-import type { Column, ColumnDef } from "@tanstack/react-table"
 import {
   AlertCircleIcon,
-  ArrowLeftIcon,
-  CalendarClockIcon,
   CheckIcon,
   CreditCardIcon,
-  EditIcon,
-  FileImageIcon,
   MoreHorizontalIcon,
-  ReceiptTextIcon,
-  Trash2Icon,
-  TrendingUpIcon,
-  UploadIcon,
   UserIcon,
   UserRoundIcon,
   XIcon,
 } from "lucide-react"
-import { useMemo, useState, type ElementType, type ReactNode } from "react"
-import { PhotoProvider, PhotoView } from "react-photo-view"
-import { Link } from "react-router-dom"
 
-import { AnimatedNumber } from "@/components/AnimatedNumber"
-import {
-  DataTableCard,
-  DataTableColumnHeader,
-  DataTableStaticHeader,
-} from "@/components/data-table-card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,63 +16,36 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Progress } from "@/components/ui/progress"
-import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { toastManager } from "@/components/ui/toast"
 import type { UserDetailProfile } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
-import { InstallmentBadge, LoanStatusBadge, VoucherStatusBadge } from "@/features/loans/components/LoanBadges"
-import { AmountBlock, InfoRow } from "@/features/loans/components/LoanMetricBits"
 import {
-  CompactEmpty,
-  DetailSkeleton,
-  EmptyDetail,
-  relatedEmptyIcons,
-} from "@/features/loans/components/LoanPageStates"
+  InfoRow,
+  LoanConditions,
+  LoanSummaryBar,
+  NextPaymentHero,
+} from "@/features/loans/components/LoanMetricBits"
+import { DetailSkeleton, EmptyDetail } from "@/features/loans/components/LoanPageStates"
+import { PaymentsTable } from "@/features/loans/components/PaymentsTable"
+import { ScheduleTable } from "@/features/loans/components/ScheduleTable"
+import { VouchersTable } from "@/features/loans/components/VouchersTable"
+import { usePaymentMutations } from "@/features/loans/hooks/usePaymentMutations"
 import {
-  DeleteWorkflowDialog,
-  EvidenceButton,
-  PaymentDialog,
-  ProcessVoucherDialog,
-  VoucherDialog,
-  compactPayload,
-  toIsoOrUndefined,
-} from "@/features/loans/components/PaymentWorkflowDialogs"
+  canDeleteVoucher,
+  canEditVoucher,
+  canProcessVoucher,
+} from "@/features/loans/loan-permissions"
 import {
-  frequencyLabels,
-  installmentStatusLabels,
-  interestPeriodLabels,
-  paymentMethodLabels,
-  voucherStatusLabels,
-} from "@/features/loans/loan-constants"
-import {
-  formatDate,
-  getInstallmentDisplayStatus,
   getLoanPaidAmount,
   getLoanProgress,
   getNextInstallment,
   getRemainingDebt,
   loanClientName,
   loanInvestorName,
-  loanPublicCode,
   normalizeStatus,
 } from "@/features/loans/loan-utils"
-import {
-  analyzeVoucherEvidence,
-  checkOperationIdExists,
-  createPayment,
-  deletePayment,
-  deleteVoucher,
-  processVoucher,
-  submitVoucher,
-  updatePayment,
-  updateVoucher,
-  type PaymentMutationPayload,
-  type VoucherSubmitPayload,
-} from "@/lib/loans-api"
 import { cn } from "@/lib/utils"
-import type { Installment, Loan, Payment, PaymentMethod, PaymentVoucher } from "@/types/loans"
+import type { Installment, Loan, Payment, PaymentVoucher } from "@/types/loans"
 
 export type RelatedData = {
   installments: Installment[]
@@ -100,62 +53,39 @@ export type RelatedData = {
   vouchers: PaymentVoucher[]
 }
 
-const scheduleColumns: ColumnDef<Installment>[] = [
-  {
-    id: "number",
-    accessorFn: (installment) => installment.installmentNumber ?? installment.number ?? 0,
-    header: sortableHeader("Cuota"),
-    cell: ({ row }) => `#${row.original.installmentNumber ?? row.original.number ?? "-"}`,
-  },
-  {
-    id: "dueDate",
-    accessorFn: (installment) => installment.dueDate ?? "",
-    header: sortableHeader("Vence"),
-    cell: ({ row }) => formatDate(row.original.dueDate),
-  },
-  {
-    id: "amount",
-    accessorFn: (installment) => Number(installment.amount ?? 0),
-    header: sortableHeader("Monto"),
-    cell: ({ row }) => <AnimatedNumber value={row.original.amount} isCurrency />,
-  },
-  {
-    id: "paid",
-    accessorFn: (installment) => Number(installment.paidAmount ?? 0),
-    header: sortableHeader("Pagado"),
-    cell: ({ row }) => <AnimatedNumber value={row.original.paidAmount} isCurrency />,
-  },
-  {
-    id: "status",
-    accessorFn: (installment) => {
-      const status = getInstallmentDisplayStatus(installment)
-      return installmentStatusLabels[status] ?? status ?? "Pendiente"
-    },
-    header: sortableHeader("Estado"),
-    cell: ({ row }) => <InstallmentBadge status={getInstallmentDisplayStatus(row.original)} />,
-  },
-]
+const STATUS_ACCENT: Record<string, "success" | "warning" | "destructive" | "muted"> = {
+  active: "success",
+  defaulted: "destructive",
+  overdue: "destructive",
+  pending: "warning",
+  paid: "muted",
+  rejected: "muted",
+}
 
-type SortDirection = false | "asc" | "desc"
+function getStatusAccent(status: string) {
+  return STATUS_ACCENT[status] ?? "muted"
+}
 
-function sortableHeader<TData, TValue>(title: string, align: "left" | "right" = "left") {
-  return ({
-    column,
-    sortDirection,
-    toggleSorting,
-  }: {
-    column: Column<TData, TValue>
-    sortDirection?: SortDirection
-    toggleSorting?: () => void
-  }) => (
-    <DataTableColumnHeader
-      column={column}
-      title={title}
-      align={align}
-      sortDirection={sortDirection}
-      onSort={toggleSorting}
-    />
-  )
+function resolveClientUser(loan: Loan): UserDetailProfile | null {
+  return loan.client ?? (loan.clientId || loan.clientName ? {
+    id: loan.clientId ?? "",
+    publicCode: loan.clientCode ?? null,
+    firstName: loan.clientName?.split(/\s+/)[0] ?? loan.clientName ?? undefined,
+    lastName: loan.clientName?.split(/\s+/).slice(1).join(" ") || undefined,
+    role: "client",
+  } : null)
+}
+
+function resolveInvestorUser(loan: Loan): UserDetailProfile | null {
+  const isCompanyFunded = loan.isCompanyFunded || (!loan.investorId && !loan.investorName && !loan.investor)
+  if (isCompanyFunded) return { id: "__company__", isCompany: true }
+  return loan.investor ?? (loan.investorId || loan.investorName ? {
+    id: loan.investorId ?? "",
+    publicCode: loan.investorCode ?? null,
+    firstName: loan.investorName?.split(/\s+/)[0] ?? loan.investorName ?? undefined,
+    lastName: loan.investorName?.split(/\s+/).slice(1).join(" ") || undefined,
+    role: "investor",
+  } : null)
 }
 
 export function LoanDetailPanel({
@@ -164,17 +94,14 @@ export function LoanDetailPanel({
   loading,
   error,
   canReview,
-  basePath,
   onApprove,
   onReject,
   onRetry,
   perspective = "admin",
   sticky = true,
-  hideBackButton = false,
   onDataChanged,
   drawerWidth,
   onUserClick,
-  onBack,
 }: {
   loan: Loan | null
   relatedData: RelatedData
@@ -194,19 +121,14 @@ export function LoanDetailPanel({
   onBack?: () => void
 }) {
   const { user, session, fetchWithAuth } = useAuth()
-  const [paymentDialogPayment, setPaymentDialogPayment] = useState<Payment | null | undefined>()
-  const [voucherDialogVoucher, setVoucherDialogVoucher] = useState<PaymentVoucher | null | undefined>()
-  const [processDialog, setProcessDialog] = useState<{
-    voucher: PaymentVoucher
-    mode: "approve" | "reject"
-  } | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<{
-    type: "payment" | "voucher"
-    item: Payment | PaymentVoucher
-    source?: "list" | "gallery"
-  } | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [analyzing, setAnalyzing] = useState(false)
+
+  const mutations = usePaymentMutations({
+    loan: loan as Loan,
+    fetchWithAuth: fetchWithAuth!,
+    session,
+    onDataChanged,
+    drawerWidth,
+  })
 
   if (loading) {
     return (
@@ -218,7 +140,7 @@ export function LoanDetailPanel({
 
   if (!loan) {
     return (
-      <section className="min-h-105 rounded-lg border border-dashed">
+      <section className="min-h-105">
         <EmptyDetail />
       </section>
     )
@@ -226,198 +148,21 @@ export function LoanDetailPanel({
 
   const paidAmount = getLoanPaidAmount(loan, relatedData.installments)
   const progress = getLoanProgress(loan, relatedData.installments)
+  const remaining = getRemainingDebt(loan, relatedData.installments)
   const nextInstallment = getNextInstallment(relatedData.installments)
   const loanStatus = normalizeStatus(loan, relatedData.installments)
+  const accent = getStatusAccent(loanStatus)
   const paymentAllowedStatuses = new Set(["active", "defaulted", "overdue"])
   const canSubmitVoucher = perspective === "client" && loan.status === "active"
   const canRegisterPayment = perspective === "admin" && paymentAllowedStatuses.has(loanStatus)
-  const title =
-    perspective === "client"
-      ? "Préstamo con ABC Inversiones"
-      : `Préstamo de ${loanClientName(loan)}`
 
-  const refreshAfterMutation = async (title: string, description: string) => {
-    toastManager.add({ type: "success", title, description })
-    await onDataChanged?.()
-  }
+  const pendingVouchersCount = relatedData.vouchers.filter(
+    (v) => v.status === "pending_investor_review" || v.status === "pending_admin_review",
+  ).length
 
-  const handlePaymentSubmit = async (form: {
-    amount: string
-    paymentDate: string
-    method: PaymentMethod
-    reference: string
-    observation: string
-    evidence: File | null
-  }, onUploadProgress: (progress: number) => void) => {
-    const payload = compactPayload<PaymentMutationPayload>({
-      amount: form.amount,
-      paymentDate: toIsoOrUndefined(form.paymentDate),
-      method: form.method,
-      reference: form.reference.trim() || undefined,
-      observation: form.observation.trim() || undefined,
-      evidence: form.evidence,
-    })
-
-    setSubmitting(true)
-    try {
-      if (paymentDialogPayment) {
-        await updatePayment(fetchWithAuth, paymentDialogPayment.id, payload as PaymentMutationPayload)
-        setPaymentDialogPayment(undefined)
-        await refreshAfterMutation("Pago actualizado", "El cronograma se recalculó correctamente.")
-      } else {
-        await createPayment(
-          fetchWithAuth,
-          { loanId: loan.id, ...(payload as PaymentMutationPayload) },
-          { accessToken: session?.access_token, onUploadProgress },
-        )
-        setPaymentDialogPayment(undefined)
-        await refreshAfterMutation("Pago registrado", "El pago fue aplicado al préstamo.")
-      }
-    } catch (error) {
-      toastManager.add({
-        type: "error",
-        title: "No se pudo guardar el pago",
-        description: getErrorText(error),
-      })
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleVoucherAnalyze = async (
-    file: File,
-    onUploadProgress: (progress: number) => void,
-    signal?: AbortSignal,
-  ) => {
-    setAnalyzing(true)
-    try {
-      const result = await analyzeVoucherEvidence(
-        fetchWithAuth,
-        file,
-        { accessToken: session?.access_token, onUploadProgress, signal },
-      )
-      return {
-        amount: result.extracted?.amount ?? undefined,
-        operationId: result.extracted?.operationId ?? undefined,
-        operationDate: result.extracted?.operationDate ? toInputDate(result.extracted.operationDate) : undefined,
-      }
-    } catch (error) {
-      if (isAbortError(error)) throw error
-      toastManager.add({
-        type: "error",
-        title: "No se pudo analizar el voucher",
-        description: getErrorText(error),
-      })
-      throw error
-    } finally {
-      setAnalyzing(false)
-    }
-  }
-
-  const handleVoucherSubmit = async (form: {
-    amount: string
-    operationId: string
-    operationDate: string
-    observation: string
-    evidence: File | null
-  }, onUploadProgress: (progress: number) => void) => {
-    setSubmitting(true)
-    try {
-      const operationId = form.operationId.trim()
-      if (!voucherDialogVoucher) {
-        const exists = await checkOperationIdExists(fetchWithAuth, operationId)
-        if (exists) {
-          toastManager.add({
-            type: "warning",
-            title: "Operación duplicada",
-            description: "Ese ID de operación ya fue registrado.",
-          })
-          return
-        }
-        const payload: VoucherSubmitPayload = {
-          loanId: loan.id,
-          amount: form.amount,
-          operationId,
-          operationDate: toIsoOrUndefined(form.operationDate),
-          observation: form.observation.trim() || undefined,
-          evidence: form.evidence,
-        }
-        await submitVoucher(
-          fetchWithAuth,
-          payload,
-          { accessToken: session?.access_token, onUploadProgress },
-        )
-        setVoucherDialogVoucher(undefined)
-        await refreshAfterMutation("Voucher enviado", "Quedó pendiente de revisión.")
-      } else {
-        await updateVoucher(fetchWithAuth, voucherDialogVoucher.id, compactPayload({
-          amount: form.amount,
-          operationId,
-          operationDate: toIsoOrUndefined(form.operationDate),
-          observation: form.observation.trim() || undefined,
-        }))
-        setVoucherDialogVoucher(undefined)
-        await refreshAfterMutation("Voucher actualizado", "Los datos quedaron sincronizados.")
-      }
-    } catch (error) {
-      toastManager.add({
-        type: "error",
-        title: "No se pudo guardar el voucher",
-        description: getErrorText(error),
-      })
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleProcessVoucher = async (form: { action: "approve" | "reject"; observation: string }) => {
-    if (!processDialog) return
-
-    setSubmitting(true)
-    try {
-      await processVoucher(fetchWithAuth, processDialog.voucher.id, {
-        action: form.action,
-        observation: form.observation.trim() || undefined,
-      })
-      setProcessDialog(null)
-      await refreshAfterMutation(
-        form.action === "approve" ? "Voucher aprobado" : "Voucher rechazado",
-        "El estado se actualizó correctamente.",
-      )
-    } catch (error) {
-      toastManager.add({
-        type: "error",
-        title: "No se pudo procesar el voucher",
-        description: getErrorText(error),
-      })
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleDeleteTarget = async () => {
-    if (!deleteTarget) return
-
-    setSubmitting(true)
-    try {
-      if (deleteTarget.type === "payment") {
-        await deletePayment(fetchWithAuth, deleteTarget.item.id)
-        await refreshAfterMutation("Pago eliminado", "El préstamo fue recalculado.")
-      } else {
-        await deleteVoucher(fetchWithAuth, deleteTarget.item.id)
-        await refreshAfterMutation("Voucher eliminado", "El flujo quedó actualizado.")
-      }
-      setDeleteTarget(null)
-    } catch (error) {
-      toastManager.add({
-        type: "error",
-        title: "No se pudo eliminar",
-        description: getErrorText(error),
-      })
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  const clientUser = resolveClientUser(loan)
+  const investorUser = resolveInvestorUser(loan)
+  const isCompanyFunded = loan.isCompanyFunded || (!loan.investorId && !loan.investorName && !loan.investor)
 
   return (
     <section
@@ -426,61 +171,42 @@ export function LoanDetailPanel({
         sticky && "lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-auto",
       )}
     >
-      <div className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          {!hideBackButton && (
-            onBack ? (
-              <Button className="shrink-0" variant="ghost" size="icon-sm" onClick={onBack}>
-                <ArrowLeftIcon />
-              </Button>
-            ) : (
-              <Button className="shrink-0" variant="ghost" size="icon-sm" render={<Link to={basePath} replace />}>
-                <ArrowLeftIcon />
-              </Button>
-            )
+      {/* ── Admin action buttons ── */}
+      {perspective === "admin" && (canRegisterPayment || canReview) && (
+        <div className="flex items-center gap-2 pb-5">
+          {canRegisterPayment && (
+            <Button size="sm" onClick={() => mutations.setPaymentDialogPayment(null)}>
+              <CreditCardIcon data-icon="inline-start" />
+              Registrar pago
+            </Button>
           )}
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-semibold tracking-tight sm:truncate">{title}</h2>
-              <LoanStatusBadge status={normalizeStatus(loan, relatedData.installments)} />
-            </div>
-            <p className="mt-1 font-mono text-sm text-muted-foreground">{loanPublicCode(loan)}</p>
-          </div>
+          {canReview && (
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="outline" size="icon-sm" aria-label="Más acciones" />}>
+                <MoreHorizontalIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={onApprove}>
+                    <CheckIcon />
+                    Aprobar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onReject} className="text-destructive">
+                    <XIcon />
+                    Rechazar
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
-        {(canReview || canSubmitVoucher || canRegisterPayment) && (
-          <div className="flex shrink-0 flex-wrap items-center gap-2 max-sm:w-full mt-1 sm:mt-0">
-            {canRegisterPayment && (
-              <Button className="flex-1 sm:flex-none" size="sm" onClick={() => setPaymentDialogPayment(null)}>
-                <CreditCardIcon data-icon="inline-start" />
-                Registrar pago
-              </Button>
-            )}
-            {canSubmitVoucher && (
-              <Button className="flex-1 sm:flex-none" size="sm" onClick={() => setVoucherDialogVoucher(null)}>
-                <UploadIcon data-icon="inline-start" />
-                Subir voucher
-              </Button>
-            )}
-            {canReview && (
-              <Button className="flex-1 sm:flex-none" variant="outline" size="sm" onClick={onReject}>
-              <XIcon className="text-destructive" data-icon="inline-start" />
-              Rechazar
-              </Button>
-            )}
-            {canReview && (
-              <Button className="flex-1 sm:flex-none" size="sm" onClick={onApprove}>
-                <CheckIcon data-icon="inline-start" />
-                Aprobar
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
-      <div className="flex flex-col gap-5 py-5">
+      {/* ── Body ── */}
+      <div className="flex flex-col gap-6">
         {error && (
-          <div className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm">
-            <AlertCircleIcon className="mt-0.5 text-destructive" />
+          <div className="flex items-start gap-3 text-sm rounded-xl bg-destructive/5 p-3">
+            <AlertCircleIcon className="mt-0.5 shrink-0 text-destructive" />
             <div className="min-w-0 flex-1">
               <p className="font-medium text-destructive">Detalle parcial</p>
               <p className="text-muted-foreground">{error}</p>
@@ -491,757 +217,225 @@ export function LoanDetailPanel({
           </div>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <AmountBlock label="Principal" value={<AnimatedNumber value={loan.principal} isCurrency />} />
-          <AmountBlock label="Deuda total" value={<AnimatedNumber value={loan.totalDebt} isCurrency />} />
-          <AmountBlock label="Pendiente" value={<AnimatedNumber value={getRemainingDebt(loan, relatedData.installments)} isCurrency />} />
-        </div>
-
-        <div className="flex flex-col gap-4 rounded-lg border bg-muted/20 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium">Avance de pago</p>
-              <div className="text-xs text-muted-foreground">
-                Pagado <AnimatedNumber value={paidAmount} isCurrency /> de{" "}
-                <AnimatedNumber value={loan.totalDebt} isCurrency />
+        {/* ── Investor: pending review banner ── */}
+        {perspective === "investor" && pendingVouchersCount > 0 && (
+          <div className="flex items-center justify-between rounded-xl bg-warning/5 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-full bg-warning/10 text-warning">
+                <span className="text-sm font-bold">{pendingVouchersCount}</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Vouchers por revisar</p>
+                <p className="text-xs text-muted-foreground">Pendientes de aprobación</p>
               </div>
             </div>
-            <Badge variant="success"><AnimatedNumber value={progress} decimals={0} suffix="%" /></Badge>
+            <Button size="sm" variant="outline" onClick={() => {}}>
+              Revisar
+            </Button>
           </div>
-          <Progress value={progress} />
-        </div>
+        )}
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          {perspective !== "client" && (() => {
-            const clientUser: UserDetailProfile | null = loan.client ?? (loan.clientId || loan.clientName ? {
-              id: loan.clientId ?? "",
-              publicCode: loan.clientCode ?? null,
-              firstName: loan.clientName?.split(/\s+/)[0] ?? loan.clientName ?? undefined,
-              lastName: loan.clientName?.split(/\s+/).slice(1).join(" ") || undefined,
-              role: "client",
-            } : null)
-            return (
+        {/* ── Client: hero card ── */}
+        {perspective === "client" && (
+          <NextPaymentHero
+            amount={nextInstallment?.amount}
+            dueDate={nextInstallment?.dueDate}
+            canSubmitVoucher={canSubmitVoucher}
+            onSubmitVoucher={() => mutations.setVoucherDialogVoucher(null)}
+            intent="hero"
+          />
+        )}
+
+        {/* ── Client: summary + conditions ── */}
+        {perspective === "client" && (
+          <>
+            <SectionBlock>
+              <LoanSummaryBar
+                totalDebt={loan.totalDebt ?? 0}
+                paidAmount={paidAmount}
+                remaining={remaining}
+                progress={progress}
+                accent={accent}
+              />
+            </SectionBlock>
+            <SectionBlock>
+              <LoanConditions
+                principal={loan.principal}
+                installmentsCount={loan.installmentsCount}
+                frequency={loan.frequency}
+                interestRate={loan.interestRate}
+                interestPeriod={loan.interestPeriod}
+                startDate={loan.startDate}
+              />
+            </SectionBlock>
+          </>
+        )}
+
+        {/* ── Admin: top grid ── */}
+        {perspective === "admin" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <NextPaymentHero
+              amount={nextInstallment?.amount}
+              dueDate={nextInstallment?.dueDate}
+              canSubmitVoucher={false}
+              onSubmitVoucher={() => {}}
+            />
+            <LoanSummaryBar
+              totalDebt={loan.totalDebt ?? 0}
+              paidAmount={paidAmount}
+              remaining={remaining}
+              progress={progress}
+              accent={accent}
+            />
+          </div>
+        )}
+
+        {/* ── Client: parties section ── */}
+        {perspective === "client" && (
+          <SectionBlock>
+            <InfoRow
+              icon={UserRoundIcon}
+              label="Inversionista"
+              value={isCompanyFunded ? "ABC Inversiones" : loanInvestorName(loan)}
+              onClick={investorUser ? () => onUserClick?.(investorUser) : undefined}
+            />
+          </SectionBlock>
+        )}
+
+        {/* ── Admin / Investor: conditions ── */}
+        {(perspective === "admin" || perspective === "investor") && (
+          <SectionBlock>
+            <LoanConditions
+              principal={loan.principal}
+              installmentsCount={loan.installmentsCount}
+              frequency={loan.frequency}
+              interestRate={loan.interestRate}
+              interestPeriod={loan.interestPeriod}
+              startDate={loan.startDate}
+            />
+          </SectionBlock>
+        )}
+
+        {/* ── Investor: summary ── */}
+        {perspective === "investor" && (
+          <SectionBlock>
+            <LoanSummaryBar
+              totalDebt={loan.totalDebt ?? 0}
+              paidAmount={paidAmount}
+              remaining={remaining}
+              progress={progress}
+              accent={accent}
+            />
+          </SectionBlock>
+        )}
+
+        {/* ── Admin: parties section ── */}
+        {perspective === "admin" && (
+          <SectionBlock>
+            <div className="grid gap-4 sm:grid-cols-2">
               <InfoRow
                 icon={UserIcon}
                 label="Cliente"
                 value={loanClientName(loan)}
                 onClick={clientUser ? () => onUserClick?.(clientUser) : undefined}
               />
-            )
-          })()}
-          {perspective !== "investor" && (() => {
-            const isCompanyFunded = loan.isCompanyFunded || (!loan.investorId && !loan.investorName && !loan.investor)
-            const investorUser: UserDetailProfile | null = isCompanyFunded
-              ? { id: "__company__", isCompany: true }
-              : loan.investor ?? (loan.investorId || loan.investorName ? {
-                  id: loan.investorId ?? "",
-                  publicCode: loan.investorCode ?? null,
-                  firstName: loan.investorName?.split(/\s+/)[0] ?? loan.investorName ?? undefined,
-                  lastName: loan.investorName?.split(/\s+/).slice(1).join(" ") || undefined,
-                  role: "investor",
-                } : null)
-            return (
               <InfoRow
                 icon={UserRoundIcon}
                 label="Inversionista"
                 value={isCompanyFunded ? "ABC Inversiones" : loanInvestorName(loan)}
                 onClick={investorUser ? () => onUserClick?.(investorUser) : undefined}
               />
-            )
-          })()}
-          <InfoRow
-            icon={CalendarClockIcon}
-            label="Próxima cuota"
-            value={nextInstallment ? formatDate(nextInstallment.dueDate) : "Sin cuota pendiente"}
-          />
-          <InfoRow
-            icon={TrendingUpIcon}
-            label="Tasa"
-            value={<span className="flex items-center gap-1"><AnimatedNumber value={loan.interestRate ?? 0} decimals={1} suffix="%" /> {interestPeriodLabels[String(loan.interestPeriod)] ?? ""}</span>}
-          />
-          <InfoRow
-            icon={ReceiptTextIcon}
-            label="Regla"
-            value={<span className="flex items-center gap-1"><AnimatedNumber value={loan.installmentsCount ?? 0} /> cuotas · {frequencyLabels[String(loan.frequency)] ?? loan.frequency ?? "-"}</span>}
-          />
-        </div>
+            </div>
+          </SectionBlock>
+        )}
 
-        <Tabs defaultValue="schedule" className="min-h-0">
-          <TabsList className="w-full overflow-x-auto">
-            <TabsTrigger value="schedule" className="flex-1">
-              Cronograma
-            </TabsTrigger>
-            <TabsTrigger value="payments" className="flex-1">
-              Pagos
-            </TabsTrigger>
-            <TabsTrigger value="vouchers" className="flex-1">
-              Vouchers
-            </TabsTrigger>
-          </TabsList>
+        {/* ── Investor: parties section (client only) ── */}
+        {perspective === "investor" && (
+          <SectionBlock>
+            <InfoRow
+              icon={UserIcon}
+              label="Cliente"
+              value={loanClientName(loan)}
+              onClick={clientUser ? () => onUserClick?.(clientUser) : undefined}
+            />
+          </SectionBlock>
+        )}
 
-          <TabsContent value="schedule">
-            <ScheduleTable installments={relatedData.installments} />
-          </TabsContent>
-          <TabsContent value="payments">
-            <PaymentsTable
-              payments={relatedData.payments}
-              vouchers={relatedData.vouchers}
-              canManage={perspective === "admin"}
-              showUnappliedVouchers
-              canEditVoucher={(voucher) => canEditVoucher(voucher, perspective, user?.id)}
-              canDeleteVoucher={(voucher) => canDeleteVoucher(voucher, perspective, user?.id)}
-              canProcessVoucher={(voucher) => canProcessVoucher(voucher, loan, perspective, user?.id)}
-              onEdit={setPaymentDialogPayment}
-              onDelete={(payment) => setDeleteTarget({ type: "payment", item: payment, source: "list" })}
-              onEditVoucher={setVoucherDialogVoucher}
-              onDeleteVoucher={(voucher) => setDeleteTarget({ type: "voucher", item: voucher, source: "list" })}
-              onApproveVoucher={(voucher) => setProcessDialog({ voucher, mode: "approve" })}
-              onRejectVoucher={(voucher) => setProcessDialog({ voucher, mode: "reject" })}
-            />
-          </TabsContent>
-          <TabsContent value="vouchers">
-            <VouchersTable
-              vouchers={relatedData.vouchers}
-              payments={relatedData.payments}
-              canDeletePayment={perspective === "admin"}
-              canEdit={(voucher) => canEditVoucher(voucher, perspective, user?.id)}
-              canDelete={(voucher) => canDeleteVoucher(voucher, perspective, user?.id)}
-              canProcess={(voucher) => canProcessVoucher(voucher, loan, perspective, user?.id)}
-              onEdit={setVoucherDialogVoucher}
-              onDelete={(voucher) => setDeleteTarget({ type: "voucher", item: voucher, source: "gallery" })}
-              onDeletePayment={(payment) => setDeleteTarget({ type: "payment", item: payment, source: "gallery" })}
-              onApprove={(voucher) => setProcessDialog({ voucher, mode: "approve" })}
-              onReject={(voucher) => setProcessDialog({ voucher, mode: "reject" })}
-              deleteTarget={deleteTarget}
-              submitting={submitting}
-              onCancelDelete={() => setDeleteTarget(null)}
-              onConfirmDelete={handleDeleteTarget}
-            />
-          </TabsContent>
-        </Tabs>
+        {/* ── Tabs ── */}
+        <SectionBlock>
+          <Tabs defaultValue={perspective === "investor" ? "vouchers" : "schedule"} className="min-h-0">
+            <TabsList className="w-full overflow-x-auto">
+              {perspective === "investor" ? (
+                <>
+                  <TabsTrigger value="vouchers" className="flex-1">Vouchers</TabsTrigger>
+                  <TabsTrigger value="schedule" className="flex-1">Cronograma</TabsTrigger>
+                  <TabsTrigger value="payments" className="flex-1">Pagos</TabsTrigger>
+                </>
+              ) : (
+                <>
+                  <TabsTrigger value="schedule" className="flex-1">Cronograma</TabsTrigger>
+                  <TabsTrigger value="payments" className="flex-1">Pagos</TabsTrigger>
+                  {perspective === "admin" && (
+                    <TabsTrigger value="vouchers" className="flex-1">Vouchers</TabsTrigger>
+                  )}
+                </>
+              )}
+            </TabsList>
+
+            <TabsContent value="schedule">
+              <ScheduleTable installments={relatedData.installments} />
+            </TabsContent>
+            <TabsContent value="payments">
+              <PaymentsTable
+                payments={relatedData.payments}
+                vouchers={relatedData.vouchers}
+                canManage={perspective === "admin"}
+                showUnappliedVouchers
+                canEditVoucher={(v) => canEditVoucher(v, perspective, user?.id)}
+                canDeleteVoucher={(v) => canDeleteVoucher(v, perspective, user?.id)}
+                canProcessVoucher={(v) => canProcessVoucher(v, loan, perspective, user?.id)}
+                onEdit={mutations.setPaymentDialogPayment}
+                onDelete={(payment) => mutations.setDeleteTarget({ type: "payment", item: payment, source: "list" })}
+                onEditVoucher={mutations.setVoucherDialogVoucher}
+                onDeleteVoucher={(voucher) => mutations.setDeleteTarget({ type: "voucher", item: voucher, source: "list" })}
+                onApproveVoucher={(voucher) => mutations.setProcessDialog({ voucher, mode: "approve" })}
+                onRejectVoucher={(voucher) => mutations.setProcessDialog({ voucher, mode: "reject" })}
+              />
+            </TabsContent>
+            {(perspective === "admin" || perspective === "investor") && (
+              <TabsContent value="vouchers">
+                <VouchersTable
+                  vouchers={relatedData.vouchers}
+                  payments={relatedData.payments}
+                  canDeletePayment={perspective === "admin"}
+                  canEdit={(v) => canEditVoucher(v, perspective, user?.id)}
+                  canDelete={(v) => canDeleteVoucher(v, perspective, user?.id)}
+                  canProcess={(v) => canProcessVoucher(v, loan, perspective, user?.id)}
+                  onEdit={mutations.setVoucherDialogVoucher}
+                  onDelete={(voucher) => mutations.setDeleteTarget({ type: "voucher", item: voucher, source: "gallery" })}
+                  onDeletePayment={(payment) => mutations.setDeleteTarget({ type: "payment", item: payment, source: "gallery" })}
+                  onApprove={(voucher) => mutations.setProcessDialog({ voucher, mode: "approve" })}
+                  onReject={(voucher) => mutations.setProcessDialog({ voucher, mode: "reject" })}
+                  deleteTarget={mutations.deleteTarget}
+                  submitting={mutations.submitting}
+                  onCancelDelete={() => mutations.setDeleteTarget(null)}
+                  onConfirmDelete={mutations.handleDeleteTarget}
+                />
+              </TabsContent>
+            )}
+          </Tabs>
+        </SectionBlock>
       </div>
 
-      <PaymentDialog
-        open={paymentDialogPayment !== undefined}
-        payment={paymentDialogPayment}
-        submitting={submitting}
-        analyzing={analyzing}
-        drawerWidth={drawerWidth}
-        onOpenChange={(open) => {
-          if (!open) setPaymentDialogPayment(undefined)
-        }}
-        onAnalyze={async (file, onUploadProgress, signal) => {
-          const analyzed = await handleVoucherAnalyze(file, onUploadProgress, signal)
-          return {
-            amount: analyzed.amount,
-            reference: analyzed.operationId,
-            paymentDate: analyzed.operationDate,
-          }
-        }}
-        onSubmit={(form, onUploadProgress) => handlePaymentSubmit(form, onUploadProgress)}
-      />
-      <VoucherDialog
-        open={voucherDialogVoucher !== undefined}
-        voucher={voucherDialogVoucher}
-        submitting={submitting}
-        analyzing={analyzing}
-        onOpenChange={(open) => {
-          if (!open) setVoucherDialogVoucher(undefined)
-        }}
-        onAnalyze={handleVoucherAnalyze}
-        onSubmit={(form, onUploadProgress) => handleVoucherSubmit(form, onUploadProgress)}
-      />
-      <ProcessVoucherDialog
-        open={processDialog !== null}
-        voucher={processDialog?.voucher ?? null}
-        mode={processDialog?.mode ?? "approve"}
-        submitting={submitting}
-        onOpenChange={(open) => {
-          if (!open) setProcessDialog(null)
-        }}
-        onSubmit={(form) => void handleProcessVoucher(form)}
-      />
-      <DeleteWorkflowDialog
-        open={deleteTarget !== null && deleteTarget.source !== "gallery"}
-        title={deleteTarget?.type === "payment" ? "Eliminar pago" : "Eliminar voucher"}
-        description={
-          deleteTarget?.type === "payment"
-            ? "El pago se eliminará lógicamente y el préstamo se recalculará."
-            : "El voucher se eliminará lógicamente. Si ya generó un pago, el sistema lo revertirá."
-        }
-        submitting={submitting}
-        onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null)
-        }}
-        onConfirm={() => void handleDeleteTarget()}
-      />
+      {mutations.dialogElements}
     </section>
   )
 }
 
-function ScheduleTable({ installments }: { installments: Installment[] }) {
-  if (installments.length === 0) {
-    return (
-      <CompactEmpty
-        icon={relatedEmptyIcons.schedule}
-        title="Sin cronograma"
-        description="Aún no hay cuotas para este préstamo."
-      />
-    )
-  }
-
+function SectionBlock({ children }: { children: React.ReactNode }) {
   return (
-    <DataTableCard
-      columns={scheduleColumns}
-      data={installments}
-      getRowId={(installment) => installment.id}
-      tableClassName="min-w-[620px]"
-    />
+    <div className="bg-muted/30 rounded-xl p-4">
+      {children}
+    </div>
   )
-}
-
-function PaymentsTable({
-  payments,
-  vouchers,
-  canManage,
-  showUnappliedVouchers,
-  canEditVoucher,
-  canDeleteVoucher,
-  canProcessVoucher,
-  onEdit,
-  onDelete,
-  onEditVoucher,
-  onDeleteVoucher,
-  onApproveVoucher,
-  onRejectVoucher,
-}: {
-  payments: Payment[]
-  vouchers: PaymentVoucher[]
-  canManage: boolean
-  showUnappliedVouchers: boolean
-  canEditVoucher: (voucher: PaymentVoucher) => boolean
-  canDeleteVoucher: (voucher: PaymentVoucher) => boolean
-  canProcessVoucher: (voucher: PaymentVoucher) => boolean
-  onEdit: (payment: Payment) => void
-  onDelete: (payment: Payment) => void
-  onEditVoucher: (voucher: PaymentVoucher) => void
-  onDeleteVoucher: (voucher: PaymentVoucher) => void
-  onApproveVoucher: (voucher: PaymentVoucher) => void
-  onRejectVoucher: (voucher: PaymentVoucher) => void
-}) {
-  type PaymentListRow =
-    | { id: string; kind: "payment"; payment: Payment; voucher?: never }
-    | { id: string; kind: "voucher"; payment?: never; voucher: PaymentVoucher }
-
-  const rows = useMemo<PaymentListRow[]>(() => {
-    const paymentRows = payments.map((payment) => ({
-      id: `payment-${payment.id}`,
-      kind: "payment" as const,
-      payment,
-    }))
-    const unappliedVoucherRows = showUnappliedVouchers
-      ? vouchers
-          .filter((voucher) => isUnappliedVoucher(voucher))
-          .map((voucher) => ({
-            id: `voucher-${voucher.id}`,
-            kind: "voucher" as const,
-            voucher,
-          }))
-      : []
-
-    return [...paymentRows, ...unappliedVoucherRows]
-  }, [payments, showUnappliedVouchers, vouchers])
-
-  const columns = useMemo<ColumnDef<PaymentListRow>[]>(
-    () => [
-      {
-        id: "date",
-        accessorFn: (row) =>
-          row.kind === "payment"
-            ? row.payment.paymentDate ?? row.payment.createdAt ?? ""
-            : row.voucher.operationDate ?? row.voucher.createdAt ?? "",
-        header: sortableHeader("Fecha"),
-        cell: ({ row }) =>
-          row.original.kind === "payment"
-            ? formatDate(row.original.payment.paymentDate ?? row.original.payment.createdAt)
-            : formatDate(row.original.voucher.operationDate ?? row.original.voucher.createdAt),
-      },
-      {
-        id: "amount",
-        accessorFn: (row) => Number(row.kind === "payment" ? row.payment.amount ?? 0 : row.voucher.amount ?? 0),
-        header: sortableHeader("Monto"),
-        cell: ({ row }) => (
-          <span className="font-medium">
-            <AnimatedNumber value={row.original.kind === "payment" ? row.original.payment.amount : row.original.voucher.amount} isCurrency />
-          </span>
-        ),
-      },
-      {
-        id: "method",
-        accessorFn: (row) =>
-          row.kind === "payment"
-            ? row.payment.method ? paymentMethodLabels[row.payment.method] ?? row.payment.method : ""
-            : "Transferencia",
-        header: sortableHeader("Método"),
-        cell: ({ row }) => {
-          if (row.original.kind === "voucher") return <Badge variant="outline">Transferencia</Badge>
-          const method = row.original.payment.method
-          return <Badge variant="outline">{method ? paymentMethodLabels[method] ?? method : "Sin método"}</Badge>
-        },
-      },
-      {
-        id: "status",
-        accessorFn: (row) =>
-          row.kind === "payment" ? "Aplicado" : voucherStatusLabels[row.voucher.status ?? "pending_investor_review"] ?? row.voucher.status ?? "",
-        header: sortableHeader("Estado"),
-        cell: ({ row }) => {
-          if (row.original.kind === "payment") return <Badge variant="success">Aplicado</Badge>
-          return <VoucherStatusBadge status={row.original.voucher.status} />
-        },
-      },
-      {
-        id: "reference",
-        accessorFn: (row) => row.kind === "payment" ? row.payment.reference ?? "" : row.voucher.operationId ?? "",
-        header: sortableHeader("Referencia"),
-        cell: ({ row }) => (
-          <span className="block max-w-32 truncate font-mono text-xs">
-            {row.original.kind === "payment" ? row.original.payment.reference ?? "-" : row.original.voucher.operationId ?? "-"}
-          </span>
-        ),
-      },
-      {
-        id: "evidence",
-        enableSorting: false,
-        header: () => <DataTableStaticHeader title="Evidencia" />,
-        cell: ({ row }) => (
-          <EvidenceButton
-            url={row.original.kind === "payment" ? getPaymentEvidenceUrl(row.original.payment) : getVoucherEvidenceUrl(row.original.voucher)}
-          />
-        ),
-      },
-      ...(canManage || rows.some((row) => row.kind === "voucher" && hasVoucherPaymentRowActions(row.voucher, canEditVoucher, canDeleteVoucher, canProcessVoucher))
-        ? [{
-            id: "actions",
-            enableSorting: false,
-            header: () => <DataTableStaticHeader title="" />,
-            cell: ({ row }) => {
-              const items = row.original.kind === "payment"
-                ? getPaymentActions(row.original.payment, canManage, onEdit, onDelete)
-                : getVoucherPaymentRowActions(
-                    row.original.voucher,
-                    canEditVoucher,
-                    canDeleteVoucher,
-                    canProcessVoucher,
-                    onEditVoucher,
-                    onDeleteVoucher,
-                    onApproveVoucher,
-                    onRejectVoucher,
-                  )
-
-              return items.length ? <RowActions items={items} /> : <span className="text-muted-foreground">-</span>
-            },
-          } satisfies ColumnDef<PaymentListRow>]
-        : []),
-    ],
-    [
-      canManage,
-      canDeleteVoucher,
-      canEditVoucher,
-      canProcessVoucher,
-      onApproveVoucher,
-      onDelete,
-      onDeleteVoucher,
-      onEdit,
-      onEditVoucher,
-      onRejectVoucher,
-      rows,
-    ],
-  )
-
-  if (rows.length === 0) {
-    return (
-      <CompactEmpty
-        icon={relatedEmptyIcons.payments}
-        title="Sin pagos"
-        description="Los pagos registrados se mostrarán en esta vista."
-      />
-    )
-  }
-
-  return (
-    <DataTableCard
-      columns={columns}
-      data={rows}
-      getRowId={(row) => row.id}
-      tableClassName="min-w-[740px]"
-    />
-  )
-}
-
-function getPaymentActions(
-  payment: Payment,
-  canManage: boolean,
-  onEdit: (payment: Payment) => void,
-  onDelete: (payment: Payment) => void,
-) {
-  if (!canManage) return []
-
-  return [
-    { label: "Editar", icon: EditIcon, onClick: () => onEdit(payment) },
-    { label: "Eliminar", icon: Trash2Icon, destructive: true, onClick: () => onDelete(payment) },
-  ]
-}
-
-function getVoucherPaymentRowActions(
-  voucher: PaymentVoucher,
-  canEditVoucher: (voucher: PaymentVoucher) => boolean,
-  canDeleteVoucher: (voucher: PaymentVoucher) => boolean,
-  canProcessVoucher: (voucher: PaymentVoucher) => boolean,
-  onEditVoucher: (voucher: PaymentVoucher) => void,
-  onDeleteVoucher: (voucher: PaymentVoucher) => void,
-  onApproveVoucher: (voucher: PaymentVoucher) => void,
-  onRejectVoucher: (voucher: PaymentVoucher) => void,
-) {
-  const actions: ReturnType<typeof getPaymentActions> = []
-
-  if (canProcessVoucher(voucher)) {
-    actions.push(
-      { label: "Aprobar", icon: CheckIcon, onClick: () => onApproveVoucher(voucher) },
-      { label: "Rechazar", icon: XIcon, destructive: true, onClick: () => onRejectVoucher(voucher) },
-    )
-  }
-
-  if (canEditVoucher(voucher)) {
-    actions.push({ label: "Editar voucher", icon: EditIcon, onClick: () => onEditVoucher(voucher) })
-  }
-
-  if (canDeleteVoucher(voucher)) {
-    actions.push({ label: "Eliminar voucher", icon: Trash2Icon, destructive: true, onClick: () => onDeleteVoucher(voucher) })
-  }
-
-  return actions
-}
-
-function hasVoucherPaymentRowActions(
-  voucher: PaymentVoucher,
-  canEditVoucher: (voucher: PaymentVoucher) => boolean,
-  canDeleteVoucher: (voucher: PaymentVoucher) => boolean,
-  canProcessVoucher: (voucher: PaymentVoucher) => boolean,
-) {
-  return canProcessVoucher(voucher) || canEditVoucher(voucher) || canDeleteVoucher(voucher)
-}
-
-function VouchersTable({
-  vouchers,
-  payments,
-  canDeletePayment,
-  canEdit,
-  canDelete,
-  canProcess,
-  onEdit,
-  onDelete,
-  onDeletePayment,
-  onApprove,
-  onReject,
-  deleteTarget,
-  submitting,
-  onCancelDelete,
-  onConfirmDelete,
-}: {
-  vouchers: PaymentVoucher[]
-  payments: Payment[]
-  canDeletePayment: boolean
-  canEdit: (voucher: PaymentVoucher) => boolean
-  canDelete: (voucher: PaymentVoucher) => boolean
-  canProcess: (voucher: PaymentVoucher) => boolean
-  onEdit: (voucher: PaymentVoucher) => void
-  onDelete: (voucher: PaymentVoucher) => void
-  onDeletePayment: (payment: Payment) => void
-  onApprove: (voucher: PaymentVoucher) => void
-  onReject: (voucher: PaymentVoucher) => void
-  deleteTarget: { type: "payment" | "voucher"; item: Payment | PaymentVoucher; source?: "list" | "gallery" } | null
-  submitting: boolean
-  onCancelDelete: () => void
-  onConfirmDelete: () => void
-}) {
-  type GalleryAction = {
-    label: string
-    icon: ElementType
-    destructive?: boolean
-    onClick: () => void
-  }
-  type GalleryItem = {
-    id: string
-    amount?: string | number
-    date?: string | null
-    imageUrl: string | null
-    title: string
-    badge: ReactNode
-    actions: GalleryAction[]
-  }
-
-  const galleryItems: GalleryItem[] = [
-    ...vouchers.map((voucher) => ({
-      id: `voucher-${voucher.id}`,
-      amount: voucher.amount,
-      date: voucher.createdAt ?? voucher.operationDate,
-      imageUrl: getVoucherImageUrl(voucher),
-      title: voucher.operationId ? `Operación ${voucher.operationId}` : "Voucher sin operación",
-      badge: <VoucherStatusBadge status={voucher.status} />,
-      actions: [
-        ...(canProcess(voucher)
-          ? [
-              { label: "Aprobar", icon: CheckIcon, onClick: () => onApprove(voucher) },
-              { label: "Rechazar", icon: XIcon, destructive: true, onClick: () => onReject(voucher) },
-            ]
-          : []),
-        ...(canEdit(voucher)
-          ? [{ label: "Editar", icon: EditIcon, onClick: () => onEdit(voucher) }]
-          : []),
-        ...(canDelete(voucher)
-          ? [{ label: "Eliminar voucher", icon: Trash2Icon, destructive: true, onClick: () => onDelete(voucher) }]
-          : []),
-      ],
-    })),
-    ...payments
-      .filter((payment) => Boolean(getPaymentEvidenceUrl(payment)))
-      .map((payment) => ({
-        id: `payment-${payment.id}`,
-        amount: payment.amount,
-        date: payment.paymentDate ?? payment.createdAt,
-        imageUrl: getPaymentEvidenceUrl(payment),
-        title: payment.reference ? `Pago ${payment.reference}` : "Pago registrado",
-        badge: <Badge variant="success">Aplicado</Badge>,
-        actions: canDeletePayment
-          ? [{ label: "Eliminar pago", icon: Trash2Icon, destructive: true, onClick: () => onDeletePayment(payment) }]
-          : [],
-      })),
-  ]
-
-  if (galleryItems.length === 0) {
-    return (
-      <CompactEmpty
-        icon={relatedEmptyIcons.vouchers}
-        title="Sin vouchers"
-        description="Los vouchers del préstamo aparecerán separados del formulario."
-      />
-    )
-  }
-
-  return (
-    <PhotoProvider>
-      <div className="columns-1 gap-3 sm:columns-2 xl:columns-3">
-        {galleryItems.map((item, index) => {
-          const isDeleting = Boolean(
-            deleteTarget &&
-              deleteTarget.source === "gallery" &&
-              deleteTarget.type === (item.id.startsWith("voucher-") ? "voucher" : "payment") &&
-              String(deleteTarget.item.id) === (item.id.startsWith("voucher-") ? item.id.replace("voucher-", "") : item.id.replace("payment-", ""))
-          )
-
-          return (
-            <Card
-              key={item.id}
-              className="relative mb-3 break-inside-avoid overflow-hidden rounded-xl before:rounded-[7px]"
-            >
-              {isDeleting && (
-                <div className="absolute inset-0 z-20 flex flex-col bg-background/95 text-center animate-in fade-in duration-200">
-                  <div className={cn("flex flex-col items-center justify-center gap-2 px-4", getVoucherImageClassName(index))}>
-                    <div className="flex size-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                      <Trash2Icon className="size-4" />
-                    </div>
-                    <p className="text-sm font-semibold text-foreground">¿Confirmar eliminación?</p>
-                    <p className="text-xs text-muted-foreground leading-normal">
-                      Esta acción es irreversible y podría deshacer cálculos asociados.
-                    </p>
-                  </div>
-                  <div className="flex flex-1 flex-col justify-center gap-2 px-4 pb-4">
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      className="w-full h-8"
-                      disabled={submitting}
-                      onClick={onConfirmDelete}
-                    >
-                      {submitting ? <Spinner /> : "Confirmar"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full h-8"
-                      disabled={submitting}
-                      onClick={onCancelDelete}
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
-                </div>
-              )}
-              <CardContent className="p-0">
-                {item.imageUrl ? (
-                  <PhotoView src={item.imageUrl}>
-                    <button
-                      type="button"
-                      className={cn(
-                        "group relative flex w-full cursor-zoom-in items-center justify-center overflow-hidden bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                        getVoucherImageClassName(index),
-                      )}
-                      aria-label="Ver voucher en tamaño completo"
-                    >
-                      <img
-                        src={item.imageUrl}
-                        alt={item.title}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    </button>
-                  </PhotoView>
-                ) : (
-                  <div className={cn("flex w-full flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground", getVoucherImageClassName(index))}>
-                    <FileImageIcon />
-                    <span className="text-xs font-medium">Sin imagen</span>
-                  </div>
-                )}
-              </CardContent>
-              <CardHeader className="gap-1.5 p-2.5 pb-1.5">
-                <div className="min-w-0">
-                  <CardTitle className="truncate text-sm">
-                    {item.title}
-                  </CardTitle>
-                  <p className="mt-1 text-xs text-muted-foreground">{formatDate(item.date)}</p>
-                </div>
-              </CardHeader>
-              <CardFooter className="flex-row items-center justify-between gap-2 p-2.5 pt-0">
-                <span className="font-medium"><AnimatedNumber value={item.amount} isCurrency /></span>
-                <div className="flex min-w-0 items-center gap-1.5">
-                  {item.badge}
-                  {item.actions.length > 0 ? <RowActions items={item.actions} /> : null}
-                </div>
-              </CardFooter>
-            </Card>
-          )
-        })}
-      </div>
-    </PhotoProvider>
-  )
-}
-
-function getVoucherImageUrl(voucher: PaymentVoucher) {
-  return getVoucherEvidenceUrl(voucher)
-}
-
-function getVoucherEvidenceUrl(voucher: PaymentVoucher) {
-  const url = voucher.evidenceUrl ?? voucher.fileUrl
-  if (!url || url.startsWith("storage://")) return null
-  return url
-}
-
-function getPaymentEvidenceUrl(payment: Payment) {
-  if (!payment.evidenceUrl || payment.evidenceUrl.startsWith("storage://")) return null
-  return payment.evidenceUrl
-}
-
-function getVoucherImageClassName(index: number) {
-  const pattern = index % 6
-  if (pattern === 1) return "h-72"
-  if (pattern === 2) return "h-48"
-  if (pattern === 4) return "h-64"
-  return "h-56"
-}
-
-function isPendingVoucherForClient(voucher: PaymentVoucher) {
-  return ["draft", "pending_investor_review", "pending_admin_review"].includes(voucher.status ?? "")
-}
-
-function isUnappliedVoucher(voucher: PaymentVoucher) {
-  return ["draft", "pending_investor_review", "pending_admin_review", "investor_approved"].includes(voucher.status ?? "")
-}
-
-function RowActions({
-  items,
-}: {
-  items: Array<{
-    label: string
-    icon: ElementType
-    destructive?: boolean
-    onClick: () => void
-  }>
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Acciones" />}>
-        <MoreHorizontalIcon />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuGroup>
-          {items.map((item) => {
-            const Icon = item.icon
-            return (
-              <DropdownMenuItem
-                key={item.label}
-                className={cn(item.destructive && "text-destructive")}
-                onClick={item.onClick}
-              >
-                <Icon />
-                {item.label}
-              </DropdownMenuItem>
-            )
-          })}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-function canEditVoucher(voucher: PaymentVoucher, perspective: "admin" | "client" | "investor", userId?: string) {
-  if (perspective === "admin") return voucher.status === "owner_approved"
-  return (
-    perspective === "client" &&
-    voucher.clientId === userId &&
-    isPendingVoucherForClient(voucher)
-  )
-}
-
-function canDeleteVoucher(voucher: PaymentVoucher, perspective: "admin" | "client" | "investor", userId?: string) {
-  if (perspective === "admin") return true
-  return (
-    perspective === "client" &&
-    voucher.clientId === userId &&
-    isPendingVoucherForClient(voucher)
-  )
-}
-
-function canProcessVoucher(
-  voucher: PaymentVoucher,
-  loan: Loan,
-  perspective: "admin" | "client" | "investor",
-  userId?: string,
-) {
-  if (perspective === "investor") {
-    return voucher.status === "pending_investor_review" && loan.investorId === userId
-  }
-
-  if (perspective !== "admin") return false
-
-  return ["pending_admin_review", "investor_approved"].includes(voucher.status ?? "")
-}
-
-function getErrorText(error: unknown) {
-  return error instanceof Error ? error.message : "Inténtalo nuevamente."
-}
-
-function isAbortError(error: unknown) {
-  return error instanceof DOMException && error.name === "AbortError"
-}
-
-function toInputDate(value?: string | null) {
-  if (!value) return ""
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ""
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-")
 }
