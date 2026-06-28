@@ -19,6 +19,8 @@ import { useAuth } from "@/contexts/auth-context"
 import { AdminLoansOperationsPanel } from "@/features/loans/components/AdminLoansOperationsPanel"
 import { CreateLoanDialog } from "@/features/loans/components/CreateLoanDialog"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
+import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
+import { normalizeStatus } from "@/features/loans/loan-utils"
 import { LoansListPanel } from "@/features/loans/components/LoansListPanel"
 import { LoanSummaryCard } from "@/features/loans/components/LoanSummaryCard"
 import { ReviewLoanDialog } from "@/features/loans/components/ReviewLoanDialog"
@@ -679,9 +681,16 @@ export default function LoansPage() {
           style={!isMobile ? { width: 760, maxWidth: "min(1080px, calc(100vw - 2rem))", minWidth: 560 } : undefined}
         >
           <DrawerHeader>
-            <DrawerTitle className="text-lg font-semibold">
-              Detalle del préstamo
-            </DrawerTitle>
+            <div className="flex items-center justify-between gap-2">
+              <DrawerTitle className="text-lg font-semibold truncate">
+                {visibleSelectedLoan?.name || "Detalle del préstamo"}
+              </DrawerTitle>
+              {visibleSelectedLoan && (
+                <LoanStatusBadge
+                  status={normalizeStatus(visibleSelectedLoan, visibleRelatedData?.installments)}
+                />
+              )}
+            </div>
           </DrawerHeader>
           <DrawerPanel>
             <LoanDetailPanel
