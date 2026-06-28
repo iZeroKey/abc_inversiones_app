@@ -272,6 +272,7 @@ function LoanCardRow({
       )}
 
       {/* Footer with status icon and text — two columns */}
+      <div className="flex-1" />
       <div className="mt-3 grid grid-cols-[1fr_auto] gap-x-4 px-4 pb-4">
         <div className={cn("flex items-center gap-2 min-w-0", !hasRightFooter && "col-span-2")}>
           <FooterIcon status={status} group={group} />
