@@ -9,15 +9,15 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-xs hover:shadow-md hover:bg-primary/90 hover:scale-[1.02]",
+          "bg-primary text-primary-foreground shadow-sm hover:shadow-md hover:bg-primary/90 hover:scale-[1.02]",
         outline:
-          "border-border bg-background shadow-xs hover:shadow-sm hover:bg-muted hover:text-foreground hover:border-foreground/20 aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border-border bg-background shadow-sm hover:shadow-md hover:bg-muted hover:text-foreground hover:border-foreground/20 aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
-          "bg-secondary/25 text-secondary-foreground shadow-xs hover:shadow-sm hover:bg-secondary/40 hover:scale-[1.02] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "bg-secondary/25 text-secondary-foreground shadow-sm hover:shadow-md hover:bg-secondary/40 hover:scale-[1.02] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
           "hover:bg-muted/60 hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/30",
         destructive:
-          "bg-destructive/15 text-destructive shadow-xs hover:shadow-sm hover:bg-destructive/25 hover:scale-[1.02] dark:bg-destructive/25 dark:hover:bg-destructive/35",
+          "bg-destructive/15 text-destructive shadow-sm hover:shadow-md hover:bg-destructive/25 hover:scale-[1.02] dark:bg-destructive/25 dark:hover:bg-destructive/35",
         link:
           "text-primary underline-offset-4 decoration-2 hover:underline decoration-primary/30",
         elevated:
