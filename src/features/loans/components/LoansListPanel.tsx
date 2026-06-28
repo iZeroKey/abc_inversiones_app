@@ -208,7 +208,7 @@ function LoanCardRow({
     <button
       type="button"
       className={cn(
-        "relative flex w-full flex-col rounded-2xl bg-card text-left",
+        "relative flex w-full flex-col rounded-2xl bg-card text-left shadow-xs/5",
         "border-l-4",
         borderColor,
         isNew && "realtime-row-enter",

@@ -49,7 +49,7 @@ export function LoanSummaryCard({
   }
 
   return (
-    <div className="rounded-2xl bg-card">
+    <div className="rounded-2xl bg-card shadow-xs/5">
       <div className="p-4">
         <p className="text-xs font-medium text-muted-foreground">Deuda actual</p>
         <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight">
@@ -90,7 +90,7 @@ export function LoanSummaryCard({
 
 function LoanSummarySkeleton() {
   return (
-    <div className="rounded-2xl bg-card">
+    <div className="rounded-2xl bg-card shadow-xs/5">
       <div className="p-4">
         <Skeleton className="h-3 w-20" />
         <Skeleton className="mt-1.5 h-7 w-32" />

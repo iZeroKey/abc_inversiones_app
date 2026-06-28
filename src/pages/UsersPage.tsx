@@ -920,7 +920,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   if (!isAdmin) {
     return (
       <main className="mx-auto flex max-w-5xl flex-col gap-6 px-3 py-4 md:px-8 md:py-8">
-        <Empty className="min-h-105 rounded-lg border bg-card">
+        <Empty className="min-h-105 rounded-lg border bg-card shadow-xs/5">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <ShieldIcon />
@@ -1484,7 +1484,7 @@ function UsersWorkspace({
       ) : loading ? (
         <UsersSkeleton />
       ) : users.length === 0 ? (
-        <Empty className="min-h-90 rounded-lg border bg-card">
+        <Empty className="min-h-90 rounded-lg border bg-card shadow-xs/5">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <UsersIcon />
@@ -1766,7 +1766,7 @@ function RequestsWorkspace({
           ]}
         />
       ) : requests.length === 0 ? (
-        <Empty className="min-h-90 rounded-lg border bg-card">
+        <Empty className="min-h-90 rounded-lg border bg-card shadow-xs/5">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <UserIcon />
@@ -1778,7 +1778,7 @@ function RequestsWorkspace({
           </EmptyHeader>
         </Empty>
       ) : filteredRequests.length === 0 ? (
-        <Empty className="min-h-90 rounded-lg border bg-card">
+        <Empty className="min-h-90 rounded-lg border bg-card shadow-xs/5">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <SearchIcon />
@@ -2742,7 +2742,7 @@ function UsersSkeleton() {
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <Empty className="min-h-80 rounded-lg border bg-card">
+    <Empty className="min-h-80 rounded-lg border bg-card shadow-xs/5">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <CircleAlertIcon />

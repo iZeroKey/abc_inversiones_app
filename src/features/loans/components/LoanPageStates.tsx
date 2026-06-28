@@ -71,7 +71,7 @@ export function LoanListSkeleton({
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="relative rounded-2xl bg-card px-4 py-4">
+        <div key={index} className="relative rounded-2xl bg-card px-4 py-4 shadow-xs/5">
           <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-muted-foreground/20" />
           <div className="flex items-center justify-between gap-2 pl-4">
             <div className="flex items-center gap-1">

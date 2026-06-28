@@ -304,7 +304,7 @@ function SummaryTotal({
   loading: boolean
 }) {
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="rounded-lg border bg-card p-4 shadow-xs/5">
       <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
       {loading ? <Skeleton className="mt-2 h-6 w-32" /> : <p className="mt-2 text-xl font-semibold">{value}</p>}
     </div>

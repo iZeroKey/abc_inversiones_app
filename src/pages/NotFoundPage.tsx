@@ -14,7 +14,7 @@ import {
 export default function NotFoundPage() {
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center justify-center px-4 py-10">
-      <Empty className="rounded-lg border bg-card">
+      <Empty className="rounded-lg border bg-card shadow-xs/5">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <SearchXIcon />

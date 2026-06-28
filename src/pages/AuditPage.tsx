@@ -678,7 +678,7 @@ export default function AuditPage() {
   if (!isAdmin) {
     return (
       <div className="mx-auto flex max-w-3xl items-center justify-center px-4 py-10">
-        <Empty className="rounded-lg border bg-card">
+        <Empty className="rounded-lg border bg-card shadow-xs/5">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <ShieldAlertIcon />
@@ -867,7 +867,7 @@ export default function AuditPage() {
           ]}
         />
       ) : error ? (
-        <Empty className="min-h-80 rounded-lg border bg-card">
+        <Empty className="min-h-80 rounded-lg border bg-card shadow-xs/5">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <AlertCircleIcon />
@@ -970,7 +970,7 @@ function AuditDetailsSheet({
         <DrawerPanel className="space-y-5">
           {log ? (
             <>
-              <section className="rounded-lg border bg-card p-4">
+              <section className="rounded-lg border bg-card p-4 shadow-xs/5">
                 <div className="mb-3 flex items-center gap-2">
                   <InfoIcon className="size-4 text-muted-foreground" />
                   <h2 className="font-medium">Resumen</h2>
