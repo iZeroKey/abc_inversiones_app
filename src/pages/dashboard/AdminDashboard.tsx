@@ -70,7 +70,7 @@ export default function AdminDashboard() {
           <PieChartIcon className="size-5 text-primary" />
           Visión General del Capital
         </h3>
-        <Card className="bg-primary text-primary-foreground border-none shadow-lg rounded-3xl overflow-hidden">
+        <Card className="bg-primary text-primary-foreground border-none shadow-sm rounded-3xl overflow-hidden">
           <CardContent className="p-8 space-y-8">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Capital activo prestado</p>
@@ -155,7 +155,7 @@ function AdminDashboardSkeleton() {
 
       <div className="space-y-4">
         <Skeleton className="h-7 w-64" />
-        <Card className="border-none bg-primary/10 shadow-lg rounded-3xl overflow-hidden">
+        <Card className="border-none bg-primary/10 shadow-sm rounded-3xl overflow-hidden">
           <CardContent className="p-8 space-y-8">
             <div className="space-y-3">
               <Skeleton className="h-3 w-40" />
@@ -191,7 +191,7 @@ function AdminDashboardSkeleton() {
 
 function MetricCardSkeleton() {
   return (
-    <Card className="border-border shadow-sm overflow-hidden">
+    <Card className="border-border overflow-hidden">
       <CardContent className="p-5 flex flex-col space-y-4">
         <Skeleton className="size-10 rounded-xl" />
         <div className="space-y-2">
@@ -205,7 +205,7 @@ function MetricCardSkeleton() {
 
 function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: React.ReactNode, label: string }) {
   return (
-    <Card className="border-border shadow-sm overflow-hidden">
+    <Card className="border-border overflow-hidden">
       <CardContent className="p-3.5 sm:p-5 flex flex-col space-y-4">
         <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
           {icon}

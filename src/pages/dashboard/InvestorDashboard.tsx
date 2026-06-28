@@ -43,7 +43,7 @@ export default function InvestorDashboard() {
           <TrendingUpIcon className="size-5 text-primary" />
           Rendimiento General
         </h3>
-        <Card className="bg-primary text-primary-foreground rounded-3xl overflow-hidden shadow-lg border-none">
+        <Card className="bg-primary text-primary-foreground rounded-3xl overflow-hidden shadow-sm border-none">
           <CardContent className="p-8">
             <div className="grid md:grid-cols-2 gap-8 items-center">
               <div className="space-y-2">
@@ -113,7 +113,7 @@ function InvestorDashboardSkeleton() {
       </div>
       <div className="space-y-4">
         <Skeleton className="h-7 w-56" />
-        <Card className="border-none bg-primary/10 shadow-lg rounded-3xl overflow-hidden">
+        <Card className="border-none bg-primary/10 shadow-sm rounded-3xl overflow-hidden">
           <CardContent className="p-8">
             <div className="grid items-center gap-8 md:grid-cols-2">
               <div className="space-y-3">
@@ -143,7 +143,7 @@ function InvestorDashboardSkeleton() {
 
 function MetricCardSkeleton() {
   return (
-    <Card className="border-border shadow-sm overflow-hidden">
+    <Card className="border-border overflow-hidden">
       <CardContent className="p-5">
         <div className="flex flex-col gap-3">
           <Skeleton className="size-10 rounded-xl" />
@@ -170,7 +170,7 @@ function MetricCard({
   subValue?: string
 }) {
   return (
-    <Card className="border-border shadow-sm overflow-hidden">
+    <Card className="border-border overflow-hidden">
       <CardContent className="p-5">
         <div className="flex flex-col gap-3">
           <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">

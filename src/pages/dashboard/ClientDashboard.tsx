@@ -40,7 +40,7 @@ export default function ClientDashboard() {
             <Skeleton className="h-7 w-52" />
             <Skeleton className="h-5 w-20 rounded-full" />
           </div>
-          <Card className="border-none bg-primary/10 shadow-lg rounded-3xl overflow-hidden">
+          <Card className="border-none bg-primary/10 shadow-sm rounded-3xl overflow-hidden">
             <CardContent className="p-8 space-y-8">
               <div className="flex justify-between">
                 <div className="space-y-3">
@@ -146,7 +146,7 @@ export default function ClientDashboard() {
 
 function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: React.ReactNode, label: string }) {
   return (
-    <Card className="border-border shadow-sm overflow-hidden">
+    <Card className="border-border overflow-hidden">
       <CardContent className="p-3.5 sm:p-5 flex flex-col items-center justify-center text-center space-y-3">
         <div className="size-12 md:size-14 rounded-2xl bg-primary/10 flex items-center justify-center">
           {icon}
@@ -162,7 +162,7 @@ function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: Reac
 
 function MetricCardSkeleton() {
   return (
-    <Card className="border-border shadow-sm overflow-hidden">
+    <Card className="border-border overflow-hidden">
       <CardContent className="p-4 md:p-5 flex flex-col items-center justify-center text-center space-y-3">
         <Skeleton className="size-12 rounded-2xl md:size-14" />
         <div className="space-y-2">
@@ -194,7 +194,7 @@ function MainLoanCard({ loan }: { loan: Loan }) {
 
   return (
     <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} className="block">
-      <Card className="bg-primary text-primary-foreground shadow-lg border-none rounded-3xl overflow-hidden hover:opacity-95 transition-opacity">
+      <Card className="bg-primary text-primary-foreground shadow-sm border-none rounded-3xl overflow-hidden hover:opacity-95 transition-opacity">
         <CardContent className="p-8 space-y-8">
           <div className="flex justify-between items-start">
             <div>
@@ -258,7 +258,7 @@ function OtherLoanCard({ loan }: { loan: Loan }) {
 
   return (
     <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} className="block group">
-      <Card className="border-border shadow-sm hover:shadow-md transition-shadow rounded-2xl overflow-hidden">
+      <Card className="border-border hover:shadow-md transition-shadow rounded-2xl overflow-hidden">
         <CardContent className="p-4 md:p-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
              <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center">
