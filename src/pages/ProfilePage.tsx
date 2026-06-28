@@ -483,7 +483,7 @@ export default function ProfilePage() {
               : "top-4 opacity-0 scale-95 -translate-y-4 pointer-events-none"
           )}
         >
-          <div className="flex items-center justify-between rounded-4xl bg-background/95 px-5 py-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.15)] border border-border/60 backdrop-blur-md">
+          <div className="flex items-center justify-between rounded-4xl bg-background/95 px-5 py-2.5 shadow-lg border border-border/60 backdrop-blur-md">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -520,7 +520,7 @@ export default function ProfilePage() {
       <div id="profile-container" className="mx-auto flex max-w-6xl flex-col gap-6 p-4 duration-500 animate-in fade-in md:p-8">
         <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
           <div className="flex flex-col gap-6">
-            <Card className="overflow-hidden border-border/60 shadow-sm relative transition-all duration-300">
+            <Card className="overflow-hidden border-border/60 relative transition-all duration-300">
               <div className="bg-linear-to-br from-amber-500/10 via-primary/10 to-indigo-500/10 h-24 w-full" />
               <CardContent className="flex flex-col items-center p-6 -mt-12">
                 <div className="relative group select-none">
@@ -668,7 +668,7 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-sm">
+            <Card className="border-border/60">
               <CardContent className="p-5 flex flex-col gap-4 text-sm">
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <CalendarIcon className="size-4 shrink-0 text-muted-foreground/80" />
@@ -690,7 +690,7 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-sm">
+            <Card className="border-border/60">
               <CardHeader className="p-5 pb-2">
                 <CardTitle className="text-base font-bold">Seguridad</CardTitle>
                 <CardDescription className="text-xs">Gestiona tu contraseña y accesos.</CardDescription>
@@ -715,7 +715,7 @@ export default function ProfilePage() {
           </div>
 
           <div className="min-w-0">
-            <Card className={cn("transition-all duration-300 border-border/60 shadow-sm", isEditing ? "ring-2 ring-primary/20 shadow-md" : "")}>
+            <Card className={cn("transition-all duration-300 border-border/60", isEditing ? "ring-2 ring-primary/20 shadow-md" : "")}>
               <CardHeader className="border-b border-border/50 pb-4">
                 <div>
                   <CardTitle className="text-lg font-bold">Información Personal</CardTitle>
@@ -939,7 +939,7 @@ export default function ProfilePage() {
 function ProfileSkeleton() {
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <Card className="overflow-hidden border-border/60 shadow-sm">
+      <Card className="overflow-hidden border-border/60">
         <div className="px-6 py-6 md:px-8 md:py-7">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex flex-col items-center gap-5 md:flex-row md:items-center">

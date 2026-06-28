@@ -485,7 +485,7 @@ function AppBottomNav({ navigationItems }: Pick<AppLayoutProps, "navigationItems
 
   return (
     <div className="fixed left-[calc(env(safe-area-inset-left,0)+1rem)] right-[calc(env(safe-area-inset-right,0)+1rem)] bottom-[calc(env(safe-area-inset-bottom,0)+1rem)] z-50">
-      <div className="flex items-center justify-between rounded-4xl bg-background/95 px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-md">
+      <div className="flex items-center justify-between rounded-4xl bg-background/95 px-2 py-2 shadow-lg backdrop-blur-md">
         {bottomItems.map((item) => {
           const isActive = location.pathname === item.href || (item.href !== homePath && location.pathname.startsWith(item.href + "/"))
           const activeTextColor = item.activeColorClass || "text-primary"
