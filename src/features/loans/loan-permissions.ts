@@ -1,4 +1,4 @@
-import type { Loan } from "@/types/loans";
+import type { Loan, PaymentVoucher } from "@/types/loans";
 
 type AuthUser = {
   id?: string;
@@ -72,4 +72,39 @@ export function canRegisterPayment(loan: Loan | null, user: AuthUser) {
 
 export function canUploadVoucher(loan: Loan | null, user: AuthUser) {
   return user?.role === "client" && loan?.status === "active";
+}
+
+function isPendingVoucherForClient(voucher: PaymentVoucher) {
+  return ["draft", "pending_investor_review", "pending_admin_review"].includes(voucher.status ?? "")
+}
+
+export function canEditVoucher(voucher: PaymentVoucher, perspective: LoanRole, userId?: string) {
+  if (perspective === "admin") return voucher.status === "owner_approved"
+  return (
+    perspective === "client" &&
+    voucher.clientId === userId &&
+    isPendingVoucherForClient(voucher)
+  )
+}
+
+export function canDeleteVoucher(voucher: PaymentVoucher, perspective: LoanRole, userId?: string) {
+  if (perspective === "admin") return true
+  return (
+    perspective === "client" &&
+    voucher.clientId === userId &&
+    isPendingVoucherForClient(voucher)
+  )
+}
+
+export function canProcessVoucher(
+  voucher: PaymentVoucher,
+  loan: Loan,
+  perspective: LoanRole,
+  userId?: string,
+) {
+  if (perspective === "investor") {
+    return voucher.status === "pending_investor_review" && loan.investorId === userId
+  }
+  if (perspective !== "admin") return false
+  return ["pending_admin_review", "investor_approved"].includes(voucher.status ?? "")
 }
