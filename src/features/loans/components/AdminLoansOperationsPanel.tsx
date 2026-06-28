@@ -709,6 +709,7 @@ export function AdminLoansOperationsPanel({
                 variant={statusFilter === status.value ? "secondary" : "outline"}
                 size="sm"
                 onClick={() => onStatusFilterChange(status.value)}
+                className="rounded-full px-3"
               >
                 {status.label}
               </Button>

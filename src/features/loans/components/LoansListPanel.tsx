@@ -14,6 +14,7 @@ import type { ReactNode } from "react"
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { ResponsivePagination } from "@/components/ResponsivePagination"
 import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import {
   InputGroup,
@@ -21,7 +22,6 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group"
 import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/progress"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Spinner } from "@/components/ui/spinner"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import {
@@ -109,15 +109,15 @@ export function LoansListPanel({
           />
         </InputGroup>
 
-        <ScrollArea className="h-9 w-full" scrollFade>
-          <div className="flex w-max gap-2 px-0.5 pb-1">
+        <ScrollArea className="h-10 min-w-0" scrollFade>
+          <div className="flex w-max items-center gap-2 px-0.5 py-0.5 pr-2">
             {statusFilters.map((status) => (
               <Button
                 key={status.value}
                 variant={statusFilter === status.value ? "default" : "outline"}
                 size="sm"
                 onClick={() => onStatusFilterChange(status.value)}
-                className="shrink-0"
+                className="shrink-0 rounded-full px-3"
               >
                 {status.label}
               </Button>
