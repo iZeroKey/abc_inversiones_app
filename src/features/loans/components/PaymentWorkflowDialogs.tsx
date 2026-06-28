@@ -27,6 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Progress } from "@/components/ui/progress"
 import {
   Drawer,
+  DrawerClose,
   DrawerPopup,
   DrawerDescription,
   DrawerFooter,
@@ -151,8 +152,7 @@ export function PaymentDialog({
             </DrawerDescription>
           </DrawerHeader>
         )}
-        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-          <div className="min-h-0 flex-1">
+        <form className="contents" onSubmit={handleSubmit}>
             <DrawerPanel className={cn("flex flex-col gap-4", isPanel && "p-0")}>
               {!editing && (
                 <EvidenceSection
@@ -265,14 +265,13 @@ export function PaymentDialog({
                 />
               </Field>
             </DrawerPanel>
-          </div>
           <DrawerFooter
             variant="bare"
             className={cn("shrink-0", isPanel && "mt-4 border-t bg-transparent px-0 pb-0 pt-4")}
           >
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <DrawerClose render={<Button variant="outline" />}>
               Cancelar
-            </Button>
+            </DrawerClose>
             <Button type="submit" disabled={!canSubmit}>
               {submitting ? <Spinner /> : <ReceiptTextIcon data-icon="inline-start" />}
               {editing ? "Guardar pago" : "Registrar pago"}
@@ -289,6 +288,7 @@ export function PaymentDialog({
   return (
     <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
       <DrawerPopup
+        showBar
         showCloseButton={!isMobile}
         className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
         style={!isMobile ? { width: drawerWidth ?? 620, maxWidth: "min(1080px, calc(100vw - 2rem))", minWidth: 560 } : undefined}
@@ -359,8 +359,12 @@ export function VoucherDialog({
     <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
       <DrawerPopup
         showCloseButton={!isMobile}
-        className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
-        style={!isMobile ? { width: 720, minWidth: 520 } : undefined}
+        showBar
+        className={cn(
+          "[--drawer-swipe-strength:1]",
+          isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : "",
+        )}
+        style={!isMobile ? { width: 720, minWidth: 520, maxWidth: "min(1080px, calc(100vw - 2rem))" } : undefined}
       >
         <DrawerHeader>
           <DrawerTitle>{editing ? "Editar voucher" : "Subir voucher"}</DrawerTitle>
@@ -368,91 +372,89 @@ export function VoucherDialog({
             Confirma los datos del comprobante antes de enviarlo a revisión.
           </DrawerDescription>
         </DrawerHeader>
-        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-          <div className="min-h-0 flex-1">
-            <DrawerPanel className="flex flex-col gap-4">
-              {!editing && (
-                <EvidenceSection
-                  file={form.evidence}
-                  title="Evidencia"
-                  uploadState={uploadState}
-                  onFileSelected={(file) => {
-                    scanAbortRef.current?.abort()
-                    const abortController = new AbortController()
-                    scanAbortRef.current = abortController
-                    setForm((current) => ({ ...current, evidence: file }))
-                    runAutomaticOcr({
-                      file,
-                      setUploadState,
-                      analyze: onAnalyze,
-                      signal: abortController.signal,
-                      apply: (analyzed) =>
-                        setForm((current) => ({
-                          ...current,
-                          ...removeEmptyValues(analyzed),
-                          evidence: file,
-                        })),
-                      onFinish: () => {
-                        if (scanAbortRef.current === abortController) scanAbortRef.current = null
-                      },
-                    })
-                  }}
-                  onRemove={() => {
-                    scanAbortRef.current?.abort()
-                    scanAbortRef.current = null
-                    setForm((current) => ({ ...current, evidence: null }))
-                    setUploadState(idleScanState)
-                  }}
-                  onCancelScan={cancelScan}
-                />
-              )}
+        <form className="contents" onSubmit={handleSubmit}>
+          <DrawerPanel className="flex flex-col gap-4">
+            {!editing && (
+              <EvidenceSection
+                file={form.evidence}
+                title="Evidencia"
+                uploadState={uploadState}
+                onFileSelected={(file) => {
+                  scanAbortRef.current?.abort()
+                  const abortController = new AbortController()
+                  scanAbortRef.current = abortController
+                  setForm((current) => ({ ...current, evidence: file }))
+                  runAutomaticOcr({
+                    file,
+                    setUploadState,
+                    analyze: onAnalyze,
+                    signal: abortController.signal,
+                    apply: (analyzed) =>
+                      setForm((current) => ({
+                        ...current,
+                        ...removeEmptyValues(analyzed),
+                        evidence: file,
+                      })),
+                    onFinish: () => {
+                      if (scanAbortRef.current === abortController) scanAbortRef.current = null
+                    },
+                  })
+                }}
+                onRemove={() => {
+                  scanAbortRef.current?.abort()
+                  scanAbortRef.current = null
+                  setForm((current) => ({ ...current, evidence: null }))
+                  setUploadState(idleScanState)
+                }}
+                onCancelScan={cancelScan}
+              />
+            )}
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="voucher-amount">Monto</FieldLabel>
-                  <MoneyNumberField
-                    id="voucher-amount"
-                    min="0.01"
-                    step="0.01"
-                    value={form.amount}
-                    onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="voucher-operation">Operación</FieldLabel>
-                  <Input
-                    id="voucher-operation"
-                    size="lg"
-                    value={form.operationId}
-                    onChange={(event) => setForm((current) => ({ ...current, operationId: event.target.value }))}
-                    placeholder="Código bancario"
-                  />
-                </Field>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel>Fecha de operación</FieldLabel>
-                  <DatePicker
-                    value={form.operationDate}
-                    onChange={(operationDate) => setForm((current) => ({ ...current, operationDate }))}
-                  />
-                </Field>
-              </div>
+            <div className="grid gap-3 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor="voucher-observation">Observación</FieldLabel>
-                <Textarea
-                  id="voucher-observation"
-                  value={form.observation}
-                  onChange={(event) => setForm((current) => ({ ...current, observation: event.target.value }))}
-                  placeholder="Comentario opcional para revisión"
+                <FieldLabel htmlFor="voucher-amount">Monto</FieldLabel>
+                <MoneyNumberField
+                  id="voucher-amount"
+                  min="0.01"
+                  step="0.01"
+                  value={form.amount}
+                  onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
                 />
               </Field>
-            </DrawerPanel>
-          </div>
-          <DrawerFooter variant="bare" className="shrink-0">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Field>
+                <FieldLabel htmlFor="voucher-operation">Operación</FieldLabel>
+                <Input
+                  id="voucher-operation"
+                  size="lg"
+                  value={form.operationId}
+                  onChange={(event) => setForm((current) => ({ ...current, operationId: event.target.value }))}
+                  placeholder="Código bancario"
+                />
+              </Field>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field>
+                <FieldLabel>Fecha de operación</FieldLabel>
+                <DatePicker
+                  value={form.operationDate}
+                  onChange={(operationDate) => setForm((current) => ({ ...current, operationDate }))}
+                />
+              </Field>
+            </div>
+            <Field>
+              <FieldLabel htmlFor="voucher-observation">Observación</FieldLabel>
+              <Textarea
+                id="voucher-observation"
+                value={form.observation}
+                onChange={(event) => setForm((current) => ({ ...current, observation: event.target.value }))}
+                placeholder="Comentario opcional para revisión"
+              />
+            </Field>
+          </DrawerPanel>
+          <DrawerFooter variant="bare">
+            <DrawerClose render={<Button variant="outline" />}>
               Cancelar
-            </Button>
+            </DrawerClose>
             <Button type="submit" disabled={!canSubmit}>
               {submitting ? <Spinner /> : <UploadIcon data-icon="inline-start" />}
               {editing ? "Guardar voucher" : "Enviar voucher"}
