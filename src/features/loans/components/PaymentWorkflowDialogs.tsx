@@ -286,7 +286,7 @@ export function PaymentDialog({
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"} nested>
       <DrawerPopup
         showBar
         showCloseButton={!isMobile}
@@ -356,7 +356,7 @@ export function VoucherDialog({
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"} nested>
       <DrawerPopup
         showCloseButton={!isMobile}
         showBar
@@ -490,7 +490,7 @@ export function ProcessVoucherDialog({
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"} nested>
       <DrawerPopup
         showCloseButton={!isMobile}
         className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
@@ -548,7 +548,7 @@ export function DeleteWorkflowDialog({
 }) {
   const isMobile = useIsMobile()
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"} nested>
       <DrawerPopup
         showCloseButton={!isMobile}
         className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}

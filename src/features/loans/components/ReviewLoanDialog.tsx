@@ -43,7 +43,7 @@ export function ReviewLoanDialog({
   const isMobile = useIsMobile()
 
   return (
-    <Drawer open={mode !== null} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+    <Drawer open={mode !== null} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"} nested>
       <DrawerPopup
         showCloseButton={!isMobile}
         className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}

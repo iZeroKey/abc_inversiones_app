@@ -27,7 +27,7 @@ export function ScheduleDrawer({
   const isMobile = useIsMobile()
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"} nested>
       <DrawerPopup
         showBar
         showCloseButton={!isMobile}
