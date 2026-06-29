@@ -8,7 +8,9 @@ import {
   XIcon,
 } from "lucide-react"
 
+import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,9 +27,10 @@ import {
   LoanSummaryBar,
   NextPaymentHero,
 } from "@/features/loans/components/LoanMetricBits"
+import { interestPeriodLabels } from "@/features/loans/loan-constants"
 import { DetailSkeleton, EmptyDetail } from "@/features/loans/components/LoanPageStates"
 import { PaymentsTable } from "@/features/loans/components/PaymentsTable"
-import { ScheduleTable } from "@/features/loans/components/ScheduleTable"
+import { ScheduleTimeline } from "@/features/loans/components/ScheduleTimeline"
 import { VouchersTable } from "@/features/loans/components/VouchersTable"
 import { usePaymentMutations } from "@/features/loans/hooks/usePaymentMutations"
 import {
@@ -235,6 +238,39 @@ export function LoanDetailPanel({
           </div>
         )}
 
+        {/* ── Client: remaining + progress ── */}
+        {perspective === "client" && (
+          <SectionBlock>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Saldo total pendiente</p>
+              <p className="text-3xl font-black tabular-nums tracking-tight text-foreground">
+                <AnimatedNumber value={remaining} isCurrency />
+              </p>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span>Capital <AnimatedNumber value={loan.principal} isCurrency /></span>
+                {loan.interestRate != null && (
+                  <>
+                    <span>·</span>
+                    <span>
+                      <AnimatedNumber value={loan.interestRate} decimals={1} suffix="%" />
+                      {" "}{interestPeriodLabels[String(loan.interestPeriod)] ?? ""}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="my-4 px-0">
+              <Separator className="w-full" />
+            </div>
+            <LoanSummaryBar
+              totalDebt={loan.totalDebt ?? 0}
+              paidAmount={paidAmount}
+              progress={progress}
+              accent={accent}
+            />
+          </SectionBlock>
+        )}
+
         {/* ── Client: hero card ── */}
         {perspective === "client" && (
           <NextPaymentHero
@@ -244,31 +280,6 @@ export function LoanDetailPanel({
             onSubmitVoucher={() => mutations.setVoucherDialogVoucher(null)}
             intent="hero"
           />
-        )}
-
-        {/* ── Client: summary + conditions ── */}
-        {perspective === "client" && (
-          <>
-            <SectionBlock>
-              <LoanSummaryBar
-                totalDebt={loan.totalDebt ?? 0}
-                paidAmount={paidAmount}
-                remaining={remaining}
-                progress={progress}
-                accent={accent}
-              />
-            </SectionBlock>
-            <SectionBlock>
-              <LoanConditions
-                principal={loan.principal}
-                installmentsCount={loan.installmentsCount}
-                frequency={loan.frequency}
-                interestRate={loan.interestRate}
-                interestPeriod={loan.interestPeriod}
-                startDate={loan.startDate}
-              />
-            </SectionBlock>
-          </>
         )}
 
         {/* ── Admin: top grid ── */}
@@ -283,7 +294,6 @@ export function LoanDetailPanel({
             <LoanSummaryBar
               totalDebt={loan.totalDebt ?? 0}
               paidAmount={paidAmount}
-              remaining={remaining}
               progress={progress}
               accent={accent}
             />
@@ -322,7 +332,6 @@ export function LoanDetailPanel({
             <LoanSummaryBar
               totalDebt={loan.totalDebt ?? 0}
               paidAmount={paidAmount}
-              remaining={remaining}
               progress={progress}
               accent={accent}
             />
@@ -383,7 +392,7 @@ export function LoanDetailPanel({
             </TabsList>
 
             <TabsContent value="schedule">
-              <ScheduleTable installments={relatedData.installments} />
+              <ScheduleTimeline installments={relatedData.installments} />
             </TabsContent>
             <TabsContent value="payments">
               <PaymentsTable

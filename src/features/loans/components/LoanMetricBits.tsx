@@ -1,5 +1,6 @@
 import {
   CalendarClockIcon,
+  ChevronRightIcon,
   UploadIcon,
 } from "lucide-react"
 import type { ElementType, ReactNode } from "react"
@@ -52,10 +53,11 @@ export function InfoRow({
     return (
       <button
         type="button"
-        className="flex items-center gap-3 w-full cursor-pointer text-left focus:outline-none focus:underline hover:bg-muted/30 rounded-xl transition-colors p-1 -ml-1"
+        className="flex items-center gap-3 w-full cursor-pointer text-left focus:outline-none hover:bg-muted/50 rounded-xl transition-colors p-1 -ml-1 group"
         onClick={onClick}
       >
         {content}
+        <ChevronRightIcon className="ml-auto size-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-muted-foreground" />
       </button>
     )
   }
@@ -167,13 +169,11 @@ export function NextPaymentHero({
 export function LoanSummaryBar({
   totalDebt,
   paidAmount,
-  remaining,
   progress,
   accent = "success",
 }: {
   totalDebt: string | number
   paidAmount: string | number
-  remaining: string | number
   progress: number
   accent?: "success" | "warning" | "destructive" | "muted"
 }) {
@@ -186,36 +186,21 @@ export function LoanSummaryBar({
 
   return (
     <div>
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">Deuda total</p>
-          <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">
-            <AnimatedNumber value={totalDebt} isCurrency />
-          </p>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">Pendiente</p>
-          <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">
-            <AnimatedNumber value={remaining} isCurrency />
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs font-medium text-muted-foreground">Pagado</p>
-          <p className="mt-0.5 text-lg font-bold tabular-nums text-success">
-            <AnimatedNumber value={paidAmount} isCurrency />
-          </p>
-        </div>
-      </div>
-      <div className="mt-3 flex items-center gap-3">
-        <div className="h-2 flex-1 rounded-full bg-muted">
-          <div
-            className={`h-full rounded-full transition-all duration-700 ${progressColors[accent]}`}
-            style={{ width: `${Math.min(progress, 100)}%` }}
-          />
-        </div>
-        <span className={`text-xs font-bold tabular-nums ${progressColors[accent].replace("bg-", "text-")}`}>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-muted-foreground">Progreso de pago</p>
+        <span className={`text-sm font-bold tabular-nums ${progressColors[accent].replace("bg-", "text-")}`}>
           <AnimatedNumber value={progress} decimals={0} suffix="%" />
         </span>
+      </div>
+      <div className="mt-2 h-2.5 flex-1 rounded-full bg-muted">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${progressColors[accent]}`}
+          style={{ width: `${Math.min(progress, 100)}%` }}
+        />
+      </div>
+      <div className="mt-1.5 flex justify-between text-xs text-muted-foreground">
+        <span>Pagado <AnimatedNumber value={paidAmount} isCurrency /></span>
+        <span>Total <AnimatedNumber value={totalDebt} isCurrency /></span>
       </div>
     </div>
   )
