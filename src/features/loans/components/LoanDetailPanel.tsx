@@ -1,5 +1,6 @@
 import {
   AlertCircleIcon,
+  ArrowRightIcon,
   CheckIcon,
   CreditCardIcon,
   MoreHorizontalIcon,
@@ -7,6 +8,7 @@ import {
   UserRoundIcon,
   XIcon,
 } from "lucide-react"
+import { useState } from "react"
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Button } from "@/components/ui/button"
@@ -18,8 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { UserDetailProfile } from "@/components/UserDetailSheet"
+import { UserDetailSheet, type UserDetailProfile } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
 import {
   InfoRow,
@@ -30,9 +31,10 @@ import {
 import { interestPeriodLabels } from "@/features/loans/loan-constants"
 import { DetailSkeleton, EmptyDetail } from "@/features/loans/components/LoanPageStates"
 import { PaymentsTable } from "@/features/loans/components/PaymentsTable"
+import { ScheduleDrawer } from "@/features/loans/components/ScheduleDrawer"
 import { ScheduleTimeline } from "@/features/loans/components/ScheduleTimeline"
 import { VouchersTable } from "@/features/loans/components/VouchersTable"
-import { usePaymentMutations } from "@/features/loans/hooks/usePaymentMutations"
+import { DelayedOpenGate, usePaymentMutations } from "@/features/loans/hooks/usePaymentMutations"
 import {
   canDeleteVoucher,
   canEditVoucher,
@@ -43,6 +45,7 @@ import {
   getLoanProgress,
   getNextInstallment,
   getRemainingDebt,
+  getVisibleInstallments,
   loanClientName,
   loanInvestorName,
   normalizeStatus,
@@ -133,6 +136,9 @@ export function LoanDetailPanel({
     drawerWidth,
   })
 
+  const [showSchedule, setShowSchedule] = useState(false)
+  const [investorSheetUser, setInvestorSheetUser] = useState<UserDetailProfile | null>(null)
+
   if (loading) {
     return (
       <section className="min-h-105">
@@ -162,6 +168,8 @@ export function LoanDetailPanel({
   const pendingVouchersCount = relatedData.vouchers.filter(
     (v) => v.status === "pending_investor_review" || v.status === "pending_admin_review",
   ).length
+
+  const visibleInstallments = getVisibleInstallments(relatedData.installments)
 
   const clientUser = resolveClientUser(loan)
   const investorUser = resolveInvestorUser(loan)
@@ -307,7 +315,7 @@ export function LoanDetailPanel({
               icon={UserRoundIcon}
               label="Inversionista"
               value={isCompanyFunded ? "ABC Inversiones" : loanInvestorName(loan)}
-              onClick={investorUser ? () => onUserClick?.(investorUser) : undefined}
+              onClick={!isCompanyFunded && investorUser ? () => setInvestorSheetUser(investorUser) : undefined}
             />
           </SectionBlock>
         )}
@@ -352,7 +360,7 @@ export function LoanDetailPanel({
                 icon={UserRoundIcon}
                 label="Inversionista"
                 value={isCompanyFunded ? "ABC Inversiones" : loanInvestorName(loan)}
-                onClick={investorUser ? () => onUserClick?.(investorUser) : undefined}
+                onClick={!isCompanyFunded && investorUser ? () => setInvestorSheetUser(investorUser) : undefined}
               />
             </div>
           </SectionBlock>
@@ -370,73 +378,90 @@ export function LoanDetailPanel({
           </SectionBlock>
         )}
 
-        {/* ── Tabs ── */}
+        {/* ── Cronograma ── */}
         <SectionBlock>
-          <Tabs defaultValue={perspective === "investor" ? "vouchers" : "schedule"} className="min-h-0">
-            <TabsList className="w-full overflow-x-auto">
-              {perspective === "investor" ? (
-                <>
-                  <TabsTrigger value="vouchers" className="flex-1">Vouchers</TabsTrigger>
-                  <TabsTrigger value="schedule" className="flex-1">Cronograma</TabsTrigger>
-                  <TabsTrigger value="payments" className="flex-1">Pagos</TabsTrigger>
-                </>
-              ) : (
-                <>
-                  <TabsTrigger value="schedule" className="flex-1">Cronograma</TabsTrigger>
-                  <TabsTrigger value="payments" className="flex-1">Pagos</TabsTrigger>
-                  {perspective === "admin" && (
-                    <TabsTrigger value="vouchers" className="flex-1">Vouchers</TabsTrigger>
-                  )}
-                </>
-              )}
-            </TabsList>
-
-            <TabsContent value="schedule">
-              <ScheduleTimeline installments={relatedData.installments} />
-            </TabsContent>
-            <TabsContent value="payments">
-              <PaymentsTable
-                payments={relatedData.payments}
-                vouchers={relatedData.vouchers}
-                canManage={perspective === "admin"}
-                showUnappliedVouchers
-                canEditVoucher={(v) => canEditVoucher(v, perspective, user?.id)}
-                canDeleteVoucher={(v) => canDeleteVoucher(v, perspective, user?.id)}
-                canProcessVoucher={(v) => canProcessVoucher(v, loan, perspective, user?.id)}
-                onEdit={mutations.setPaymentDialogPayment}
-                onDelete={(payment) => mutations.setDeleteTarget({ type: "payment", item: payment, source: "list" })}
-                onEditVoucher={mutations.setVoucherDialogVoucher}
-                onDeleteVoucher={(voucher) => mutations.setDeleteTarget({ type: "voucher", item: voucher, source: "list" })}
-                onApproveVoucher={(voucher) => mutations.setProcessDialog({ voucher, mode: "approve" })}
-                onRejectVoucher={(voucher) => mutations.setProcessDialog({ voucher, mode: "reject" })}
-              />
-            </TabsContent>
-            {(perspective === "admin" || perspective === "investor") && (
-              <TabsContent value="vouchers">
-                <VouchersTable
-                  vouchers={relatedData.vouchers}
-                  payments={relatedData.payments}
-                  canDeletePayment={perspective === "admin"}
-                  canEdit={(v) => canEditVoucher(v, perspective, user?.id)}
-                  canDelete={(v) => canDeleteVoucher(v, perspective, user?.id)}
-                  canProcess={(v) => canProcessVoucher(v, loan, perspective, user?.id)}
-                  onEdit={mutations.setVoucherDialogVoucher}
-                  onDelete={(voucher) => mutations.setDeleteTarget({ type: "voucher", item: voucher, source: "gallery" })}
-                  onDeletePayment={(payment) => mutations.setDeleteTarget({ type: "payment", item: payment, source: "gallery" })}
-                  onApprove={(voucher) => mutations.setProcessDialog({ voucher, mode: "approve" })}
-                  onReject={(voucher) => mutations.setProcessDialog({ voucher, mode: "reject" })}
-                  deleteTarget={mutations.deleteTarget}
-                  submitting={mutations.submitting}
-                  onCancelDelete={() => mutations.setDeleteTarget(null)}
-                  onConfirmDelete={mutations.handleDeleteTarget}
-                />
-              </TabsContent>
-            )}
-          </Tabs>
+          <h3 className="text-sm font-semibold text-foreground mb-3">Cronograma</h3>
+          <ScheduleTimeline installments={visibleInstallments.visible} />
+          {visibleInstallments.hasMore && (
+            <div className="flex justify-center mt-3">
+              <button
+                type="button"
+                className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline underline-offset-4 transition-colors cursor-pointer"
+                onClick={() => setShowSchedule(true)}
+              >
+                Ver cronograma completo
+                <ArrowRightIcon className="size-4" />
+              </button>
+            </div>
+          )}
         </SectionBlock>
+
+        {/* ── Pagos ── */}
+        <SectionBlock>
+          <h3 className="text-sm font-semibold text-foreground mb-3">Pagos</h3>
+          <PaymentsTable
+            payments={relatedData.payments}
+            vouchers={relatedData.vouchers}
+            canManage={perspective === "admin"}
+            showUnappliedVouchers
+            canEditVoucher={(v) => canEditVoucher(v, perspective, user?.id)}
+            canDeleteVoucher={(v) => canDeleteVoucher(v, perspective, user?.id)}
+            canProcessVoucher={(v) => canProcessVoucher(v, loan, perspective, user?.id)}
+            onEdit={mutations.setPaymentDialogPayment}
+            onDelete={(payment) => mutations.setDeleteTarget({ type: "payment", item: payment, source: "list" })}
+            onEditVoucher={mutations.setVoucherDialogVoucher}
+            onDeleteVoucher={(voucher) => mutations.setDeleteTarget({ type: "voucher", item: voucher, source: "list" })}
+            onApproveVoucher={(voucher) => mutations.setProcessDialog({ voucher, mode: "approve" })}
+            onRejectVoucher={(voucher) => mutations.setProcessDialog({ voucher, mode: "reject" })}
+          />
+        </SectionBlock>
+
+        {/* ── Vouchers (admin / investor) ── */}
+        {(perspective === "admin" || perspective === "investor") && (
+          <SectionBlock>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Vouchers</h3>
+            <VouchersTable
+              vouchers={relatedData.vouchers}
+              payments={relatedData.payments}
+              canDeletePayment={perspective === "admin"}
+              canEdit={(v) => canEditVoucher(v, perspective, user?.id)}
+              canDelete={(v) => canDeleteVoucher(v, perspective, user?.id)}
+              canProcess={(v) => canProcessVoucher(v, loan, perspective, user?.id)}
+              onEdit={mutations.setVoucherDialogVoucher}
+              onDelete={(voucher) => mutations.setDeleteTarget({ type: "voucher", item: voucher, source: "gallery" })}
+              onDeletePayment={(payment) => mutations.setDeleteTarget({ type: "payment", item: payment, source: "gallery" })}
+              onApprove={(voucher) => mutations.setProcessDialog({ voucher, mode: "approve" })}
+              onReject={(voucher) => mutations.setProcessDialog({ voucher, mode: "reject" })}
+              deleteTarget={mutations.deleteTarget}
+              submitting={mutations.submitting}
+              onCancelDelete={() => mutations.setDeleteTarget(null)}
+              onConfirmDelete={mutations.handleDeleteTarget}
+            />
+          </SectionBlock>
+        )}
       </div>
 
       {mutations.dialogElements}
+
+      <DelayedOpenGate open={showSchedule} onOpenChange={setShowSchedule}>
+        {(gateOpen, gateOnOpenChange) => (
+          <ScheduleDrawer
+            open={gateOpen}
+            installments={relatedData.installments}
+            onOpenChange={gateOnOpenChange}
+            drawerWidth={drawerWidth}
+          />
+        )}
+      </DelayedOpenGate>
+
+      <DelayedOpenGate open={investorSheetUser !== null} onOpenChange={(open) => { if (!open) setInvestorSheetUser(null) }}>
+        {(gateOpen, gateOnOpenChange) => (
+          <UserDetailSheet
+            user={gateOpen ? investorSheetUser : null}
+            onOpenChange={(open) => { if (!open) gateOnOpenChange(false) }}
+          />
+        )}
+      </DelayedOpenGate>
     </section>
   )
 }

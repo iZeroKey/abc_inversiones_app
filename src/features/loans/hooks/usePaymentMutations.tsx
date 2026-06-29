@@ -33,7 +33,7 @@ type UsePaymentMutationsProps = {
   drawerWidth?: number
 }
 
-function DelayedOpenGate({
+export function DelayedOpenGate({
   open,
   onOpenChange,
   children,
