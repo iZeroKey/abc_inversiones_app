@@ -58,7 +58,7 @@ import {
   toNumber,
 } from "@/features/loans/loan-utils"
 import { cn } from "@/lib/utils"
-import type { Loan, LoanStatus, PaginationMeta, RelatedUser } from "@/types/loans"
+import type { Loan, LoanStatus, PaginationMeta, Payment, PaymentVoucher, RelatedUser, LoanTransaction } from "@/types/loans"
 
 type OperationsFocus = "all" | "review" | "active" | "risk" | "company"
 type OperationsView = "table" | "cards"
@@ -115,6 +115,10 @@ type AdminLoansOperationsPanelProps = {
   onRetryDetail: () => void
   onDataChanged?: () => Promise<void> | void
   onUserClick?: (user: UserDetailProfile) => void
+  transactions?: LoanTransaction[]
+  transactionsMeta?: PaginationMeta
+  loadingTransactions?: boolean
+  onLoadMoreTransactions?: () => void
 }
 
 const focusOptions: Array<{ value: OperationsFocus; label: string }> = [
@@ -378,6 +382,10 @@ export function AdminLoansOperationsPanel({
   onRetryDetail,
   onDataChanged,
   onUserClick,
+  transactions,
+  transactionsMeta,
+  loadingTransactions,
+  onLoadMoreTransactions,
 }: AdminLoansOperationsPanelProps) {
   const [view, setView] = useState<OperationsView>(() => readOperationsPreferences().view ?? "table")
   const [focus, setFocus] = useState<OperationsFocus>(() => readOperationsPreferences().focus ?? "all")
@@ -868,6 +876,10 @@ export function AdminLoansOperationsPanel({
               hideBackButton
               drawerWidth={760}
               onUserClick={onUserClick}
+              transactions={transactions}
+              transactionsMeta={transactionsMeta}
+              loadingTransactions={loadingTransactions}
+              onLoadMoreTransactions={onLoadMoreTransactions}
             />
           </DrawerPanel>
         </DrawerPopup>

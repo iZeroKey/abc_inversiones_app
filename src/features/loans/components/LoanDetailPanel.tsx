@@ -50,7 +50,7 @@ import {
   normalizeStatus,
 } from "@/features/loans/loan-utils"
 import { cn } from "@/lib/utils"
-import type { Installment, Loan, Payment, PaymentVoucher } from "@/types/loans"
+import type { Installment, Loan, PaginationMeta, Payment, PaymentVoucher, LoanTransaction } from "@/types/loans"
 
 export type RelatedData = {
   installments: Installment[]
@@ -107,6 +107,10 @@ export function LoanDetailPanel({
   onDataChanged,
   drawerWidth,
   onUserClick,
+  transactions,
+  transactionsMeta,
+  loadingTransactions,
+  onLoadMoreTransactions,
 }: {
   loan: Loan | null
   relatedData: RelatedData
@@ -124,6 +128,10 @@ export function LoanDetailPanel({
   onDataChanged?: () => Promise<void> | void
   onUserClick?: (user: UserDetailProfile) => void
   onBack?: () => void
+  transactions?: LoanTransaction[]
+  transactionsMeta?: PaginationMeta
+  loadingTransactions?: boolean
+  onLoadMoreTransactions?: () => void
 }) {
   const { user, session, fetchWithAuth } = useAuth()
 
@@ -399,8 +407,7 @@ export function LoanDetailPanel({
         <SectionBlock>
           <h3 className="text-sm font-semibold text-foreground mb-3">Pagos</h3>
           <PaymentsGallery
-            payments={relatedData.payments}
-            vouchers={relatedData.vouchers}
+            transactions={transactions ?? []}
             canManage={perspective === "admin"}
             canEditVoucher={(v) => canEditVoucher(v, perspective, user?.id)}
             canDeleteVoucher={(v) => canDeleteVoucher(v, perspective, user?.id)}
@@ -412,11 +419,13 @@ export function LoanDetailPanel({
             onApproveVoucher={(voucher) => mutations.setProcessDialog({ voucher, mode: "approve" })}
             onRejectVoucher={(voucher) => mutations.setProcessDialog({ voucher, mode: "reject" })}
             drawerWidth={drawerWidth}
+            dialogElements={mutations.dialogElements}
+            transactionsMeta={transactionsMeta}
+            loadingTransactions={loadingTransactions}
+            onLoadMoreTransactions={onLoadMoreTransactions}
           />
         </SectionBlock>
       </div>
-
-      {mutations.dialogElements}
 
       <DelayedOpenGate open={showSchedule} onOpenChange={setShowSchedule}>
         {(gateOpen, gateOnOpenChange) => (

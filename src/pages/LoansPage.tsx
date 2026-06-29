@@ -35,6 +35,8 @@ import {
 import {
   getAuthQueryScope,
   useLoanBundleQuery,
+  useLoanPaymentsQuery,
+  useLoanTransactionsQuery,
   useLoansQuery,
   useLoansSummaryQuery,
   useLoanUsersByRoleQuery,
@@ -109,6 +111,7 @@ export default function LoansPage() {
   const [rejectObservation, setRejectObservation] = useState("")
   const isMobile = useIsMobile()
 
+
   useDrawerHistory(isDetailOpen, (open) => {
     if (!open) setDrawerLoanId(null)
   })
@@ -170,6 +173,19 @@ export default function LoansPage() {
   const detailQuery = useLoanBundleQuery(detailLoanId, {
     enabled: Boolean(detailLoanId),
   })
+  const transactionsQuery = useLoanTransactionsQuery(detailLoanId, { limit: 10 })
+  const transactionsData = useMemo(() => {
+    const raw = transactionsQuery.data?.pages.flatMap(p => p.data) ?? []
+    const seen = new Set<string>()
+    return raw.filter(t => {
+      if (seen.has(t.id)) return false
+      seen.add(t.id)
+      return true
+    })
+  }, [transactionsQuery.data?.pages])
+  
+  const transactionsMeta = transactionsQuery.data?.pages[transactionsQuery.data.pages.length - 1]?.meta
+  const loadingTransactions = transactionsQuery.isFetchingNextPage || transactionsQuery.isLoading
   const detailDataMatchesLoan = Boolean(detailLoanId && relatedDataLoanId === detailLoanId)
   const visibleRelatedData = detailDataMatchesLoan ? relatedData : emptyRelatedData
   const detailLoadingVisible = Boolean(
@@ -325,8 +341,8 @@ export default function LoansPage() {
 
         setRelatedData({
           installments,
-          payments: bundle.payments,
-          vouchers: bundle.vouchers,
+          payments: [],
+          vouchers: [],
         })
         setRelatedDataLoanId(id)
       } catch (error) {
@@ -358,8 +374,8 @@ export default function LoansPage() {
     }
     setRelatedData({
       installments: detailQuery.data.installments,
-      payments: detailQuery.data.payments,
-      vouchers: detailQuery.data.vouchers,
+      payments: [],
+      vouchers: [],
     })
     setRelatedDataLoanId(detailLoanId)
     setDetailError(null)
@@ -552,6 +568,7 @@ export default function LoansPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.loans.list(queryScope) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.loans.detail(queryScope, id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.list(queryScope, id) }),
     ])
     await Promise.all([
       loadLoans(),
@@ -645,6 +662,10 @@ export default function LoansPage() {
               onRetryDetail={() => visibleSelectedLoan && void loadDetail(visibleSelectedLoan.id, visibleSelectedLoan)}
               onDataChanged={refreshSelectedLoanData}
               onUserClick={setSelectedUserForSheet}
+              transactions={transactionsData}
+              transactionsMeta={transactionsMeta}
+              loadingTransactions={loadingTransactions}
+              onLoadMoreTransactions={() => transactionsQuery.fetchNextPage()}
             />
           </TabsContent>
         </Tabs>
@@ -709,6 +730,10 @@ export default function LoansPage() {
               drawerWidth={760}
               onUserClick={setSelectedUserForSheet}
               onBack={() => setDrawerLoanId(null)}
+              transactions={transactionsData}
+              transactionsMeta={transactionsMeta}
+              loadingTransactions={loadingTransactions}
+              onLoadMoreTransactions={() => transactionsQuery.fetchNextPage()}
             />
           </DrawerPanel>
         </DrawerPopup>

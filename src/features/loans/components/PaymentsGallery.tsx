@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react"
+import { type ReactElement, useState, useMemo, useRef, useEffect } from "react"
 import { PhotoProvider, PhotoView } from "react-photo-view"
-import { CheckIcon, EditIcon, FileImageIcon, Trash2Icon, XIcon } from "lucide-react"
+import { CheckIcon, EditIcon, FileImageIcon, Trash2Icon, XIcon, Loader2Icon, ArrowDownIcon } from "lucide-react"
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Badge } from "@/components/ui/badge"
@@ -25,7 +25,7 @@ import { paymentMethodLabels } from "@/features/loans/loan-constants"
 import { formatDate } from "@/features/loans/loan-utils"
 import { DelayedOpenGate } from "@/features/loans/hooks/usePaymentMutations"
 import { useIsMobile } from "@/hooks/use-media-query"
-import type { Payment, PaymentVoucher } from "@/types/loans"
+import type { PaginationMeta, Payment, PaymentVoucher, LoanTransaction } from "@/types/loans"
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -44,11 +44,7 @@ function isUnappliedVoucher(voucher: PaymentVoucher) {
   return ["draft", "pending_investor_review", "pending_admin_review", "investor_approved"].includes(voucher.status ?? "")
 }
 
-// ─── Types ──────────────────────────────────────────────────────────
 
-type PaymentGalleryItem =
-  | { kind: "payment"; payment: Payment; voucher?: PaymentVoucher }
-  | { kind: "unapplied_voucher"; voucher: PaymentVoucher }
 
 // ─── Detail Drawer ──────────────────────────────────────────────────
 
@@ -67,10 +63,11 @@ function PaymentDetailDrawer({
   onApproveVoucher,
   onRejectVoucher,
   drawerWidth,
+  dialogElements,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  item: PaymentGalleryItem | null
+  item: LoanTransaction | null
   canManage: boolean
   canEditVoucher: (v: PaymentVoucher) => boolean
   canDeleteVoucher: (v: PaymentVoucher) => boolean
@@ -82,54 +79,50 @@ function PaymentDetailDrawer({
   onApproveVoucher: (v: PaymentVoucher) => void
   onRejectVoucher: (v: PaymentVoucher) => void
   drawerWidth?: number
+  dialogElements: ReactElement | null
 }) {
   const isMobile = useIsMobile()
   if (!item) return null
 
-  const isPayment = item.kind === "payment"
-  const evidenceUrl = isPayment
-    ? (getPaymentEvidenceUrl(item.payment) ?? (item.voucher ? getVoucherEvidenceUrl(item.voucher) : null))
-    : getVoucherEvidenceUrl(item.voucher)
-  const amount = isPayment ? item.payment.amount : item.voucher.amount
-  const date = isPayment
-    ? (item.payment.paymentDate ?? item.payment.createdAt)
-    : (item.voucher.operationDate ?? item.voucher.createdAt)
+  const isPayment = item.type === "payment"
+  const evidenceUrl = item.evidenceUrl && !item.evidenceUrl.startsWith("storage://") ? item.evidenceUrl : null
+  const amount = item.amount
+  const date = item.date || item.createdAt || ""
   const method = isPayment
-    ? (item.payment.method ? paymentMethodLabels[item.payment.method] ?? item.payment.method : null)
+    ? (item.method ? paymentMethodLabels[item.method] ?? item.method : null)
     : "Transferencia"
-  const reference = isPayment
-    ? (item.payment.reference ?? null)
-    : (item.voucher.operationId ?? null)
-  const observation = isPayment
-    ? (item.payment.observation ?? null)
-    : (item.voucher.observation ?? null)
+  const reference = item.reference ?? item.operationId ?? null
+  const observation = item.observation ?? null
 
   type ActionItem = { label: string; destructive?: boolean; onClick: () => void }
 
   const processActions: ActionItem[] = []
   const footerActions: ActionItem[] = []
 
+  // Create a mock payment/voucher to pass to handlers since they expect Payment/PaymentVoucher types
+  const mockPayment = item as unknown as Payment
+  const mockVoucher = item as unknown as PaymentVoucher
+
   if (isPayment) {
     if (canManage) {
-      footerActions.push({ label: "Editar", onClick: () => onEdit(item.payment) })
-      footerActions.push({ label: "Eliminar", destructive: true, onClick: () => onDelete(item.payment) })
+      footerActions.push({ label: "Editar", onClick: () => onEdit(mockPayment) })
+      footerActions.push({ label: "Eliminar", destructive: true, onClick: () => onDelete(mockPayment) })
     }
   } else {
-    const voucher = item.voucher
-    if (canProcessVoucher(voucher)) {
-      processActions.push({ label: "Aprobar", onClick: () => onApproveVoucher(voucher) })
-      processActions.push({ label: "Rechazar", destructive: true, onClick: () => onRejectVoucher(voucher) })
+    if (canProcessVoucher(mockVoucher)) {
+      processActions.push({ label: "Aprobar", onClick: () => onApproveVoucher(mockVoucher) })
+      processActions.push({ label: "Rechazar", destructive: true, onClick: () => onRejectVoucher(mockVoucher) })
     }
-    if (canEditVoucher(voucher)) {
-      footerActions.push({ label: "Editar", onClick: () => onEditVoucher(voucher) })
+    if (canEditVoucher(mockVoucher)) {
+      footerActions.push({ label: "Editar", onClick: () => onEditVoucher(mockVoucher) })
     }
-    if (canDeleteVoucher(voucher)) {
-      footerActions.push({ label: "Eliminar", destructive: true, onClick: () => onDeleteVoucher(voucher) })
+    if (canDeleteVoucher(mockVoucher)) {
+      footerActions.push({ label: "Eliminar", destructive: true, onClick: () => onDeleteVoucher(mockVoucher) })
     }
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"} nested>
       <DrawerPopup
         showBar
         showCloseButton={!isMobile}
@@ -138,10 +131,10 @@ function PaymentDetailDrawer({
       >
         <DrawerHeader>
           <DrawerTitle>
-            {isPayment ? "Detalle de pago" : "Detalle de voucher"}
+            Detalle de pago
           </DrawerTitle>
           <DrawerDescription>
-            {isPayment ? "Pago aplicado al préstamo" : "Voucher pendiente de proceso"}
+            {isPayment ? "Pago aplicado al préstamo" : "Pago pendiente de proceso"}
           </DrawerDescription>
         </DrawerHeader>
 
@@ -181,7 +174,7 @@ function PaymentDetailDrawer({
                 {isPayment ? (
                   <Badge variant="success" className="rounded-full">Aplicado</Badge>
                 ) : (
-                  <VoucherStatusBadge status={item.voucher.status} />
+                  <VoucherStatusBadge status={item.status} />
                 )}
               </div>
             </div>
@@ -190,7 +183,7 @@ function PaymentDetailDrawer({
 
             {/* Details */}
             <dl className="space-y-3 text-sm">
-              {isPayment && method && (
+              {method && (
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted-foreground">Método</dt>
                   <dd className="font-medium text-right">{method}</dd>
@@ -206,22 +199,19 @@ function PaymentDetailDrawer({
                 </div>
               )}
 
-              {!isPayment && item.voucher.status && (
-                <div className="flex justify-between gap-4">
-                  <dt className="text-muted-foreground">Estado voucher</dt>
-                  <dd className="font-medium text-right">
-                    <VoucherStatusBadge status={item.voucher.status} />
-                  </dd>
-                </div>
-              )}
 
-              {observation && (
-                <div className="flex justify-between gap-4">
-                  <dt className="text-muted-foreground">Observación</dt>
-                  <dd className="text-right max-w-[60%] break-words">{observation}</dd>
-                </div>
-              )}
             </dl>
+
+            <div className="space-y-2 text-sm">
+              <p className="font-medium text-muted-foreground">Observación</p>
+              <div className="rounded-xl bg-muted/40 p-3.5 text-foreground">
+                {observation ? (
+                  <p className="whitespace-pre-wrap break-words">{observation}</p>
+                ) : (
+                  <p className="text-muted-foreground/70 italic text-xs">Sin observación</p>
+                )}
+              </div>
+            </div>
 
             {/* Inline actions for processable vouchers */}
             {processActions.length > 0 && (
@@ -267,6 +257,7 @@ function PaymentDetailDrawer({
           </div>
         </DrawerFooter>
       </DrawerPopup>
+      {dialogElements}
     </Drawer>
   )
 }
@@ -274,8 +265,7 @@ function PaymentDetailDrawer({
 // ─── Gallery Grid ───────────────────────────────────────────────────
 
 export function PaymentsGallery({
-  payments,
-  vouchers,
+  transactions,
   canManage,
   canEditVoucher,
   canDeleteVoucher,
@@ -287,9 +277,12 @@ export function PaymentsGallery({
   onApproveVoucher,
   onRejectVoucher,
   drawerWidth,
+  dialogElements,
+  transactionsMeta,
+  loadingTransactions,
+  onLoadMoreTransactions,
 }: {
-  payments: Payment[]
-  vouchers: PaymentVoucher[]
+  transactions: LoanTransaction[]
   canManage: boolean
   canEditVoucher: (v: PaymentVoucher) => boolean
   canDeleteVoucher: (v: PaymentVoucher) => boolean
@@ -301,88 +294,82 @@ export function PaymentsGallery({
   onApproveVoucher: (v: PaymentVoucher) => void
   onRejectVoucher: (v: PaymentVoucher) => void
   drawerWidth?: number
+  dialogElements: ReactElement | null
+  transactionsMeta?: PaginationMeta
+  loadingTransactions?: boolean
+  onLoadMoreTransactions?: () => void
 }) {
-  const voucherMap = useMemo(() => {
-    const map = new Map<string, PaymentVoucher>()
-    for (const v of vouchers) {
-      map.set(v.id, v)
-    }
-    return map
-  }, [vouchers])
-
-  const items = useMemo<PaymentGalleryItem[]>(() => {
-    const result: PaymentGalleryItem[] = []
-
-    for (const payment of payments) {
-      const voucher = payment.voucherId ? voucherMap.get(payment.voucherId) : undefined
-      result.push({ kind: "payment", payment, voucher })
-    }
-
-    const linkedVoucherIds = new Set(payments.filter(p => p.voucherId).map(p => p.voucherId!))
-    for (const voucher of vouchers) {
-      if (!linkedVoucherIds.has(voucher.id) && isUnappliedVoucher(voucher)) {
-        result.push({ kind: "unapplied_voucher", voucher })
-      }
-    }
-
-    result.sort((a, b) => {
-      const dateA = a.kind === "payment"
-        ? (a.payment.paymentDate ?? a.payment.createdAt ?? "")
-        : (a.voucher.operationDate ?? a.voucher.createdAt ?? "")
-      const dateB = b.kind === "payment"
-        ? (b.payment.paymentDate ?? b.payment.createdAt ?? "")
-        : (b.voucher.operationDate ?? b.voucher.createdAt ?? "")
-      return dateB.localeCompare(dateA)
-    })
-
-    return result
-  }, [payments, vouchers, voucherMap])
-
-  const [selectedItem, setSelectedItem] = useState<PaymentGalleryItem | null>(null)
+  const [rawSelectedItem, setRawSelectedItem] = useState<LoanTransaction | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  const handleCardClick = (item: PaymentGalleryItem) => {
-    setSelectedItem(item)
+  const closingTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  useEffect(() => () => clearTimeout(closingTimeoutRef.current), [])
+
+  const handleOpenChange = (open: boolean) => {
+    setDrawerOpen(open)
+    if (!open) {
+      clearTimeout(closingTimeoutRef.current)
+      closingTimeoutRef.current = setTimeout(() => {
+        setRawSelectedItem(null)
+      }, 500)
+    } else {
+      clearTimeout(closingTimeoutRef.current)
+    }
+  }
+
+  const selectedItem = useMemo(() => {
+    if (!rawSelectedItem) return null
+    // Try to find the item in the updated transactions list to get its fresh state
+    const target = transactions.find((t) => t.id === rawSelectedItem.id)
+    if (target) return target
+    
+    // Fallback: If an unapplied voucher became a payment, the payment might have the voucher's ID as reference,
+    // but the unified transactions array just handles it gracefully, or the id will be completely different.
+    return rawSelectedItem
+  }, [transactions, rawSelectedItem])
+
+  const handleCardClick = (item: LoanTransaction) => {
+    clearTimeout(closingTimeoutRef.current)
+    setRawSelectedItem(item)
     setDrawerOpen(true)
   }
 
-  if (items.length === 0) {
+  if (transactions.length === 0) {
     return (
-      <CompactEmpty
-        icon={relatedEmptyIcons.payments}
-        title="Sin movimientos"
-        description="Los pagos y vouchers se mostrarán aquí."
-      />
+      <>
+        <CompactEmpty
+          icon={relatedEmptyIcons.payments}
+          title="Sin movimientos"
+          description="Los pagos y vouchers se mostrarán aquí."
+        />
+        {dialogElements}
+      </>
     )
   }
 
   return (
     <PhotoProvider>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {items.map((item) => {
-          const isPayment = item.kind === "payment"
-          const evidenceUrl = isPayment
-            ? (getPaymentEvidenceUrl(item.payment) ?? (item.voucher ? getVoucherEvidenceUrl(item.voucher) : null))
-            : getVoucherEvidenceUrl(item.voucher)
-          const amount = isPayment ? item.payment.amount : item.voucher.amount
-          const date = isPayment
-            ? (item.payment.paymentDate ?? item.payment.createdAt)
-            : (item.voucher.operationDate ?? item.voucher.createdAt)
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {transactions.map((item, index) => {
+          const isPayment = item.type === "payment"
+          const evidenceUrl = item.evidenceUrl && !item.evidenceUrl.startsWith("storage://") ? item.evidenceUrl : null
+          const amount = item.amount
+          const date = item.date || item.createdAt || ""
           const method = isPayment
-            ? (item.payment.method ? paymentMethodLabels[item.payment.method] ?? item.payment.method : null)
+            ? (item.method ? paymentMethodLabels[item.method] ?? item.method : null)
             : "Transferencia"
-          const reference = isPayment
-            ? (item.payment.reference ?? null)
-            : (item.voucher.operationId ?? null)
+          const reference = item.reference ?? item.operationId ?? null
 
           return (
             <button
-              key={`${item.kind}-${isPayment ? item.payment.id : item.voucher.id}`}
+              key={item.id}
               type="button"
+              style={{ animationDelay: `${index * 50}ms`, animationFillMode: "backwards" }}
               onClick={() => handleCardClick(item)}
-              className="group flex items-stretch gap-3 rounded-xl border border-border/40 bg-card p-3 text-left text-foreground shadow-xs transition-all duration-200 hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="group relative flex w-full cursor-pointer items-start gap-4 rounded-2xl border bg-card p-4 text-left transition-all hover:border-foreground/20 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-500"
             >
-              <div className="w-28 shrink-0 relative overflow-hidden rounded-lg border-2 border-muted/30 bg-muted/30">
+              <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-muted-foreground/10 bg-muted/40">
                 {evidenceUrl ? (
                   <img
                     src={evidenceUrl}
@@ -405,7 +392,7 @@ export function PaymentsGallery({
                     {isPayment ? (
                       <Badge variant="success">Aplicado</Badge>
                     ) : (
-                      <VoucherStatusBadge status={item.voucher.status} />
+                      <VoucherStatusBadge status={item.status} />
                     )}
                   </div>
                 </div>
@@ -428,7 +415,35 @@ export function PaymentsGallery({
         })}
       </div>
 
-      <DelayedOpenGate open={drawerOpen} onOpenChange={setDrawerOpen}>
+      {transactionsMeta && (
+        <div className="col-span-full pt-4">
+          {onLoadMoreTransactions &&
+          (transactionsMeta.page ?? 1) < (transactionsMeta.totalPages ?? 1) ? (
+            <button
+              type="button"
+              onClick={() => {
+                onLoadMoreTransactions?.()
+              }}
+              disabled={loadingTransactions}
+              className="group relative flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border/60 bg-transparent py-4 text-sm font-medium text-muted-foreground transition-all duration-200 hover:border-primary/30 hover:bg-muted/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loadingTransactions ? (
+                <>
+                  <Loader2Icon className="size-4 animate-spin text-primary" />
+                  Cargando operaciones...
+                </>
+              ) : (
+                <>
+                  Ver más transacciones
+                  <ArrowDownIcon className="size-4 transition-transform duration-200 group-hover:translate-y-0.5 group-hover:text-primary" />
+                </>
+              )}
+            </button>
+          ) : null}
+        </div>
+      )}
+
+      <DelayedOpenGate open={drawerOpen} onOpenChange={handleOpenChange}>
         {(gateOpen, gateOnOpenChange) => (
           <PaymentDetailDrawer
             open={gateOpen}
@@ -445,9 +460,12 @@ export function PaymentsGallery({
             onApproveVoucher={onApproveVoucher}
             onRejectVoucher={onRejectVoucher}
             drawerWidth={drawerWidth}
+            dialogElements={dialogElements}
           />
         )}
       </DelayedOpenGate>
+
+      {!selectedItem && dialogElements}
     </PhotoProvider>
   )
 }
