@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { toastManager } from "@/components/ui/toast"
 import {
@@ -96,6 +97,8 @@ export function usePaymentMutations({ loan, fetchWithAuth, session, onDataChange
   } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+
+  const queryClient = useQueryClient()
 
   const refreshAfterMutation = async (title: string, description: string) => {
     toastManager.add({ type: "success", title, description })
@@ -246,10 +249,31 @@ export function usePaymentMutations({ loan, fetchWithAuth, session, onDataChange
 
     setSubmitting(true)
     try {
-      await processVoucher(fetchWithAuth, processDialog.voucher.id, {
+      const result = await processVoucher(fetchWithAuth, processDialog.voucher.id, {
         action: form.action,
         observation: form.observation.trim() || undefined,
       })
+
+      const updatedVoucher = result.data
+      if (updatedVoucher) {
+        queryClient.setQueriesData<{ pages?: { vouchers: PaymentVoucher[] }[] }>(
+          { queryKey: ["abc", "vouchers"] },
+          (old) => {
+            if (!old?.pages) return old
+            
+            const nextPages = old.pages.map(page => {
+              const idx = page.vouchers.findIndex((v) => v.id === updatedVoucher.id)
+              if (idx === -1) return page
+              const nextVouchers = [...page.vouchers]
+              nextVouchers[idx] = updatedVoucher
+              return { ...page, vouchers: nextVouchers }
+            })
+            
+            return { ...old, pages: nextPages }
+          },
+        )
+      }
+
       clearStateWithDelay("process", () => {})
       setProcessDialog(null)
       await refreshAfterMutation(
