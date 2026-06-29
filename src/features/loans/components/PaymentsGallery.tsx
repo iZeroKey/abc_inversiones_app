@@ -367,7 +367,7 @@ export function PaymentsGallery({
               type="button"
               style={{ animationDelay: `${index * 50}ms`, animationFillMode: "backwards" }}
               onClick={() => handleCardClick(item)}
-              className="group relative flex w-full cursor-pointer items-start gap-4 rounded-2xl border bg-card p-4 text-left transition-all hover:border-foreground/20 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-500"
+              className="group relative flex w-full cursor-pointer items-start gap-4 rounded-2xl bg-card p-4 text-left shadow-xs/5 transition-all hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-500"
             >
               <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-muted-foreground/10 bg-muted/40">
                 {evidenceUrl ? (

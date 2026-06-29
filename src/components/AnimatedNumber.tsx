@@ -13,6 +13,7 @@ interface AnimatedNumberProps {
   isPercent?: boolean
   className?: string
   animateOnMount?: boolean
+  duration?: number
 }
 
 export function AnimatedNumber({
@@ -25,6 +26,7 @@ export function AnimatedNumber({
   isPercent = false,
   className,
   animateOnMount = false,
+  duration = 1.0,
 }: AnimatedNumberProps) {
   const numericValue =
     value === undefined || value === null
@@ -62,7 +64,7 @@ export function AnimatedNumber({
       key={`${prevValue}-${currValue}`}
       start={prevValue}
       end={currValue}
-      duration={1.0}
+      duration={duration}
       decimals={finalDecimals}
       decimal="."
       separator=","

@@ -2,6 +2,25 @@ import { cn } from "@/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import type React from "react";
 
+const emptyVariants = cva(
+  "flex min-w-0 flex-1 flex-col items-center justify-center gap-6 text-balance px-6 py-12 text-center md:py-20",
+  {
+    variants: {
+      variant: {
+        default: "",
+        card: "bg-card shadow-xs/5 rounded-2xl border border-muted/40 p-10",
+      },
+      boxed: {
+        true: "rounded-2xl border border-border/50 bg-background/50 backdrop-blur-md",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      boxed: false,
+    },
+  }
+);
+
 const emptyMediaVariants = cva(
   "flex shrink-0 items-center justify-center [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
@@ -10,8 +29,9 @@ const emptyMediaVariants = cva(
     },
     variants: {
       variant: {
-        default: "bg-transparent",
+        default: "relative flex shrink-0 items-center justify-center text-muted-foreground [&_svg:not([class*='size-'])]:size-12",
         icon: "relative flex size-9 shrink-0 items-center justify-center rounded-md border bg-card not-dark:bg-clip-padding text-foreground shadow-sm/5 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-md)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)] [&_svg:not([class*='size-'])]:size-4.5",
+        stacked: "relative flex size-16 shrink-0 items-center justify-center rounded-xl border-2 border-primary/20 bg-card text-primary shadow-sm/5 z-10 [&_svg:not([class*='size-'])]:size-8",
       },
     },
   },
@@ -19,17 +39,18 @@ const emptyMediaVariants = cva(
 
 export function Empty({
   className,
+  variant,
+  boxed,
   ...props
-}: React.ComponentProps<"div">): React.ReactElement {
+}: React.ComponentProps<"div"> & VariantProps<typeof emptyVariants>): React.ReactElement {
   return (
     <div
-      className={cn(
-        "flex min-w-0 flex-1 flex-col items-center justify-center gap-6 text-balance px-6 py-12 text-center md:py-20",
-        className,
-      )}
+      className={cn(emptyVariants({ variant, boxed, className }))}
       data-slot="empty"
       {...props}
-    />
+    >
+      {props.children}
+    </div>
   );
 }
 
@@ -62,6 +83,24 @@ export function EmptyMedia({
       data-variant={variant}
       {...props}
     >
+      {variant === "stacked" && (
+        <>
+          <div
+            aria-hidden="true"
+            className={cn(
+              emptyMediaVariants({ className, variant }),
+              "pointer-events-none absolute bottom-0 -z-10 origin-bottom-left -translate-x-1 -rotate-6 scale-90 border-dashed border-muted bg-muted/30 shadow-none opacity-50 text-transparent",
+            )}
+          />
+          <div
+            aria-hidden="true"
+            className={cn(
+              emptyMediaVariants({ className, variant }),
+              "pointer-events-none absolute bottom-0 -z-20 origin-bottom-right translate-x-1 rotate-6 scale-90 border-dashed border-muted bg-muted/20 shadow-none opacity-30 text-transparent",
+            )}
+          />
+        </>
+      )}
       {variant === "icon" && (
         <>
           <div

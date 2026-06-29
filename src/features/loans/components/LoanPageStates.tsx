@@ -144,7 +144,7 @@ export function EmptyLoanList({ message }: { message: string }) {
   return (
     <Empty>
       <EmptyHeader>
-        <EmptyMedia variant="icon">
+        <EmptyMedia>
           <SearchIcon />
         </EmptyMedia>
         <EmptyTitle>No hay préstamos</EmptyTitle>
@@ -158,7 +158,7 @@ export function EmptyDetail() {
   return (
     <Empty>
       <EmptyHeader>
-        <EmptyMedia variant="icon">
+        <EmptyMedia>
           <FileTextIcon />
         </EmptyMedia>
         <EmptyTitle>Selecciona un préstamo</EmptyTitle>
@@ -172,7 +172,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry: () 
   return (
     <Empty>
       <EmptyHeader>
-        <EmptyMedia variant="icon">
+        <EmptyMedia>
           <AlertCircleIcon />
         </EmptyMedia>
         <EmptyTitle>No se pudo cargar</EmptyTitle>
@@ -200,7 +200,7 @@ export function CompactEmpty({
   return (
     <Empty className="py-10">
       <EmptyHeader>
-        <EmptyMedia variant="icon">
+        <EmptyMedia>
           <Icon />
         </EmptyMedia>
         <EmptyTitle>{title}</EmptyTitle>

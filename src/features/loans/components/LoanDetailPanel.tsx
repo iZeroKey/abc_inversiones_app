@@ -191,31 +191,12 @@ export function LoanDetailPanel({
     >
       {/* ── Admin action buttons ── */}
       {perspective === "admin" && (canRegisterPayment || canReview) && (
-        <div className="flex items-center gap-2 pb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 pb-5">
           {canRegisterPayment && (
-            <Button size="sm" onClick={() => mutations.setPaymentDialogPayment(null)}>
+            <Button size="sm" className="w-full sm:w-auto" onClick={() => mutations.setPaymentDialogPayment(null)}>
               <CreditCardIcon data-icon="inline-start" />
               Registrar pago
             </Button>
-          )}
-          {canReview && (
-            <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="icon-sm" aria-label="Más acciones" />}>
-                <MoreHorizontalIcon />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={onApprove}>
-                    <CheckIcon />
-                    Aprobar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onReject} className="text-destructive">
-                    <XIcon />
-                    Rechazar
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
           )}
         </div>
       )}
@@ -299,20 +280,22 @@ export function LoanDetailPanel({
 
         {/* ── Admin: top grid ── */}
         {perspective === "admin" && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <NextPaymentHero
-              amount={nextInstallment?.amount}
-              dueDate={nextInstallment?.dueDate}
-              canSubmitVoucher={false}
-              onSubmitVoucher={() => {}}
-            />
-            <LoanSummaryBar
-              totalDebt={loan.totalDebt ?? 0}
-              paidAmount={paidAmount}
-              progress={progress}
-              accent={accent}
-            />
-          </div>
+          <SectionBlock>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <NextPaymentHero
+                amount={nextInstallment?.amount}
+                dueDate={nextInstallment?.dueDate}
+                canSubmitVoucher={false}
+                onSubmitVoucher={() => {}}
+              />
+              <LoanSummaryBar
+                totalDebt={loan.totalDebt ?? 0}
+                paidAmount={paidAmount}
+                progress={progress}
+                accent={accent}
+              />
+            </div>
+          </SectionBlock>
         )}
 
         {/* ── Client: parties section ── */}

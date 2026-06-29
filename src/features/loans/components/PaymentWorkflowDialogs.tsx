@@ -9,10 +9,12 @@ import {
   XIcon,
 } from "lucide-react"
 import { useEffect, useRef, useState, type Dispatch, type DragEvent, type FormEvent, type SetStateAction } from "react"
+import { AnimatePresence, motion } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
-import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { AnimatedNumber } from "@/components/AnimatedNumber"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Fieldset, FieldsetLegend } from "@/components/ui/fieldset"
 import { Input } from "@/components/ui/input"
@@ -189,81 +191,83 @@ export function PaymentDialog({
                   onCancelScan={cancelScan}
                 />
               )}
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-4 rounded-xl bg-muted/30 p-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="payment-amount">Monto</FieldLabel>
+                    {fieldsLoading ? (
+                      <LoadingInputShell />
+                    ) : (
+                      <MoneyNumberField
+                        id="payment-amount"
+                        min="0.01"
+                        step="0.01"
+                        value={form.amount}
+                        onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
+                      />
+                    )}
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="payment-reference">Referencia</FieldLabel>
+                    {fieldsLoading ? (
+                      <LoadingInputShell />
+                    ) : (
+                      <Input
+                        id="payment-reference"
+                        size="lg"
+                        value={form.reference}
+                        onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))}
+                        placeholder="Nro. operación"
+                      />
+                    )}
+                  </Field>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel>Fecha de pago</FieldLabel>
+                    {fieldsLoading ? (
+                      <LoadingInputShell />
+                    ) : (
+                      <DatePicker
+                        value={form.paymentDate}
+                        onChange={(paymentDate) => setForm((current) => ({ ...current, paymentDate }))}
+                      />
+                    )}
+                  </Field>
+                  <Field>
+                    <FieldLabel>Método</FieldLabel>
+                    <Select
+                      items={methodItems}
+                      value={form.method}
+                      onValueChange={(value) =>
+                        setForm((current) => ({ ...current, method: (value ?? "cash") as PaymentMethod }))
+                      }
+                    >
+                      <SelectTrigger size="lg">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {methodItems.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
                 <Field>
-                  <FieldLabel htmlFor="payment-amount">Monto</FieldLabel>
-                  {fieldsLoading ? (
-                    <LoadingInputShell />
-                  ) : (
-                    <MoneyNumberField
-                      id="payment-amount"
-                      min="0.01"
-                      step="0.01"
-                      value={form.amount}
-                      onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
-                    />
-                  )}
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="payment-reference">Referencia</FieldLabel>
-                  {fieldsLoading ? (
-                    <LoadingInputShell />
-                  ) : (
-                    <Input
-                      id="payment-reference"
-                      size="lg"
-                      value={form.reference}
-                      onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))}
-                      placeholder="Nro. operación"
-                    />
-                  )}
+                  <FieldLabel htmlFor="payment-observation">Observación</FieldLabel>
+                  <Textarea
+                    id="payment-observation"
+                    value={form.observation}
+                    onChange={(event) => setForm((current) => ({ ...current, observation: event.target.value }))}
+                    placeholder="Comentario opcional..."
+                  />
                 </Field>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel>Fecha de pago</FieldLabel>
-                  {fieldsLoading ? (
-                    <LoadingInputShell />
-                  ) : (
-                    <DatePicker
-                      value={form.paymentDate}
-                      onChange={(paymentDate) => setForm((current) => ({ ...current, paymentDate }))}
-                    />
-                  )}
-                </Field>
-                <Field>
-                  <FieldLabel>Método</FieldLabel>
-                  <Select
-                    items={methodItems}
-                    value={form.method}
-                    onValueChange={(value) =>
-                      setForm((current) => ({ ...current, method: (value ?? "cash") as PaymentMethod }))
-                    }
-                  >
-                    <SelectTrigger size="lg">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {methodItems.map((item) => (
-                          <SelectItem key={item.value} value={item.value}>
-                            {item.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-              <Field>
-                <FieldLabel htmlFor="payment-observation">Observación</FieldLabel>
-                <Textarea
-                  id="payment-observation"
-                  value={form.observation}
-                  onChange={(event) => setForm((current) => ({ ...current, observation: event.target.value }))}
-                  placeholder="Detalle administrativo opcional"
-                />
-              </Field>
             </DrawerPanel>
           <DrawerFooter
             variant="bare"
@@ -410,46 +414,48 @@ export function VoucherDialog({
               />
             )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-4 rounded-xl bg-muted/30 p-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="voucher-amount">Monto</FieldLabel>
+                  <MoneyNumberField
+                    id="voucher-amount"
+                    min="0.01"
+                    step="0.01"
+                    value={form.amount}
+                    onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="voucher-operation">Operación</FieldLabel>
+                  <Input
+                    id="voucher-operation"
+                    size="lg"
+                    value={form.operationId}
+                    onChange={(event) => setForm((current) => ({ ...current, operationId: event.target.value }))}
+                    placeholder="Código bancario"
+                  />
+                </Field>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel>Fecha de operación</FieldLabel>
+                  <DatePicker
+                    value={form.operationDate}
+                    onChange={(operationDate) => setForm((current) => ({ ...current, operationDate }))}
+                  />
+                </Field>
+              </div>
               <Field>
-                <FieldLabel htmlFor="voucher-amount">Monto</FieldLabel>
-                <MoneyNumberField
-                  id="voucher-amount"
-                  min="0.01"
-                  step="0.01"
-                  value={form.amount}
-                  onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="voucher-operation">Operación</FieldLabel>
-                <Input
-                  id="voucher-operation"
-                  size="lg"
-                  value={form.operationId}
-                  onChange={(event) => setForm((current) => ({ ...current, operationId: event.target.value }))}
-                  placeholder="Código bancario"
+                <FieldLabel htmlFor="voucher-observation">Observación</FieldLabel>
+                <Textarea
+                  id="voucher-observation"
+                  value={form.observation}
+                  onChange={(event) => setForm((current) => ({ ...current, observation: event.target.value }))}
+                  placeholder="Comentario opcional para revisión"
                 />
               </Field>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field>
-                <FieldLabel>Fecha de operación</FieldLabel>
-                <DatePicker
-                  value={form.operationDate}
-                  onChange={(operationDate) => setForm((current) => ({ ...current, operationDate }))}
-                />
-              </Field>
-            </div>
-            <Field>
-              <FieldLabel htmlFor="voucher-observation">Observación</FieldLabel>
-              <Textarea
-                id="voucher-observation"
-                value={form.observation}
-                onChange={(event) => setForm((current) => ({ ...current, observation: event.target.value }))}
-                placeholder="Comentario opcional para revisión"
-              />
-            </Field>
           </DrawerPanel>
           <DrawerFooter variant="bare">
             <DrawerClose render={<Button variant="outline" />}>
@@ -761,53 +767,131 @@ function ImageDropzone({
     >
       <div
         className={cn(
-          "relative overflow-hidden rounded-lg border border-dashed bg-muted/16 p-3 transition-colors",
-          !file && "hover:bg-muted/28",
-          dragging && "border-primary bg-primary/5",
+          "relative overflow-hidden transition-colors duration-200 rounded-xl p-3",
+          !file && "hover:bg-background/40",
+          dragging && "bg-primary/10",
         )}
       >
-        {file ? (
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.75fr)]">
-            <ImagePreview key={`${file.name}-${file.size}-${file.lastModified}`} file={file} />
-            <div className="flex min-w-0 flex-col justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{file.name}</p>
-                <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+        <AnimatePresence mode="wait" initial={false}>
+          {file ? (
+            <motion.div
+              key="image-preview"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.75fr)]"
+            >
+              <ImagePreview key={`${file.name}-${file.size}-${file.lastModified}`} file={file} />
+              <div className="flex min-w-0 flex-col justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:flex-col sm:flex-nowrap">
+                  <Button type="button" variant="secondary" size="sm" onClick={() => inputRef.current?.click()} className="flex-1 sm:flex-none">
+                    <UploadIcon data-icon="inline-start" />
+                    Cambiar
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={onRemove} className="flex-1 text-muted-foreground hover:text-destructive sm:flex-none">
+                    <Trash2Icon data-icon="inline-start" />
+                    Quitar
+                  </Button>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
-                  <UploadIcon data-icon="inline-start" />
-                  Cambiar
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
-                  <Trash2Icon data-icon="inline-start" />
-                  Quitar
-                </Button>
+            </motion.div>
+          ) : (
+            <motion.button
+              key="empty-state"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              type="button"
+              className="block w-full text-center outline-none"
+              onClick={() => inputRef.current?.click()}
+            >
+              <Empty className="py-10">
+                <EmptyHeader>
+                  <EmptyMedia>
+                    <FileImageIcon />
+                  </EmptyMedia>
+                  <EmptyTitle>Toca para subir o tomar foto</EmptyTitle>
+                  <EmptyDescription>O arrastra un voucher en JPG, PNG o WebP</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            </motion.button>
+          )}
+        </AnimatePresence>
+        
+        <AnimatePresence>
+          {visibleUploadState.phase !== "idle" && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-2 flex w-full flex-col gap-2 pt-2">
+                <div className="flex min-h-5 items-center justify-between gap-3 px-1 text-xs">
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={visibleUploadState.phase + (visibleUploadState.message ?? "")}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.15 }}
+                      className={cn("flex items-center gap-2 truncate font-medium", visibleUploadState.phase === "error" ? "text-destructive" : "text-muted-foreground")}
+                    >
+                      {visibleUploadState.phase === "processing" && <Spinner className="size-3.5" />}
+                      <span className="truncate">{getUploadStatusLabel(visibleUploadState)}</span>
+                    </motion.span>
+                  </AnimatePresence>
+                  <AnimatePresence>
+                    {(visibleUploadState.phase === "uploading" || visibleUploadState.phase === "processing") && (
+                      <motion.div
+                        key="progress-number"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.15 }}
+                        className="shrink-0 tabular-nums text-muted-foreground"
+                      >
+                        <AnimatedNumber
+                          key={`${file?.name}-${file?.lastModified}`}
+                          value={visibleUploadState.progress}
+                          suffix="%"
+                          duration={0.3}
+                          animateOnMount={true}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <AnimatePresence>
+                    {visibleUploadState.mode === "scan" &&
+                      (visibleUploadState.phase === "uploading" || visibleUploadState.phase === "processing") &&
+                      !localStatus && (
+                      <motion.button
+                        key="cancel-button"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.15 }}
+                        type="button"
+                        className="shrink-0 text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                        onClick={(e) => { e.stopPropagation(); onCancelScan(); }}
+                      >
+                        Cancelar
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
+                </div>
+                <Progress className="h-1.5 w-full" value={visibleUploadState.progress} />
               </div>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            className="block w-full text-left"
-            onClick={() => inputRef.current?.click()}
-          >
-            <Empty className="min-h-32 flex-none px-3 py-4 md:py-4">
-              <EmptyMedia className="mb-0" variant="icon">
-                <FileImageIcon />
-              </EmptyMedia>
-              <div className="min-w-0">
-                <EmptyTitle className="text-base">Sube una imagen</EmptyTitle>
-                <EmptyDescription>Haz clic o arrastra un voucher en JPG, PNG o WebP.</EmptyDescription>
-              </div>
-            </Empty>
-          </button>
-        )}
-        {(visibleUploadState.phase === "uploading" || visibleUploadState.phase === "processing") && (
-          <div className="absolute inset-x-0 bottom-0 bg-background/80 backdrop-blur-sm">
-            <Progress className="h-1 rounded-none border-0" value={visibleUploadState.progress} />
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
       <input
         ref={inputRef}
@@ -816,28 +900,6 @@ function ImageDropzone({
         type="file"
         onChange={(event) => void pickFile(event.target.files?.[0])}
       />
-      {visibleUploadState.phase !== "idle" && (
-        <div className="flex items-center gap-3 rounded-md border bg-muted/20 px-3 py-2">
-          {visibleUploadState.phase === "processing" && <Spinner />}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <span className={cn("truncate font-medium", visibleUploadState.phase === "error" && "text-destructive")}>
-                {getUploadStatusLabel(visibleUploadState)}
-              </span>
-              {visibleUploadState.phase === "uploading" && (
-                <span className="shrink-0 text-muted-foreground tabular-nums">{visibleUploadState.progress}%</span>
-              )}
-            </div>
-          </div>
-          {visibleUploadState.mode === "scan" &&
-            (visibleUploadState.phase === "uploading" || visibleUploadState.phase === "processing") &&
-            !localStatus && (
-            <Button type="button" variant="ghost" size="xs" onClick={onCancelScan}>
-              Cancelar
-            </Button>
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -858,8 +920,8 @@ function EvidenceSection({
   onCancelScan: () => void
 }) {
   return (
-    <Fieldset className="flex flex-col gap-3">
-      <FieldsetLegend>{title}</FieldsetLegend>
+    <div className="flex flex-col gap-3 rounded-xl bg-muted/30 p-4">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       <ImageDropzone
         file={file}
         uploadState={uploadState}
@@ -867,7 +929,7 @@ function EvidenceSection({
         onRemove={onRemove}
         onCancelScan={onCancelScan}
       />
-    </Fieldset>
+    </div>
   )
 }
 
@@ -896,10 +958,10 @@ function ImagePreview({ file }: { file: File }) {
       <PhotoView src={previewUrl}>
         <button
           type="button"
-          className="group relative flex aspect-16/10 min-h-40 w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-md border bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="group relative flex aspect-video min-h-40 w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-xl border-4 border-muted/30 bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="Ver imagen en pantalla completa"
         >
-          <img src={previewUrl} alt="Vista previa del voucher" className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105" />
+          <img src={previewUrl} alt="Vista previa del voucher" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
         </button>
       </PhotoView>
     </PhotoProvider>
@@ -908,7 +970,7 @@ function ImagePreview({ file }: { file: File }) {
 
 function LoadingImagePreview() {
   return (
-    <div className="flex aspect-16/10 min-h-40 w-full items-center justify-center overflow-hidden rounded-md border bg-background">
+    <div className="flex aspect-video min-h-40 w-full items-center justify-center overflow-hidden rounded-xl border-4 border-muted/30 bg-muted/30">
       <Skeleton className="h-full w-full rounded-none" />
     </div>
   )
@@ -953,6 +1015,7 @@ function runAutomaticOcr<T extends object>({
 
 function getUploadStatusLabel(uploadState: FileUploadState) {
   if (uploadState.message) return uploadState.message
+  if (uploadState.phase === "idle") return "Esperando comprobante"
 
   if (uploadState.mode === "submit") {
     if (uploadState.phase === "uploading") return "Subiendo evidencia"

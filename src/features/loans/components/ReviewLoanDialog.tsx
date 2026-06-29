@@ -1,7 +1,8 @@
 import {
-  CheckCircleIcon,
+CheckCircleIcon,
   XCircleIcon,
 } from "lucide-react"
+import { useRef } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Field, FieldLabel } from "@/components/ui/field"
@@ -37,9 +38,13 @@ export function ReviewLoanDialog({
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
-  if (!mode) return null
+  const lastValidModeRef = useRef(mode)
+  if (mode) {
+    lastValidModeRef.current = mode
+  }
 
-  const approving = mode === "approve"
+  const displayMode = mode || lastValidModeRef.current || "approve"
+  const approving = displayMode === "approve"
   const isMobile = useIsMobile()
 
   return (

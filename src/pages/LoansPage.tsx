@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useQueryClient } from "@tanstack/react-query"
-import { PlusIcon } from "lucide-react"
+import { PlusIcon, CheckIcon, XIcon } from "lucide-react"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "react-router-dom"
 
@@ -11,6 +11,8 @@ import {
   DrawerPanel,
   DrawerPopup,
   DrawerTitle,
+  DrawerFooter,
+  DrawerClose,
 } from "@/components/ui/drawer"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
@@ -736,7 +738,40 @@ export default function LoansPage() {
               onLoadMoreTransactions={() => transactionsQuery.fetchNextPage()}
             />
           </DrawerPanel>
+          <DrawerFooter variant="bare">
+            <div className="flex w-full items-center justify-between">
+              <div className="flex items-center gap-2">
+                {canReviewLoan(visibleSelectedLoan, user) && (
+                  <>
+                    <Button variant="default" size="sm" onClick={() => setReviewDialog("approve")}>
+                      <CheckIcon data-icon="inline-start" />
+                      Aprobar
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => setReviewDialog("reject")}>
+                      <XIcon data-icon="inline-start" />
+                      Rechazar
+                    </Button>
+                  </>
+                )}
+              </div>
+              <DrawerClose render={<Button variant="outline" />}>
+                Cerrar
+              </DrawerClose>
+            </div>
+          </DrawerFooter>
         </DrawerPopup>
+
+        <ReviewLoanDialog
+          mode={reviewDialog}
+          loan={visibleSelectedLoan}
+          observation={rejectObservation}
+          submitting={submittingAction}
+          onObservationChange={setRejectObservation}
+          onOpenChange={(open) => {
+            if (!open) setReviewDialog(null)
+          }}
+          onConfirm={() => void handleReviewAction()}
+        />
       </Drawer>
 
       <CreateLoanDialog
@@ -749,18 +784,6 @@ export default function LoansPage() {
         onOpenChange={setCreateOpen}
         onFormChange={setLoanForm}
         onSubmit={handleCreateLoan}
-      />
-
-      <ReviewLoanDialog
-        mode={reviewDialog}
-        loan={visibleSelectedLoan}
-        observation={rejectObservation}
-        submitting={submittingAction}
-        onObservationChange={setRejectObservation}
-        onOpenChange={(open) => {
-          if (!open) setReviewDialog(null)
-        }}
-        onConfirm={() => void handleReviewAction()}
       />
 
       <UserDetailSheet

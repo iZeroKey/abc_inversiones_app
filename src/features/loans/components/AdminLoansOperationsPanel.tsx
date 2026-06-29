@@ -8,6 +8,8 @@ import {
   ListChecksIcon,
   ReceiptTextIcon,
   Settings2Icon,
+  CheckIcon,
+  XIcon,
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 
@@ -35,6 +37,8 @@ import {
   DrawerHeader,
   DrawerPanel,
   DrawerTitle,
+  DrawerFooter,
+  DrawerClose,
 } from "@/components/ui/drawer"
 import { useIsMobile } from "@/hooks/use-media-query"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -44,6 +48,7 @@ import type { UserDetailProfile } from "@/components/UserDetailSheet"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
 import { ErrorState, LoanListSkeleton } from "@/features/loans/components/LoanPageStates"
+import { DelayedOpenGate } from "@/features/loans/hooks/usePaymentMutations"
 import { frequencyLabels, statusFilters, statusLabels } from "@/features/loans/loan-constants"
 import {
   formatDate,
@@ -850,40 +855,77 @@ export function AdminLoansOperationsPanel({
         />
       )}
 
-      <Drawer open={detailOpen} onOpenChange={setDetailOpen} position={isMobile ? "bottom" : "right"}>
-        <DrawerPopup
-          showCloseButton={!isMobile}
-          className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
-          style={!isMobile ? { width: 760, maxWidth: "min(1080px, calc(100vw - 2rem))", minWidth: 560 } : undefined}
-        >
-          <DrawerHeader>
-            <DrawerTitle>Detalle operativo</DrawerTitle>
-            <DrawerDescription>Revisa cronograma, pagos, vouchers y acciones del préstamo seleccionado.</DrawerDescription>
-          </DrawerHeader>
-          <DrawerPanel className="px-4 pb-4 pt-2 sm:px-5 sm:pb-5">
-            <LoanDetailPanel
+      <DelayedOpenGate open={detailOpen} onOpenChange={setDetailOpen}>
+        {(gateOpen, gateOnOpenChange) => (
+          <Drawer open={gateOpen} onOpenChange={gateOnOpenChange} position={isMobile ? "bottom" : "right"} nested>
+            <DrawerPopup
+              showBar={isMobile}
+              showCloseButton={!isMobile}
+              className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
+              style={!isMobile ? { width: 760, maxWidth: "min(1080px, calc(100vw - 2rem))", minWidth: 560 } : undefined}
+            >
+              <DrawerHeader>
+                <DrawerTitle>Detalle operativo</DrawerTitle>
+                <DrawerDescription>Revisa cronograma, pagos, vouchers y acciones del préstamo seleccionado.</DrawerDescription>
+              </DrawerHeader>
+              <DrawerPanel className="px-4 pb-4 pt-2 sm:px-5 sm:pb-5">
+                <LoanDetailPanel
+                  loan={selectedLoan}
+                  relatedData={relatedData}
+                  loading={loadingDetail}
+                  error={detailError}
+                  canReview={canReview}
+                  basePath={basePath}
+                  onApprove={onApprove}
+                  onReject={onReject}
+                  onRetry={onRetryDetail}
+                  onDataChanged={onDataChanged}
+                  sticky={false}
+                  hideBackButton
+                  drawerWidth={760}
+                  onUserClick={onUserClick}
+                  transactions={transactions}
+                  transactionsMeta={transactionsMeta}
+                  loadingTransactions={loadingTransactions}
+                  onLoadMoreTransactions={onLoadMoreTransactions}
+                />
+              </DrawerPanel>
+              <DrawerFooter variant="bare">
+                <div className="flex w-full items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {canReview && (
+                      <>
+                        <Button variant="default" size="sm" onClick={onApprove}>
+                          <CheckIcon data-icon="inline-start" />
+                          Aprobar
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={onReject}>
+                          <XIcon data-icon="inline-start" />
+                          Rechazar
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  <DrawerClose render={<Button variant="outline" />}>
+                    Cerrar
+                  </DrawerClose>
+                </div>
+              </DrawerFooter>
+            </DrawerPopup>
+            <ReviewLoanDialog
+              mode={reviewDialog}
               loan={selectedLoan}
-              relatedData={relatedData}
-              loading={loadingDetail}
-              error={detailError}
-              canReview={canReview}
-              basePath={basePath}
-              onApprove={onApprove}
-              onReject={onReject}
-              onRetry={onRetryDetail}
-              onDataChanged={onDataChanged}
-              sticky={false}
-              hideBackButton
-              drawerWidth={760}
-              onUserClick={onUserClick}
-              transactions={transactions}
-              transactionsMeta={transactionsMeta}
-              loadingTransactions={loadingTransactions}
-              onLoadMoreTransactions={onLoadMoreTransactions}
+              observation={rejectObservation}
+              submitting={submittingAction}
+              onObservationChange={setRejectObservation}
+              onOpenChange={(open) => {
+                if (!open) setReviewDialog(null)
+              }}
+              onConfirm={handleReviewAction}
             />
-          </DrawerPanel>
-        </DrawerPopup>
-      </Drawer>
+          </Drawer>
+        )}
+      </DelayedOpenGate>
     </section>
   )
 }

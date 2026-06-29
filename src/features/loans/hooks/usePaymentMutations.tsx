@@ -272,6 +272,28 @@ export function usePaymentMutations({ loan, fetchWithAuth, session, onDataChange
             return { ...old, pages: nextPages }
           },
         )
+
+        queryClient.setQueriesData<{ pages?: { data: { type: "payment" | "voucher"; id: string; status: string; observation?: string | null; updatedAt?: string }[] }[] }>(
+          { queryKey: ["abc", "transactions"] },
+          (old) => {
+            if (!old?.pages) return old
+            
+            const nextPages = old.pages.map(page => {
+              const idx = page.data.findIndex((t) => t.id === updatedVoucher.id && t.type === "voucher")
+              if (idx === -1) return page
+              const nextTransactions = [...page.data]
+              nextTransactions[idx] = { 
+                ...nextTransactions[idx], 
+                status: updatedVoucher.status, 
+                observation: updatedVoucher.observation,
+                updatedAt: updatedVoucher.updatedAt 
+              }
+              return { ...page, data: nextTransactions }
+            })
+            
+            return { ...old, pages: nextPages }
+          },
+        )
       }
 
       clearStateWithDelay("process", () => {})
