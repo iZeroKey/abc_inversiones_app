@@ -17,6 +17,7 @@ export type PaymentStatus = "confirmed" | "reversed";
 export type VoucherStatus =
   | "draft"
   | "pending_investor_review"
+  | "pending_admin_review"
   | "investor_approved"
   | "investor_rejected"
   | "owner_approved"
@@ -213,4 +214,19 @@ export type LoanCreatePayload = {
   frequency: string;
   startDate: string;
   observation?: string;
+};
+
+export type LoanTransaction = {
+  type: "payment" | "voucher";
+  id: string;
+  amount: string | number;
+  date: string;
+  status: string;
+  evidenceUrl: string | null;
+  method?: string | null;
+  reference?: string | null;
+  operationId?: string | null;
+  observation?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 };

@@ -69,6 +69,9 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
       if (shouldInvalidateLoans) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.loans.all })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.payments.all })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.vouchers.all })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all })
         void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all })
       }
 

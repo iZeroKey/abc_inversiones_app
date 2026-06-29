@@ -1,8 +1,12 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useInfiniteQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/contexts/auth-context";
+import { useRealtime } from "@/contexts/realtime-context";
 import {
   fetchLoanBundle,
+  fetchLoanPayments,
+  fetchLoanTransactions,
+  fetchLoanVouchers,
   fetchLoans,
   fetchLoansSummary,
   fetchUsersByRole,
@@ -11,9 +15,20 @@ import {
 import {
   queryKeys,
   type LoanListParams,
+  type PaymentListParams,
   type QueryScope,
+  type TransactionListParams,
+  type VoucherListParams,
 } from "@/lib/query-keys";
-import type { Loan, LoanSummary, PaginationMeta, RelatedUser } from "@/types/loans";
+import type {
+  Loan,
+  LoanSummary,
+  PaginationMeta,
+  Payment,
+  PaymentVoucher,
+  RelatedUser,
+  LoanTransaction,
+} from "@/types/loans";
 
 export type LoansQueryData = {
   loans: Loan[];
@@ -88,5 +103,77 @@ export function useLoansSummaryQuery() {
     enabled: Boolean(session?.access_token),
     queryFn: () => fetchLoansSummary(fetchWithAuth),
     queryKey: queryKeys.loans.summary(scope),
+  });
+}
+
+export function useLoanPaymentsQuery(
+  loanId: string | null,
+  params: Omit<PaymentListParams, "page"> = {},
+  options?: { enabled?: boolean },
+) {
+  const { fetchWithAuth, session, user } = useAuth();
+  const { status: wsStatus } = useRealtime();
+  const scope = getAuthQueryScope(user);
+
+  return useInfiniteQuery<{ payments: Payment[]; meta: PaginationMeta }>({
+    enabled: Boolean(session?.access_token && loanId && (options?.enabled ?? true)),
+    initialPageParam: 1,
+    queryFn: ({ pageParam, signal }) =>
+      fetchLoanPayments(fetchWithAuth, loanId ?? "", { ...params, page: pageParam as number }, { signal }),
+    queryKey: queryKeys.payments.list(scope, loanId ?? "none", params),
+    getNextPageParam: (lastPage) => {
+      const current = lastPage.meta.page ?? 1;
+      const total = lastPage.meta.totalPages ?? 1;
+      return current < total ? current + 1 : undefined;
+    },
+    refetchInterval: wsStatus === "disconnected" || wsStatus === "error" ? 30_000 : false,
+  });
+}
+
+export function useLoanVouchersQuery(
+  loanId: string | null,
+  params: Omit<VoucherListParams, "page"> = {},
+  options?: { enabled?: boolean },
+) {
+  const { fetchWithAuth, session, user } = useAuth();
+  const { status: wsStatus } = useRealtime();
+  const scope = getAuthQueryScope(user);
+
+  return useInfiniteQuery<{ vouchers: PaymentVoucher[]; meta: PaginationMeta }>({
+    enabled: Boolean(session?.access_token && loanId && (options?.enabled ?? true)),
+    initialPageParam: 1,
+    queryFn: ({ pageParam, signal }) =>
+      fetchLoanVouchers(fetchWithAuth, { ...params, loanId: loanId ?? undefined, page: pageParam as number }, { signal }),
+    queryKey: queryKeys.vouchers.list(scope, loanId ?? "none", params),
+    getNextPageParam: (lastPage) => {
+      const current = lastPage.meta.page ?? 1;
+      const total = lastPage.meta.totalPages ?? 1;
+      return current < total ? current + 1 : undefined;
+    },
+    refetchInterval: wsStatus === "disconnected" || wsStatus === "error" ? 30_000 : false,
+  });
+}
+
+export function useLoanTransactionsQuery(
+  loanId: string | null,
+  params: Omit<TransactionListParams, "page"> = {},
+  options?: { enabled?: boolean },
+) {
+  const { fetchWithAuth, session, user } = useAuth();
+  const { status: wsStatus } = useRealtime();
+  const scope = getAuthQueryScope(user);
+
+  return useInfiniteQuery<{ data: LoanTransaction[]; meta: PaginationMeta }>({
+    enabled: Boolean(session?.access_token && loanId && (options?.enabled ?? true)),
+    initialPageParam: 1,
+    queryFn: ({ pageParam, signal }) =>
+      fetchLoanTransactions(fetchWithAuth, loanId ?? "", { ...params, page: pageParam as number }, { signal }),
+    queryKey: queryKeys.transactions.list(scope, loanId ?? "none", params),
+    getNextPageParam: (lastPage) => {
+      const current = lastPage.meta.page ?? 1;
+      const total = lastPage.meta.totalPages ?? 1;
+      return current < total ? current + 1 : undefined;
+    },
+    refetchInterval: wsStatus === "disconnected" || wsStatus === "error" ? 30_000 : false,
   });
 }

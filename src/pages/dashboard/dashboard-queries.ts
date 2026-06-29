@@ -121,7 +121,7 @@ async function fetchClientDashboard(fetchWithAuth: FetchWithAuth) {
   );
   const installmentResponses = await Promise.all(
     loans.map(async (loan) => ({
-      installments: await fetchLoanInstallments(fetchWithAuth, loan.id),
+      installments: (await fetchLoanInstallments(fetchWithAuth, loan.id)).installments,
       loan,
     })),
   );

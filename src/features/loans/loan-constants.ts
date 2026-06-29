@@ -57,7 +57,7 @@ export const paymentMethodLabels: Record<string, string> = {
 export const voucherStatusLabels: Record<string, string> = {
   draft: "Borrador",
   pending_investor_review: "Pendiente",
-  pending_admin_review: "Revisión admin",
+  pending_admin_review: "En espera",
   investor_approved: "Aprobado por inversionista",
   investor_rejected: "Rechazado por inversionista",
   owner_approved: "Aprobado",

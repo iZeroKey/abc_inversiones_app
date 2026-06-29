@@ -70,8 +70,6 @@ export type VoucherAnalysis = {
 export type LoanBundle = {
   installments: Installment[];
   loan: Loan | null;
-  payments: Payment[];
-  vouchers: PaymentVoucher[];
 };
 
 type MultipartRequestOptions = {
@@ -181,14 +179,37 @@ export async function fetchLoansSummary(fetchWithAuth: FetchWithAuth) {
   return payload.data ?? {};
 }
 
-export async function fetchAdminLoansSummary(fetchWithAuth: FetchWithAuth) {
-  const payload = await readApiResponse<
+export async function fetchAdminLoansSummary(
+  fetchWithAuth: FetchWithAuth,
+  params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    from?: string;
+    to?: string;
+    q?: string;
+  },
+): Promise<{ rows: AdminLoanSummaryRow[]; meta: PaginationMeta }> {
+  const payload = await readApiUrl<
     AdminLoanSummaryRow[] | { items?: AdminLoanSummaryRow[] }
-  >(fetchWithAuth, "/api/v1/loans/admin-summary");
+  >(
+    fetchWithAuth,
+    buildUrl("/api/v1/loans/admin-summary", params as Record<string, string | number | boolean | undefined>),
+  );
 
-  return Array.isArray(payload.data)
-    ? payload.data
-    : (payload.data?.items ?? []);
+  const data = payload.data;
+  const rows = Array.isArray(data) ? data : (data?.items ?? []);
+  const meta = payload.meta?.pagination ?? payload.meta;
+
+  return {
+    rows,
+    meta: {
+      page: meta?.page ?? params?.page ?? 1,
+      limit: meta?.limit ?? params?.limit ?? rows.length,
+      total: meta?.total ?? rows.length,
+      totalPages: meta?.totalPages ?? 1,
+    },
+  };
 }
 
 export async function fetchLoanDetail(
@@ -207,45 +228,85 @@ export async function fetchLoanDetail(
 export async function fetchLoanInstallments(
   fetchWithAuth: FetchWithAuth,
   loanId: string,
+  params?: { page?: number; limit?: number },
   init?: RequestInit,
-) {
-  const payload = await readApiResponse<
+): Promise<{ installments: Installment[]; meta: PaginationMeta }> {
+  const payload = await readApiUrl<
     Installment[] | { installments?: Installment[] }
-  >(fetchWithAuth, `/api/v1/loans/${loanId}/installments`, init);
+  >(
+    fetchWithAuth,
+    buildUrl(`/api/v1/loans/${loanId}/installments`, params as Record<string, string | number | boolean | undefined>),
+    init,
+  );
 
-  return Array.isArray(payload.data)
-    ? payload.data
-    : (payload.data?.installments ?? []);
+  const data = payload.data;
+  const installments = Array.isArray(data) ? data : (data?.installments ?? []);
+  const meta = payload.meta?.pagination ?? payload.meta;
+
+  return {
+    installments,
+    meta: {
+      page: meta?.page ?? params?.page ?? 1,
+      limit: meta?.limit ?? params?.limit ?? installments.length,
+      total: meta?.total ?? installments.length,
+      totalPages: meta?.totalPages ?? 1,
+    },
+  };
 }
 
 export async function fetchLoanPayments(
   fetchWithAuth: FetchWithAuth,
   loanId: string,
+  params?: { page?: number; limit?: number; from?: string; to?: string; method?: string },
   init?: RequestInit,
-) {
-  const payload = await readApiResponse<Payment[] | { payments?: Payment[] }>(
+): Promise<{ payments: Payment[]; meta: PaginationMeta }> {
+  const payload = await readApiUrl<Payment[] | { payments?: Payment[] }>(
     fetchWithAuth,
-    `/api/v1/payments/loan/${loanId}`,
+    buildUrl(`/api/v1/payments/loan/${loanId}`, params as Record<string, string | number | boolean | undefined>),
     init,
   );
 
-  return Array.isArray(payload.data)
-    ? payload.data
-    : (payload.data?.payments ?? []);
+  const data = payload.data;
+  const payments = Array.isArray(data) ? data : (data?.payments ?? []);
+  const meta = payload.meta?.pagination ?? payload.meta;
+
+  return {
+    payments,
+    meta: {
+      page: meta?.page ?? params?.page ?? 1,
+      limit: meta?.limit ?? params?.limit ?? payments.length,
+      total: meta?.total ?? payments.length,
+      totalPages: meta?.totalPages ?? 1,
+    },
+  };
 }
 
 export async function fetchLoanVouchers(
   fetchWithAuth: FetchWithAuth,
-  loanId: string,
+  params?: { loanId?: string; page?: number; limit?: number; status?: string; from?: string; to?: string; q?: string },
   init?: RequestInit,
-) {
+): Promise<{ vouchers: PaymentVoucher[]; meta: PaginationMeta }> {
   const payload = await readApiUrl<
     PaymentVoucher[] | { vouchers?: PaymentVoucher[] }
-  >(fetchWithAuth, buildUrl("/api/v1/payment-vouchers", { loanId }), init);
+  >(
+    fetchWithAuth,
+    buildUrl("/api/v1/payment-vouchers", params as Record<string, string | number | boolean | undefined>),
+    init,
+  );
 
-  return Array.isArray(payload.data)
-    ? payload.data
-    : (payload.data?.vouchers ?? []);
+  const data = payload.data;
+  const vouchers = Array.isArray(data) ? data : (data?.vouchers ?? []);
+  const meta = payload.meta?.pagination ?? payload.meta;
+
+  return {
+    vouchers,
+    meta: {
+      page: meta?.page ?? params?.page ?? 1,
+      limit: meta?.limit ?? params?.limit ?? vouchers.length,
+      total: meta?.total ?? vouchers.length,
+      totalPages: meta?.totalPages ?? 1,
+    },
+  };
 }
 
 export async function fetchLoanBundle(
@@ -259,36 +320,30 @@ export async function fetchLoanBundle(
       | {
           installments?: Installment[];
           loan?: Loan | null;
-          payments?: Payment[];
-          vouchers?: PaymentVoucher[];
         }
     >(fetchWithAuth, `/api/v1/loans/${loanId}/bundle`, init);
 
     return {
       installments: payload.data?.installments ?? [],
       loan: payload.data?.loan ?? null,
-      payments: payload.data?.payments ?? [],
-      vouchers: payload.data?.vouchers ?? [],
     };
   } catch (error) {
     if (isAbortError(error)) throw error;
   }
 
-  const [detailResult, installmentsResult, paymentsResult, vouchersResult] =
+  const [detailResult, installmentsResult] =
     await Promise.allSettled([
       fetchLoanDetail(fetchWithAuth, loanId, init),
-      fetchLoanInstallments(fetchWithAuth, loanId, init),
-      fetchLoanPayments(fetchWithAuth, loanId, init),
-      fetchLoanVouchers(fetchWithAuth, loanId, init),
+      fetchLoanInstallments(fetchWithAuth, loanId, { limit: 200 }, init),
     ]);
 
   return {
     installments:
-      installmentsResult.status === "fulfilled" ? installmentsResult.value : [],
+      installmentsResult.status === "fulfilled"
+        ? installmentsResult.value.installments
+        : [],
     loan:
       detailResult.status === "fulfilled" ? (detailResult.value ?? null) : null,
-    payments: paymentsResult.status === "fulfilled" ? paymentsResult.value : [],
-    vouchers: vouchersResult.status === "fulfilled" ? vouchersResult.value : [],
   };
 }
 
@@ -558,4 +613,31 @@ export async function rejectLoan(
       body: JSON.stringify({ observation: observation?.trim() || undefined }),
     },
   );
+}
+
+export async function fetchLoanTransactions(
+  fetchWithAuth: FetchWithAuth,
+  loanId: string,
+  params?: { page?: number; limit?: number; from?: string; to?: string },
+  init?: RequestInit,
+): Promise<{ data: import("../types/loans").LoanTransaction[]; meta: PaginationMeta }> {
+  const payload = await readApiUrl<import("../types/loans").LoanTransaction[] | { data?: import("../types/loans").LoanTransaction[] }>(
+    fetchWithAuth,
+    buildUrl(`/api/v1/loans/${loanId}/transactions`, params as Record<string, string | number | boolean | undefined>),
+    init,
+  );
+
+  const rawData = payload.data;
+  const data = Array.isArray(rawData) ? rawData : (rawData?.data ?? []);
+  const meta = payload.meta?.pagination ?? payload.meta;
+
+  return {
+    data,
+    meta: {
+      page: meta?.page ?? params?.page ?? 1,
+      limit: meta?.limit ?? params?.limit ?? data.length,
+      total: meta?.total ?? data.length,
+      totalPages: meta?.totalPages ?? 1,
+    },
+  };
 }
