@@ -30,10 +30,9 @@ import {
 } from "@/features/loans/components/LoanMetricBits"
 import { interestPeriodLabels } from "@/features/loans/loan-constants"
 import { DetailSkeleton, EmptyDetail } from "@/features/loans/components/LoanPageStates"
-import { PaymentsTable } from "@/features/loans/components/PaymentsTable"
+import { PaymentsGallery } from "@/features/loans/components/PaymentsGallery"
 import { ScheduleDrawer } from "@/features/loans/components/ScheduleDrawer"
 import { ScheduleTimeline } from "@/features/loans/components/ScheduleTimeline"
-import { VouchersTable } from "@/features/loans/components/VouchersTable"
 import { DelayedOpenGate, usePaymentMutations } from "@/features/loans/hooks/usePaymentMutations"
 import {
   canDeleteVoucher,
@@ -396,14 +395,13 @@ export function LoanDetailPanel({
           )}
         </SectionBlock>
 
-        {/* ── Pagos ── */}
+        {/* ── Pagos y Vouchers ── */}
         <SectionBlock>
           <h3 className="text-sm font-semibold text-foreground mb-3">Pagos</h3>
-          <PaymentsTable
+          <PaymentsGallery
             payments={relatedData.payments}
             vouchers={relatedData.vouchers}
             canManage={perspective === "admin"}
-            showUnappliedVouchers
             canEditVoucher={(v) => canEditVoucher(v, perspective, user?.id)}
             canDeleteVoucher={(v) => canDeleteVoucher(v, perspective, user?.id)}
             canProcessVoucher={(v) => canProcessVoucher(v, loan, perspective, user?.id)}
@@ -413,32 +411,9 @@ export function LoanDetailPanel({
             onDeleteVoucher={(voucher) => mutations.setDeleteTarget({ type: "voucher", item: voucher, source: "list" })}
             onApproveVoucher={(voucher) => mutations.setProcessDialog({ voucher, mode: "approve" })}
             onRejectVoucher={(voucher) => mutations.setProcessDialog({ voucher, mode: "reject" })}
+            drawerWidth={drawerWidth}
           />
         </SectionBlock>
-
-        {/* ── Vouchers (admin / investor) ── */}
-        {(perspective === "admin" || perspective === "investor") && (
-          <SectionBlock>
-            <h3 className="text-sm font-semibold text-foreground mb-3">Vouchers</h3>
-            <VouchersTable
-              vouchers={relatedData.vouchers}
-              payments={relatedData.payments}
-              canDeletePayment={perspective === "admin"}
-              canEdit={(v) => canEditVoucher(v, perspective, user?.id)}
-              canDelete={(v) => canDeleteVoucher(v, perspective, user?.id)}
-              canProcess={(v) => canProcessVoucher(v, loan, perspective, user?.id)}
-              onEdit={mutations.setVoucherDialogVoucher}
-              onDelete={(voucher) => mutations.setDeleteTarget({ type: "voucher", item: voucher, source: "gallery" })}
-              onDeletePayment={(payment) => mutations.setDeleteTarget({ type: "payment", item: payment, source: "gallery" })}
-              onApprove={(voucher) => mutations.setProcessDialog({ voucher, mode: "approve" })}
-              onReject={(voucher) => mutations.setProcessDialog({ voucher, mode: "reject" })}
-              deleteTarget={mutations.deleteTarget}
-              submitting={mutations.submitting}
-              onCancelDelete={() => mutations.setDeleteTarget(null)}
-              onConfirmDelete={mutations.handleDeleteTarget}
-            />
-          </SectionBlock>
-        )}
       </div>
 
       {mutations.dialogElements}
