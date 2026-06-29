@@ -305,10 +305,16 @@ async function readApiPayload<T>(response: Response): Promise<ApiResponse<T>> {
 
 async function fetchUsers(
   fetchWithAuth: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
-) {
-  const response = await fetchWithAuth(`${getApiBaseUrl()}/api/v1/users`)
+  params?: { page?: number; limit?: number },
+): Promise<{ users: ManagedUser[]; meta?: { pagination?: PaginationMeta } & Record<string, unknown> }> {
+  const searchParams = new URLSearchParams()
+  if (params?.page) searchParams.set("page", String(params.page))
+  if (params?.limit) searchParams.set("limit", String(params.limit))
+  const qs = searchParams.toString()
+  const url = qs ? `${getApiBaseUrl()}/api/v1/users?${qs}` : `${getApiBaseUrl()}/api/v1/users`
+  const response = await fetchWithAuth(url)
   const payload = await readApiPayload<ManagedUser[] | UsersEnvelope>(response)
-  return unwrapUsers(payload.data)
+  return { users: unwrapUsers(payload.data), meta: payload.meta }
 }
 
 async function fetchAccessRequests(
@@ -630,10 +636,10 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       setUsersError(null)
 
       try {
-        const nextUsers = await queryClient.fetchQuery({
+        const { users: nextUsers } = await queryClient.fetchQuery({
           meta: { persist: true },
-          queryFn: () => fetchUsers(fetchWithAuth),
-          queryKey: queryKeys.users.list(queryScope),
+          queryFn: () => fetchUsers(fetchWithAuth, { page, limit: USERS_PAGE_SIZE }),
+          queryKey: queryKeys.users.list(queryScope, { page, limit: USERS_PAGE_SIZE }),
         })
         rememberVisibleIds(nextUsers, keepContent, visibleUserIdsRef, newUserTimeoutRef, setNewUserIds)
         setUsers(nextUsers)
@@ -644,7 +650,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         setRefreshingUsers(false)
       }
     },
-    [fetchWithAuth, isAdmin, queryClient, queryScope, session?.access_token],
+    [fetchWithAuth, isAdmin, page, queryClient, queryScope, session?.access_token],
   )
 
   const loadRequests = useCallback(
