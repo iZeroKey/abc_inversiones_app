@@ -267,6 +267,25 @@ export default function NotificationsPage() {
     if (markingAll || !API_BASE_URL) return
 
     setMarkingAll(true)
+    
+    const previousNotifications = notifications
+    const previousPagination = pagination
+    const previousUnreadCount = unreadCount
+
+    setNotifications((current) =>
+      filter === "unread"
+        ? []
+        : current.map((notification) => ({ ...notification, isRead: true })),
+    )
+    setPagination((current) => ({
+      ...current,
+      page: filter === "unread" ? 1 : current.page,
+      total: filter === "unread" ? 0 : current.total,
+      totalPages: filter === "unread" ? 1 : current.totalPages,
+      unreadCount: 0,
+    }))
+    updateUnreadCountQueries(() => 0)
+
     try {
       const response = await fetchWithAuth(
         `${API_BASE_URL}/api/v1/notifications/read-all`,
@@ -278,19 +297,6 @@ export default function NotificationsPage() {
         throw new Error(payload?.message || "No se pudieron marcar las notificaciones.")
       }
 
-      setNotifications((current) =>
-        filter === "unread"
-          ? []
-          : current.map((notification) => ({ ...notification, isRead: true })),
-      )
-      setPagination((current) => ({
-        ...current,
-        page: filter === "unread" ? 1 : current.page,
-        total: filter === "unread" ? 0 : current.total,
-        totalPages: filter === "unread" ? 1 : current.totalPages,
-        unreadCount: 0,
-      }))
-      updateUnreadCountQueries(() => 0)
       void queryClient.invalidateQueries({ queryKey: ["abc", "notifications", "list"] })
       dispatchNotificationsUpdated()
       toastManager.add({
@@ -302,6 +308,10 @@ export default function NotificationsPage() {
         setPage(1)
       }
     } catch (markError) {
+      setNotifications(previousNotifications)
+      setPagination(previousPagination)
+      updateUnreadCountQueries(() => previousUnreadCount)
+
       toastManager.add({
         type: "error",
         title: "No se pudo completar la acción",
