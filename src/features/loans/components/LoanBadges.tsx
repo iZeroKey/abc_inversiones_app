@@ -120,7 +120,7 @@ export function VoucherStatusBadge({ status }: { status?: string }) {
   const variant =
     currentStatus === "owner_approved" || currentStatus === "investor_approved"
       ? "success"
-      : currentStatus === "owner_rejected" || currentStatus === "investor_rejected"
+      : currentStatus === "owner_rejected" || currentStatus === "investor_rejected" || currentStatus === "deleted" || currentStatus === "reversed"
         ? "destructive"
         : "warning"
 
@@ -133,6 +133,37 @@ export function VoucherStatusBadge({ status }: { status?: string }) {
       )}
     >
       {voucherStatusLabels[currentStatus] ?? currentStatus}
+    </Badge>
+  )
+}
+
+export function PaymentStatusBadge({ status, className }: { status?: string, className?: string }) {
+  const currentStatus = status ?? "confirmed"
+  const [animate, setAnimate] = useState(false)
+  const prevStatusRef = useRef(currentStatus)
+
+  useEffect(() => {
+    if (prevStatusRef.current !== currentStatus) {
+      setAnimate(true)
+      prevStatusRef.current = currentStatus
+      const timer = setTimeout(() => setAnimate(false), 900)
+      return () => clearTimeout(timer)
+    }
+  }, [currentStatus])
+
+  const variant = currentStatus === "reversed" ? "destructive" : "success"
+  const label = currentStatus === "reversed" ? "Revertido" : "Aplicado"
+
+  return (
+    <Badge
+      variant={variant}
+      className={cn(
+        "relative transition-all duration-300",
+        animate && "animate-badge-change",
+        className
+      )}
+    >
+      {label}
     </Badge>
   )
 }

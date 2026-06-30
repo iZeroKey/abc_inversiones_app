@@ -62,4 +62,6 @@ export const voucherStatusLabels: Record<string, string> = {
   investor_rejected: "Rechazado por inversionista",
   owner_approved: "Aprobado",
   owner_rejected: "Rechazado",
+  deleted: "Eliminado",
+  reversed: "Revertido",
 };
