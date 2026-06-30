@@ -95,13 +95,13 @@ export function ReviewLoanDialog({
                   <div>
                     <p className="text-muted-foreground text-xs mb-1 font-medium uppercase tracking-wider">Monto Solicitado</p>
                     <p className="font-bold text-base text-foreground">
-                      {loan ? <AnimatedNumber value={loan.amount} isCurrency /> : "—"}
+                      {loan ? <AnimatedNumber value={loan.principal} isCurrency /> : "—"}
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs mb-1 font-medium uppercase tracking-wider">Condiciones</p>
                     <p className="font-medium text-foreground">
-                      {loan ? `${loan.term} meses • ${loan.interestRate}% TEA` : "—"}
+                      {loan ? `${loan.installmentsCount ?? "—"} cuotas • ${loan.interestRate}% TEA` : "—"}
                     </p>
                   </div>
                 </div>
