@@ -43,10 +43,8 @@ import {
   useLoanUsersByRoleQuery,
 } from "@/features/loans/loan-queries"
 import {
-  createLoanSearchText,
   getErrorMessage,
   getLoanPaidAmount,
-  normalizeStatusFilter,
 } from "@/features/loans/loan-utils"
 import { useDrawerHistory } from "@/hooks/use-drawer-history"
 import { useIsMobile } from "@/hooks/use-media-query"
@@ -84,7 +82,6 @@ export default function LoansPage() {
   const { user, session, fetchWithAuth } = useAuth()
   const queryClient = useQueryClient()
   const queryScope = useMemo(() => getAuthQueryScope(user), [user])
-  const loansQuery = useLoansQuery()
   const [drawerLoanId, setDrawerLoanId] = useState<string | null>(null)
   const loanId = drawerLoanId
   const location = useLocation()
@@ -95,7 +92,6 @@ export default function LoansPage() {
   const pageTitle = basePath === "/investments" ? "Inversiones" : roleCopy.title
   const isDetailOpen = Boolean(drawerLoanId)
 
-  const [loans, setLoans] = useState<Loan[]>([])
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<"all" | LoanStatus>("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -103,14 +99,25 @@ export default function LoansPage() {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null)
   const [relatedData, setRelatedData] = useState<RelatedData>(emptyRelatedData)
   const [relatedDataLoanId, setRelatedDataLoanId] = useState<string | null>(null)
-  const [loadingList, setLoadingList] = useState(true)
   const [loadingDetail, setLoadingDetail] = useState(false)
-  const [listError, setListError] = useState<string | null>(null)
   const [detailError, setDetailError] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [reviewDialog, setReviewDialog] = useState<"approve" | "reject" | null>(null)
   const [rejectObservation, setRejectObservation] = useState("")
   const isMobile = useIsMobile()
+  const deferredSearchQuery = useDeferredValue(searchQuery)
+
+  const loansQuery = useLoansQuery({
+    limit: PAGE_SIZE,
+    page,
+    status: statusFilter !== "all" ? statusFilter : undefined,
+    search: deferredSearchQuery || undefined,
+  })
+  const loans = loansQuery.data?.loans ?? []
+  const loadingList = loansQuery.isLoading || (loansQuery.isFetching && !loansQuery.data)
+  const listError = loansQuery.error
+    ? getErrorMessage(loansQuery.error, "No se pudieron cargar los préstamos.")
+    : null
 
 
   useDrawerHistory(isDetailOpen, (open) => {
@@ -126,7 +133,6 @@ export default function LoansPage() {
   const [adminView, setAdminView] = useState(() => routeState?.adminView === "advanced" ? "advanced" : "simple")
   const [selectedUserForSheet, setSelectedUserForSheet] = useState<UserDetailProfile | null>(null)
   const [newLoanIds, setNewLoanIds] = useState<Set<string>>(() => new Set())
-  const deferredSearchQuery = useDeferredValue(searchQuery)
   const summaryQuery = useLoansSummaryQuery()
   const clientsQuery = useLoanUsersByRoleQuery("client", {
     enabled: canCreateLoan(user) && createOpen,
@@ -138,7 +144,6 @@ export default function LoansPage() {
   const activeLoanLookup = loanId ?? manualSelectedLoanId
   const activeLoanIdRef = useRef<string | null>(loanId ?? null)
   const pendingDetailIdRef = useRef<string | null>(null)
-  const listSyncedRef = useRef(false)
   const visibleLoanIdsRef = useRef<Set<string>>(new Set())
   const newLoanTimeoutRef = useRef<number | undefined>(undefined)
   const highlightLoanIds = useCallback((ids: string[]) => {
@@ -195,37 +200,13 @@ export default function LoansPage() {
   )
   const isAdminView = role === "admin"
 
-  const filteredLoans = useMemo(() => {
-    let result = loans
-
-    if (statusFilter !== "all") {
-      result = result.filter((loan) => normalizeStatusFilter(loan.status ?? "") === statusFilter)
-    }
-
-    const query = deferredSearchQuery.trim().toLowerCase()
-    if (query) {
-      result = result.filter((loan) => createLoanSearchText(loan).includes(query))
-    }
-
-    return result
-  }, [deferredSearchQuery, loans, statusFilter])
-
-  const paginatedLoans = useMemo(() => {
-    const startIndex = (page - 1) * PAGE_SIZE
-    return filteredLoans.slice(startIndex, startIndex + PAGE_SIZE)
-  }, [filteredLoans, page])
-
-  const pagination = useMemo(() => {
-    const total = filteredLoans.length
-    const limit = PAGE_SIZE
-    const totalPages = Math.max(Math.ceil(total / limit), 1)
-    return {
-      page,
-      limit,
-      total,
-      totalPages,
-    }
-  }, [filteredLoans.length, page])
+  const filteredLoans = loans
+  const paginatedLoans = loans
+  const meta = loansQuery.data?.meta
+  const pagination: PaginationMeta = useMemo(
+    () => meta ?? { page, limit: PAGE_SIZE, total: 0, totalPages: 1 },
+    [meta, page],
+  )
 
   const rememberVisibleLoans = useCallback(
     (nextLoans: Loan[], highlightNew: boolean) => {
@@ -245,57 +226,16 @@ export default function LoansPage() {
     [highlightLoanIds],
   )
 
-  const loadLoans = useCallback(
-    async () => {
-      if (!session?.access_token) return
-
-      setLoadingList(true)
-      setListError(null)
-
-      try {
-        const { data: loansResult, error } = await loansQuery.refetch()
-        if (error) throw error
-        if (!loansResult) return
-
-        rememberVisibleLoans(loansResult.loans, true)
-        setLoans(loansResult.loans)
-
-        if (adminView === "advanced" && !activeLoanIdRef.current && loansResult.loans[0]) {
-          activeLoanIdRef.current = loansResult.loans[0].id
-          setManualSelectedLoanId(loansResult.loans[0].id)
-        }
-      } catch (error) {
-        setListError(getErrorMessage(error, "No se pudieron cargar los préstamos."))
-      } finally {
-        setLoadingList(false)
-      }
-    },
-    [adminView, loansQuery, rememberVisibleLoans, session?.access_token],
-  )
-
-  // TanStack Query is the external source here; this bridges it into the legacy local UI state.
   useEffect(() => {
     if (!loansQuery.data) return
 
-    const highlightNew = listSyncedRef.current
-    rememberVisibleLoans(loansQuery.data.loans, highlightNew)
-    setLoans(loansQuery.data.loans)
-    setListError(null)
-    setLoadingList(false)
-    listSyncedRef.current = true
+    rememberVisibleLoans(loansQuery.data.loans, true)
 
     if (adminView === "advanced" && !activeLoanIdRef.current && loansQuery.data.loans[0]) {
       activeLoanIdRef.current = loansQuery.data.loans[0].id
       setManualSelectedLoanId(loansQuery.data.loans[0].id)
     }
   }, [adminView, loansQuery.data, rememberVisibleLoans])
-
-  useEffect(() => {
-    if (!loansQuery.error) return
-
-    setListError(getErrorMessage(loansQuery.error, "No se pudieron cargar los préstamos."))
-    setLoadingList(false)
-  }, [loansQuery.error])
 
   useEffect(() => {
     return () => {
@@ -496,13 +436,12 @@ export default function LoansPage() {
           createdLoan,
           ...prevLoans.filter((loan) => loan.id !== createdLoan.id),
         ]
-        setLoans(upsertCreatedLoan)
-        queryClient.setQueryData(
-          queryKeys.loans.list(queryScope),
-          (currentData: { loans: Loan[]; meta: PaginationMeta } | undefined) =>
-            currentData
-              ? { ...currentData, loans: upsertCreatedLoan(currentData.loans) }
-              : currentData,
+        queryClient.setQueriesData<{ loans: Loan[]; meta: PaginationMeta }>(
+          { queryKey: ["abc", "loans", "list"] },
+          (currentData) => {
+            if (!currentData) return currentData
+            return { ...currentData, loans: upsertCreatedLoan(currentData.loans) }
+          },
         )
         setPage(1)
         visibleLoanIdsRef.current = new Set([
@@ -512,7 +451,7 @@ export default function LoansPage() {
         highlightLoanIds([createdLoan.id])
         handleSelectLoan(createdLoan)
       } else {
-        await loadLoans()
+        await loansQuery.refetch()
       }
     } catch (error) {
       toastManager.add({
@@ -547,7 +486,7 @@ export default function LoansPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.loans.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
       ])
-      await Promise.all([loadLoans(), loadDetail(visibleSelectedLoan.id, visibleSelectedLoan)])
+      await loadDetail(visibleSelectedLoan.id, visibleSelectedLoan)
     } catch (error) {
       toastManager.add({
         type: "error",
@@ -561,21 +500,17 @@ export default function LoansPage() {
 
   const refreshSelectedLoanData = useCallback(async () => {
     const id = detailLoanId ?? visibleSelectedLoan?.id
-    if (!id) {
-      await loadLoans()
-      return
-    }
+    if (!id) return
 
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.loans.list(queryScope) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.loans.detail(queryScope, id) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.list(queryScope, id) }),
     ])
-    await Promise.all([
-      loadLoans(),
-      loadDetail(id, visibleSelectedLoan, { silent: true }),
-    ])
-  }, [detailLoanId, loadDetail, loadLoans, queryClient, queryScope, visibleSelectedLoan])
+    if (id) {
+      await loadDetail(id, visibleSelectedLoan, { silent: true })
+    }
+  }, [detailLoanId, loadDetail, queryClient, queryScope, visibleSelectedLoan])
 
   return (
     <div>
@@ -629,7 +564,7 @@ export default function LoansPage() {
               listError={listError}
               emptyMessage={roleCopy.empty}
               perspective={role}
-              onRetryList={() => void loadLoans()}
+              onRetryList={() => void loansQuery.refetch()}
               onOpenLoan={handleOpenLoanDetail}
               onPageChange={setPage}
               onStatusFilterChange={handleStatusFilterChange}
@@ -653,7 +588,7 @@ export default function LoansPage() {
               detailError={detailError}
               canReview={canReviewLoan(visibleSelectedLoan, user)}
               basePath={basePath}
-              onRetryList={() => void loadLoans()}
+              onRetryList={() => void loansQuery.refetch()}
               onSelectLoan={handleSelectLoan}
               onPageChange={setPage}
               onStatusFilterChange={handleStatusFilterChange}
@@ -682,7 +617,7 @@ export default function LoansPage() {
           listError={listError}
           emptyMessage={roleCopy.empty}
           perspective={role}
-          onRetryList={() => void loadLoans()}
+          onRetryList={() => void loansQuery.refetch()}
           onOpenLoan={handleOpenLoanDetail}
           onPageChange={setPage}
           onStatusFilterChange={handleStatusFilterChange}
