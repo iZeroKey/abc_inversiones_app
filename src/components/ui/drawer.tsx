@@ -39,6 +39,7 @@ export function Drawer({
   ...props
 }: DrawerPrimitive.Root.Props & {
   position?: DrawerPosition;
+  nested?: boolean;
 }): React.ReactElement {
   return (
     <DrawerContext.Provider value={{ position }}>
