@@ -5,14 +5,32 @@ import { useEffect, useRef } from "react"
 import { useIsMobile } from "@/hooks/use-media-query"
 
 const drawerHistoryStateKey = "__abcDrawerEntry"
-let nextDrawerHistoryId = 0
-let drawerHistoryDepth = 0
-let ignoreNextDrawerPop = false
-let popStateListenerAttached = false
-const closingFromPopIds = new Set<number>()
-const drawerBackStack: { close: () => void; id: number }[] = []
-
 export type DrawerHistoryMode = "auto" | "always" | "never"
+
+type DrawerHistoryState = {
+  depth: number
+  ignoreNextPop: boolean
+  closingFromPopIds: Set<number>
+  backStack: { close: () => void; id: number }[]
+  nextId: number
+}
+
+const drawerHistoryMap = new Map<string, DrawerHistoryState>()
+
+function getDrawerState(componentId: string) {
+  let state = drawerHistoryMap.get(componentId)
+  if (!state) {
+    state = {
+      depth: 0,
+      ignoreNextPop: false,
+      closingFromPopIds: new Set(),
+      backStack: [],
+      nextId: 0,
+    }
+    drawerHistoryMap.set(componentId, state)
+  }
+  return state
+}
 
 function useDrawerHistoryEnabled(historyMode: DrawerHistoryMode) {
   const isMobile = useIsMobile()
@@ -21,55 +39,52 @@ function useDrawerHistoryEnabled(historyMode: DrawerHistoryMode) {
   return isMobile
 }
 
-function registerDrawerBackHandler(close: () => void) {
-  attachDrawerPopStateListener()
-  const id = nextDrawerHistoryId + 1
-  nextDrawerHistoryId = id
-  drawerBackStack.push({ close, id })
-  pushDrawerHistoryEntry(id)
-  return () => unregisterDrawerBackHandler(id)
+function registerDrawerBackHandler(componentId: string, close: () => void) {
+  const state = getDrawerState(componentId)
+  const id = state.nextId + 1
+  state.nextId = id
+  state.backStack.push({ close, id })
+  pushDrawerHistoryEntry(componentId, id)
+  return () => unregisterDrawerBackHandler(componentId, id)
 }
 
-function attachDrawerPopStateListener() {
-  if (popStateListenerAttached || typeof window === "undefined") return
-  window.addEventListener("popstate", handleDrawerPopState)
-  popStateListenerAttached = true
-}
-
-function handleDrawerPopState() {
-  if (ignoreNextDrawerPop) {
-    ignoreNextDrawerPop = false
+function handleDrawerPopState(componentId: string) {
+  const state = getDrawerState(componentId)
+  if (state.ignoreNextPop) {
+    state.ignoreNextPop = false
     return
   }
-  if (drawerHistoryDepth > 0) {
-    drawerHistoryDepth -= 1
+  if (state.depth > 0) {
+    state.depth -= 1
   }
-  const topDrawer = drawerBackStack.at(-1)
+  const topDrawer = state.backStack.at(-1)
   if (!topDrawer) return
-  closingFromPopIds.add(topDrawer.id)
+  state.closingFromPopIds.add(topDrawer.id)
   topDrawer.close()
 }
 
-function pushDrawerHistoryEntry(id: number) {
+function pushDrawerHistoryEntry(componentId: string, id: number) {
+  const state = getDrawerState(componentId)
   const currentState = getCurrentHistoryState()
   window.history.pushState(
     { ...currentState, [drawerHistoryStateKey]: id },
     "",
     window.location.href,
   )
-  drawerHistoryDepth += 1
+  state.depth += 1
 }
 
-function unregisterDrawerBackHandler(id: number) {
-  const stackIndex = drawerBackStack.findIndex((entry) => entry.id === id)
+function unregisterDrawerBackHandler(componentId: string, id: number) {
+  const state = getDrawerState(componentId)
+  const stackIndex = state.backStack.findIndex((entry) => entry.id === id)
   if (stackIndex === -1) return
-  const wasTopDrawer = stackIndex === drawerBackStack.length - 1
-  drawerBackStack.splice(stackIndex, 1)
-  if (closingFromPopIds.delete(id)) return
-  if (!wasTopDrawer || drawerHistoryDepth <= 0) return
+  const wasTopDrawer = stackIndex === state.backStack.length - 1
+  state.backStack.splice(stackIndex, 1)
+  if (state.closingFromPopIds.delete(id)) return
+  if (!wasTopDrawer || state.depth <= 0) return
   if (getCurrentDrawerHistoryId() !== id) return
-  ignoreNextDrawerPop = true
-  drawerHistoryDepth -= 1
+  state.ignoreNextPop = true
+  state.depth -= 1
   window.history.back()
 }
 
@@ -93,10 +108,19 @@ export function useDrawerHistory(
   const onOpenChangeRef = useRef(onOpenChange)
   const unregisterRef = useRef<(() => void) | null>(null)
   const pendingUnregisterRef = useRef<number | null>(null)
+  const componentId = React.useId()
 
   useEffect(() => {
     onOpenChangeRef.current = onOpenChange
   }, [onOpenChange])
+
+  useEffect(() => {
+    if (!historyEnabled || typeof window === "undefined") return
+    
+    const popStateHandler = () => handleDrawerPopState(componentId)
+    window.addEventListener("popstate", popStateHandler)
+    return () => window.removeEventListener("popstate", popStateHandler)
+  }, [componentId, historyEnabled])
 
   useEffect(() => {
     if (!historyEnabled || !open || !hasOpenChange || typeof window === "undefined") return
@@ -115,12 +139,12 @@ export function useDrawerHistory(
       return scheduleUnregister
     }
 
-    const unregister = registerDrawerBackHandler(() => {
+    const unregister = registerDrawerBackHandler(componentId, () => {
       const cb = onOpenChangeRef.current
       cb?.(false)
     })
     unregisterRef.current = unregister
 
     return scheduleUnregister
-  }, [hasOpenChange, historyEnabled, open])
+  }, [hasOpenChange, historyEnabled, open, componentId])
 }

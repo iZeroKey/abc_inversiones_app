@@ -9,20 +9,35 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { XIcon } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useId } from "react";
 
 const sheetHistoryStateKey = "__abcSheetEntry";
-let nextSheetHistoryId = 0;
-let sheetHistoryDepth = 0;
-let ignoreNextSheetPop = false;
-let popStateListenerAttached = false;
-const closingFromPopIds = new Set<number>();
-const sheetBackStack: {
-  close: () => void;
-  id: number;
-}[] = [];
-
 export type SheetHistoryMode = "auto" | "always" | "never";
+
+type SheetHistoryState = {
+  depth: number;
+  ignoreNextPop: boolean;
+  closingFromPopIds: Set<number>;
+  backStack: { close: () => void; id: number }[];
+  nextId: number;
+};
+
+const sheetHistoryMap = new Map<string, SheetHistoryState>();
+
+function getSheetState(componentId: string) {
+  let state = sheetHistoryMap.get(componentId);
+  if (!state) {
+    state = {
+      depth: 0,
+      ignoreNextPop: false,
+      closingFromPopIds: new Set(),
+      backStack: [],
+      nextId: 0,
+    };
+    sheetHistoryMap.set(componentId, state);
+  }
+  return state;
+}
 
 export type SheetProps<Payload = unknown> =
   SheetPrimitive.Root.Props<Payload> & {
@@ -63,10 +78,19 @@ function useSheetBackNavigation<Payload>(
   const onOpenChangeRef = useRef(onOpenChange);
   const unregisterRef = useRef<(() => void) | null>(null);
   const pendingUnregisterRef = useRef<number | null>(null);
+  const componentId = useId();
 
   useEffect(() => {
     onOpenChangeRef.current = onOpenChange;
   }, [onOpenChange]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const popStateHandler = () => handleSheetPopState(componentId);
+    window.addEventListener("popstate", popStateHandler);
+    return () => window.removeEventListener("popstate", popStateHandler);
+  }, [componentId]);
 
   useEffect(() => {
     if (!open || !hasOpenChange || typeof window === "undefined") return;
@@ -85,73 +109,61 @@ function useSheetBackNavigation<Payload>(
       return scheduleUnregister;
     }
 
-    const unregister = registerSheetBackHandler(() => {
+    const unregister = registerSheetBackHandler(componentId, () => {
       onOpenChangeRef.current?.(false, createSheetBackEventDetails());
     });
     unregisterRef.current = unregister;
 
     return scheduleUnregister;
-  }, [hasOpenChange, open]);
+  }, [hasOpenChange, open, componentId]);
 }
 
-function registerSheetBackHandler(close: () => void) {
-  attachSheetPopStateListener();
-
-  const id = nextSheetHistoryId + 1;
-  nextSheetHistoryId = id;
-  sheetBackStack.push({ close, id });
-  pushSheetHistoryEntry(id);
-
-  return () => unregisterSheetBackHandler(id);
+function registerSheetBackHandler(componentId: string, close: () => void) {
+  const state = getSheetState(componentId);
+  const id = state.nextId + 1;
+  state.nextId = id;
+  state.backStack.push({ close, id });
+  pushSheetHistoryEntry(componentId, id);
+  return () => unregisterSheetBackHandler(componentId, id);
 }
 
-function attachSheetPopStateListener() {
-  if (popStateListenerAttached || typeof window === "undefined") return;
-
-  window.addEventListener("popstate", handleSheetPopState);
-  popStateListenerAttached = true;
-}
-
-function handleSheetPopState() {
-  if (ignoreNextSheetPop) {
-    ignoreNextSheetPop = false;
+function handleSheetPopState(componentId: string) {
+  const state = getSheetState(componentId);
+  if (state.ignoreNextPop) {
+    state.ignoreNextPop = false;
     return;
   }
-
-  if (sheetHistoryDepth > 0) {
-    sheetHistoryDepth -= 1;
+  if (state.depth > 0) {
+    state.depth -= 1;
   }
-
-  const topSheet = sheetBackStack.at(-1);
+  const topSheet = state.backStack.at(-1);
   if (!topSheet) return;
-
-  closingFromPopIds.add(topSheet.id);
+  state.closingFromPopIds.add(topSheet.id);
   topSheet.close();
 }
 
-function pushSheetHistoryEntry(id: number) {
+function pushSheetHistoryEntry(componentId: string, id: number) {
+  const state = getSheetState(componentId);
   const currentState = getCurrentHistoryState();
   window.history.pushState(
     { ...currentState, [sheetHistoryStateKey]: id },
     "",
     window.location.href,
   );
-  sheetHistoryDepth += 1;
+  state.depth += 1;
 }
 
-function unregisterSheetBackHandler(id: number) {
-  const stackIndex = sheetBackStack.findIndex((entry) => entry.id === id);
+function unregisterSheetBackHandler(componentId: string, id: number) {
+  const state = getSheetState(componentId);
+  const stackIndex = state.backStack.findIndex((entry) => entry.id === id);
   if (stackIndex === -1) return;
-
-  const wasTopSheet = stackIndex === sheetBackStack.length - 1;
-  sheetBackStack.splice(stackIndex, 1);
-
-  if (closingFromPopIds.delete(id)) return;
-  if (!wasTopSheet || sheetHistoryDepth <= 0) return;
+  const wasTopSheet = stackIndex === state.backStack.length - 1;
+  state.backStack.splice(stackIndex, 1);
+  if (state.closingFromPopIds.delete(id)) return;
+  if (!wasTopSheet || state.depth <= 0) return;
   if (getCurrentSheetHistoryId() !== id) return;
-
-  ignoreNextSheetPop = true;
-  sheetHistoryDepth -= 1;
+  state.ignoreNextPop = true;
+  state.depth -= 1;
   window.history.back();
 }
 
