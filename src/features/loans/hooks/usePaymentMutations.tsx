@@ -97,6 +97,12 @@ export function usePaymentMutations({ loan, fetchWithAuth, session, onDataChange
   } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+  const [lastMutatedItem, setLastMutatedItem] = useState<{
+    id: string
+    type: "voucher" | "payment"
+    status: string
+    updatedAt: string
+  } | null>(null)
 
   const queryClient = useQueryClient()
 
@@ -284,9 +290,9 @@ export function usePaymentMutations({ loan, fetchWithAuth, session, onDataChange
               const nextTransactions = [...page.data]
               nextTransactions[idx] = { 
                 ...nextTransactions[idx], 
-                status: updatedVoucher.status, 
-                observation: updatedVoucher.observation,
-                updatedAt: updatedVoucher.updatedAt 
+                status: updatedVoucher.status ?? nextTransactions[idx].status, 
+                observation: updatedVoucher.observation ?? nextTransactions[idx].observation,
+                updatedAt: updatedVoucher.updatedAt ?? new Date().toISOString()
               }
               return { ...page, data: nextTransactions }
             })
@@ -294,8 +300,14 @@ export function usePaymentMutations({ loan, fetchWithAuth, session, onDataChange
             return { ...old, pages: nextPages }
           },
         )
-      }
 
+        setLastMutatedItem({
+          id: updatedVoucher.id,
+          type: "voucher",
+          status: updatedVoucher.status ?? "unknown",
+          updatedAt: updatedVoucher.updatedAt ?? new Date().toISOString(),
+        })
+      }
       clearStateWithDelay("process", () => {})
       setProcessDialog(null)
       await refreshAfterMutation(
@@ -320,13 +332,73 @@ export function usePaymentMutations({ loan, fetchWithAuth, session, onDataChange
     try {
       if (deleteTarget.type === "payment") {
         await deletePayment(fetchWithAuth, deleteTarget.item.id)
-        await refreshAfterMutation("Pago eliminado", "El préstamo fue recalculado.")
+        queryClient.setQueriesData<{ pages?: { data: { id: string, type: string }[] }[] }>(
+          { queryKey: ["abc", "transactions"] },
+          (old) => {
+            if (!old?.pages) return old
+            return {
+              ...old,
+              pages: old.pages.map(p => ({
+                ...p,
+                data: p.data.map(t => t.id === deleteTarget.item.id && t.type === "payment" ? { ...t, status: "reversed", updatedAt: new Date().toISOString() } : t)
+              }))
+            }
+          }
+        )
+        setLastMutatedItem({
+          id: deleteTarget.item.id,
+          type: "payment",
+          status: "reversed",
+          updatedAt: new Date().toISOString(),
+        })
       } else {
         await deleteVoucher(fetchWithAuth, deleteTarget.item.id)
-        await refreshAfterMutation("Voucher eliminado", "El flujo quedó actualizado.")
+
+        queryClient.setQueriesData<{ pages?: { vouchers: PaymentVoucher[] }[] }>(
+          { queryKey: ["abc", "vouchers"] },
+          (old) => {
+            if (!old?.pages) return old
+            return {
+              ...old,
+              pages: old.pages.map(p => ({
+                ...p,
+                vouchers: p.vouchers.map(v => v.id === deleteTarget.item.id ? { ...v, status: "deleted", updatedAt: new Date().toISOString() } : v)
+              }))
+            }
+          }
+        )
+
+        queryClient.setQueriesData<{ pages?: { data: { id: string, type: string }[] }[] }>(
+          { queryKey: ["abc", "transactions"] },
+          (old) => {
+            if (!old?.pages) return old
+            return {
+              ...old,
+              pages: old.pages.map(p => ({
+                ...p,
+                data: p.data.map(t => t.id === deleteTarget.item.id && t.type === "voucher" ? { ...t, status: "deleted", updatedAt: new Date().toISOString() } : t)
+              }))
+            }
+          }
+        )
+        setLastMutatedItem({
+          id: deleteTarget.item.id,
+          type: "voucher",
+          status: "deleted",
+          updatedAt: new Date().toISOString(),
+        })
       }
+
+      const isPayment = deleteTarget.type === "payment"
+      
       clearStateWithDelay("delete", () => {})
       setDeleteTarget(null)
+
+      if (isPayment) {
+        await refreshAfterMutation("Pago eliminado", "El préstamo fue recalculado.")
+      } else {
+        await refreshAfterMutation("Voucher eliminado", "El flujo quedó actualizado.")
+      }
     } catch (error) {
       toastManager.add({
         type: "error",
@@ -452,5 +524,6 @@ export function usePaymentMutations({ loan, fetchWithAuth, session, onDataChange
     setDeleteTarget,
     handleDeleteTarget,
     dialogElements,
+    lastMutatedItem,
   }
 }
