@@ -63,7 +63,7 @@ import {
   toNumber,
 } from "@/features/loans/loan-utils"
 import { cn } from "@/lib/utils"
-import type { Loan, LoanStatus, PaginationMeta, Payment, PaymentVoucher, RelatedUser, LoanTransaction } from "@/types/loans"
+import type { Loan, LoanStatus, PaginationMeta, RelatedUser, LoanTransaction } from "@/types/loans"
 
 type OperationsFocus = "all" | "review" | "active" | "risk" | "company"
 type OperationsView = "table" | "cards"
@@ -912,17 +912,6 @@ export function AdminLoansOperationsPanel({
                 </div>
               </DrawerFooter>
             </DrawerPopup>
-            <ReviewLoanDialog
-              mode={reviewDialog}
-              loan={selectedLoan}
-              observation={rejectObservation}
-              submitting={submittingAction}
-              onObservationChange={setRejectObservation}
-              onOpenChange={(open) => {
-                if (!open) setReviewDialog(null)
-              }}
-              onConfirm={handleReviewAction}
-            />
           </Drawer>
         )}
       </DelayedOpenGate>
