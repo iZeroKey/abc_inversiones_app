@@ -119,12 +119,23 @@ async function fetchClientDashboard(fetchWithAuth: FetchWithAuth) {
   const activeLoanIds = new Set(
     loans.filter((loan) => loan.status === "active").map((loan) => loan.id),
   );
-  const installmentResponses = await Promise.all(
-    loans.map(async (loan) => ({
-      installments: (await fetchLoanInstallments(fetchWithAuth, loan.id)).installments,
-      loan,
-    })),
+  const loanIds = loans.map((l) => l.id);
+  const batchResponse = await fetchWithAuth(
+    `${getApiBaseUrl()}/api/v1/loans/batch-installments`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ loanIds }),
+    }
   );
+  const batchPayload = await readApiPayload<Record<string, any[]>>(batchResponse);
+  const batchInstallments = batchPayload.data || {};
+
+  const installmentResponses = loans.map((loan) => ({
+    installments: batchInstallments[loan.id] || [],
+    loan,
+  }));
+
   const loansWithProgress = installmentResponses.map(({ installments, loan }) => ({
     ...loan,
     totalPaid: String(getLoanPaidAmount(loan, installments)),
@@ -169,15 +180,22 @@ async function fetchInvestorDashboard(fetchWithAuth: FetchWithAuth) {
     };
   }
 
-  const paymentsByLoan = await Promise.all(
-    (data.investments ?? []).map(async (investment) => {
-      const response = await fetchWithAuth(
-        `${getApiBaseUrl()}/api/v1/payments/loan/${investment.loanId}`,
-      );
-      const paymentPayload = await readApiPayload<Payment[]>(response);
-      return paymentPayload.data ?? [];
-    }),
-  );
+  const loanIds = (data.investments ?? []).map((inv) => inv.loanId);
+  let paymentsByLoan: Payment[][] = [];
+  
+  if (loanIds.length > 0) {
+    const batchResponse = await fetchWithAuth(
+      `${getApiBaseUrl()}/api/v1/payments/batch`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loanIds }),
+      }
+    );
+    const batchPayload = await readApiPayload<Record<string, Payment[]>>(batchResponse);
+    const batchPayments = batchPayload.data || {};
+    paymentsByLoan = loanIds.map((id) => batchPayments[id] || []);
+  }
 
   return {
     collectedAmount: paymentsByLoan
