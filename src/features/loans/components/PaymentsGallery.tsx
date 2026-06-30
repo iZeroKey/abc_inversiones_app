@@ -1,9 +1,8 @@
-import { type ReactElement, useState, useMemo, useRef, useEffect } from "react"
+import { type ReactElement, useState, useRef, useEffect } from "react"
 import { PhotoProvider, PhotoView } from "react-photo-view"
 import { CheckIcon, EditIcon, FileImageIcon, Trash2Icon, XIcon, Loader2Icon, ArrowDownIcon } from "lucide-react"
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Drawer,
@@ -16,7 +15,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { Separator } from "@/components/ui/separator"
-import { VoucherStatusBadge } from "@/features/loans/components/LoanBadges"
+import { PaymentStatusBadge, VoucherStatusBadge } from "@/features/loans/components/LoanBadges"
 import {
   CompactEmpty,
   relatedEmptyIcons,
@@ -24,27 +23,9 @@ import {
 import { paymentMethodLabels } from "@/features/loans/loan-constants"
 import { formatDate } from "@/features/loans/loan-utils"
 import { DelayedOpenGate } from "@/features/loans/hooks/usePaymentMutations"
+import { useRealtime } from "@/contexts/realtime-context"
 import { useIsMobile } from "@/hooks/use-media-query"
 import type { PaginationMeta, Payment, PaymentVoucher, LoanTransaction } from "@/types/loans"
-
-// ─── Helpers ────────────────────────────────────────────────────────
-
-function getPaymentEvidenceUrl(payment: Payment) {
-  if (!payment.evidenceUrl || payment.evidenceUrl.startsWith("storage://")) return null
-  return payment.evidenceUrl
-}
-
-function getVoucherEvidenceUrl(voucher: PaymentVoucher) {
-  const url = voucher.evidenceUrl ?? voucher.fileUrl
-  if (!url || url.startsWith("storage://")) return null
-  return url
-}
-
-function isUnappliedVoucher(voucher: PaymentVoucher) {
-  return ["draft", "pending_investor_review", "pending_admin_review", "investor_approved"].includes(voucher.status ?? "")
-}
-
-
 
 // ─── Detail Drawer ──────────────────────────────────────────────────
 
@@ -104,7 +85,7 @@ function PaymentDetailDrawer({
   const mockVoucher = item as unknown as PaymentVoucher
 
   if (isPayment) {
-    if (canManage) {
+    if (canManage && item.status !== "reversed") {
       footerActions.push({ label: "Editar", onClick: () => onEdit(mockPayment) })
       footerActions.push({ label: "Eliminar", destructive: true, onClick: () => onDelete(mockPayment) })
     }
@@ -172,7 +153,7 @@ function PaymentDetailDrawer({
               </div>
               <div className="shrink-0">
                 {isPayment ? (
-                  <Badge variant="success" className="rounded-full">Aplicado</Badge>
+                  <PaymentStatusBadge status={item.status} className="rounded-full" />
                 ) : (
                   <VoucherStatusBadge status={item.status} />
                 )}
@@ -281,6 +262,7 @@ export function PaymentsGallery({
   transactionsMeta,
   loadingTransactions,
   onLoadMoreTransactions,
+  lastMutatedItem,
 }: {
   transactions: LoanTransaction[]
   canManage: boolean
@@ -298,7 +280,10 @@ export function PaymentsGallery({
   transactionsMeta?: PaginationMeta
   loadingTransactions?: boolean
   onLoadMoreTransactions?: () => void
+  lastMutatedItem?: { id: string; type: "voucher" | "payment"; status: string; updatedAt: string } | null
 }) {
+  const { lastMessage } = useRealtime()
+
   const [rawSelectedItem, setRawSelectedItem] = useState<LoanTransaction | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
@@ -318,24 +303,47 @@ export function PaymentsGallery({
     }
   }
 
-  const selectedItem = useMemo(() => {
-    if (!rawSelectedItem) return null
-    // Try to find the item in the updated transactions list to get its fresh state
-    const target = transactions.find((t) => t.id === rawSelectedItem.id)
-    if (target) return target
-    
-    // Fallback: If an unapplied voucher became a payment, the payment might have the voucher's ID as reference,
-    // but the unified transactions array just handles it gracefully, or the id will be completely different.
-    return rawSelectedItem
-  }, [transactions, rawSelectedItem])
+  const selectedItem = rawSelectedItem
+
+  // Admin: update status from mutation result
+  useEffect(() => {
+    if (!lastMutatedItem || !rawSelectedItem) return
+    if (lastMutatedItem.id !== rawSelectedItem.id) return
+    setRawSelectedItem((prev) => prev ? { ...prev, status: lastMutatedItem.status, updatedAt: lastMutatedItem.updatedAt } : prev)
+  }, [lastMutatedItem])
+
+  // Client & Admin: update status from WebSocket events
+  useEffect(() => {
+    if (!drawerOpen || !rawSelectedItem || !lastMessage?.type) return
+    const data = lastMessage.data as Record<string, unknown> | undefined
+    if (!data) return
+
+    const currentId = rawSelectedItem.id
+    if (!currentId) return
+
+    if (lastMessage.type === "voucher.updated" && data.voucherId === currentId) {
+      const newStatus = typeof data.status === "string" ? data.status : null
+      if (newStatus) {
+        setRawSelectedItem((prev) => prev ? { ...prev, status: newStatus as LoanTransaction["status"] } : prev)
+      }
+    }
+
+    if (lastMessage.type === "voucher.deleted" && data.voucherId === currentId) {
+      setRawSelectedItem((prev) => prev ? { ...prev, status: "reversed" as LoanTransaction["status"] } : prev)
+    }
+
+    if (lastMessage.type === "payment.deleted" && data.paymentId === currentId) {
+      setRawSelectedItem((prev) => prev ? { ...prev, status: "reversed" as LoanTransaction["status"] } : prev)
+    }
+  }, [lastMessage, drawerOpen])
 
   const handleCardClick = (item: LoanTransaction) => {
     clearTimeout(closingTimeoutRef.current)
-    setRawSelectedItem(item)
+    setRawSelectedItem({ ...item })
     setDrawerOpen(true)
   }
 
-  if (transactions.length === 0) {
+  if (transactions.length === 0 && !rawSelectedItem) {
     return (
       <>
         <CompactEmpty
@@ -390,7 +398,7 @@ export function PaymentsGallery({
                   </span>
                   <div className="shrink-0">
                     {isPayment ? (
-                      <Badge variant="success">Aplicado</Badge>
+                      <PaymentStatusBadge status={item.status} />
                     ) : (
                       <VoucherStatusBadge status={item.status} />
                     )}

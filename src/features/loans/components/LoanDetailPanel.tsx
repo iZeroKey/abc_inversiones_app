@@ -406,6 +406,7 @@ export function LoanDetailPanel({
             transactionsMeta={transactionsMeta}
             loadingTransactions={loadingTransactions}
             onLoadMoreTransactions={onLoadMoreTransactions}
+            lastMutatedItem={mutations.lastMutatedItem}
           />
         </SectionBlock>
       </div>
