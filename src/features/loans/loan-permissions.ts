@@ -88,7 +88,7 @@ export function canEditVoucher(voucher: PaymentVoucher, perspective: LoanRole, u
 }
 
 export function canDeleteVoucher(voucher: PaymentVoucher, perspective: LoanRole, userId?: string) {
-  if (perspective === "admin") return true
+  if (perspective === "admin") return voucher.status !== "deleted"
   return (
     perspective === "client" &&
     voucher.clientId === userId &&
