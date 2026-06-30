@@ -37,7 +37,6 @@ import {
 import {
   getAuthQueryScope,
   useLoanBundleQuery,
-  useLoanPaymentsQuery,
   useLoanTransactionsQuery,
   useLoansQuery,
   useLoansSummaryQuery,

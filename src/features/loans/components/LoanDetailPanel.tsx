@@ -1,25 +1,15 @@
 import {
   AlertCircleIcon,
   ArrowRightIcon,
-  CheckIcon,
   CreditCardIcon,
-  MoreHorizontalIcon,
   UserIcon,
   UserRoundIcon,
-  XIcon,
 } from "lucide-react"
 import { useState } from "react"
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { UserDetailSheet, type UserDetailProfile } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
 import {
@@ -99,8 +89,6 @@ export function LoanDetailPanel({
   loading,
   error,
   canReview,
-  onApprove,
-  onReject,
   onRetry,
   perspective = "admin",
   sticky = true,
