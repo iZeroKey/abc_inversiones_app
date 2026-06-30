@@ -114,6 +114,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     let shouldReconnect = true
     let reconnectTimeoutId: number | undefined
     let pingIntervalId: number | undefined
+    let socketGeneration = 0
 
     const cleanupSocket = () => {
       if (pingIntervalId !== undefined) {
@@ -123,10 +124,14 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
       const socket = socketRef.current
       socketRef.current = null
-      if (socket && socket.readyState !== WebSocket.CLOSED) {
+      if (!socket) return
+
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CLOSING) {
         socket.close(1000, "client reconnect")
       }
     }
+
+    const isCurrent = (gen: number) => gen === socketGeneration
 
     const scheduleReconnect = () => {
       if (stopped) return
@@ -139,11 +144,15 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       cleanupSocket()
       if (stopped) return
 
+      socketGeneration++
+      const gen = socketGeneration
+
       setStatus("connecting")
       const socket = new WebSocket(buildWebSocketUrl(API_BASE_URL))
       socketRef.current = socket
 
       socket.addEventListener("open", () => {
+        if (!isCurrent(gen)) return
         socket.send(JSON.stringify({ type: "auth", token }))
         pingIntervalId = window.setInterval(() => {
           if (socket.readyState === WebSocket.OPEN) {
@@ -153,6 +162,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       })
 
       socket.addEventListener("message", (event) => {
+        if (!isCurrent(gen)) return
         if (typeof event.data !== "string") return
         const message = parseRealtimeMessage(event.data)
         if (!message?.type) return
@@ -198,6 +208,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       })
 
       socket.addEventListener("close", (event) => {
+        if (!isCurrent(gen)) return
         if (stopped) return
         if (!shouldReconnect || event.code === 4001 || event.code === 4003) {
           setStatus("error")
@@ -208,6 +219,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       })
 
       socket.addEventListener("error", () => {
+        if (!isCurrent(gen)) return
         if (!stopped) setStatus("error")
       })
     }
