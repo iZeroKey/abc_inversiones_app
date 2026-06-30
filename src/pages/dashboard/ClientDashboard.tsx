@@ -17,9 +17,11 @@ import {
 import { ChevronRightIcon, CreditCardIcon, ReceiptTextIcon, WalletIcon } from "lucide-react"
 import { Link } from "react-router-dom"
 
+import { Button } from "@/components/ui/button"
+
 export default function ClientDashboard() {
   const { user } = useAuth()
-  const { data: dashboardData, isLoading } = useClientDashboardQuery()
+  const { data: dashboardData, isLoading, isError, error, refetch } = useClientDashboardQuery()
   const data = dashboardData?.data ?? null
   const pendingInstallments = dashboardData?.pendingInstallments ?? 0
 
@@ -67,6 +69,25 @@ export default function ClientDashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="size-14 rounded-full bg-destructive/10 flex items-center justify-center mb-5">
+            <CreditCardIcon className="size-7 text-destructive" />
+          </div>
+          <p className="font-bold text-lg">Error al cargar tu panel</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+            {error instanceof Error ? error.message : "No se pudieron cargar tus préstamos. Intenta de nuevo."}
+          </p>
+          <Button onClick={() => refetch()} variant="default" className="mt-6 shadow-md">
+            Reintentar
+          </Button>
         </div>
       </div>
     )

@@ -12,11 +12,30 @@ import { useAdminDashboardQuery } from "@/pages/dashboard/dashboard-queries"
 
 export default function AdminDashboard() {
   const { user } = useAuth()
-  const { data, isLoading } = useAdminDashboardQuery()
+  const { data, isLoading, isError, error, refetch } = useAdminDashboardQuery()
   const navigate = useNavigate()
 
   if (isLoading) {
     return <AdminDashboardSkeleton />
+  }
+
+  if (isError) {
+    return (
+      <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="size-14 rounded-full bg-destructive/10 flex items-center justify-center mb-5">
+            <PieChartIcon className="size-7 text-destructive" />
+          </div>
+          <p className="font-bold text-lg">Error al cargar el dashboard</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+            {error instanceof Error ? error.message : "No se pudieron cargar las métricas. Intenta de nuevo."}
+          </p>
+          <Button onClick={() => refetch()} variant="default" className="mt-6 shadow-md">
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   const usersCount = data?.users?.totalUsers || 0

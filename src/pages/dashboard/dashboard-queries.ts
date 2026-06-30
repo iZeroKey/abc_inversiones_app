@@ -141,7 +141,7 @@ async function fetchClientDashboard(fetchWithAuth: FetchWithAuth) {
       summary: {
         ...data.summary,
         totalPaid: String(
-          Math.max(toNumber(data.summary?.totalPaid), paidFromInstallments),
+          toNumber(data.summary?.totalPaid) || paidFromInstallments,
         ),
       },
     },

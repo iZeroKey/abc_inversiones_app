@@ -103,12 +103,14 @@ export function SidebarProvider({
         _setOpen(openState);
       }
 
-      await cookieStore.set({
-        expires: Date.now() + SIDEBAR_COOKIE_MAX_AGE * 1000,
-        name: SIDEBAR_COOKIE_NAME,
-        path: "/",
-        value: String(openState),
-      });
+      if (typeof cookieStore !== "undefined") {
+        await cookieStore.set({
+          expires: Date.now() + SIDEBAR_COOKIE_MAX_AGE * 1000,
+          name: SIDEBAR_COOKIE_NAME,
+          path: "/",
+          value: String(openState),
+        });
+      }
     },
     [setOpenProp, open],
   );

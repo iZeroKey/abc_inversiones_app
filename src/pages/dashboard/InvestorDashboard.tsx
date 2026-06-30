@@ -7,14 +7,35 @@ import { formatPercent } from "@/lib/formatters"
 import { useInvestorDashboardQuery } from "@/pages/dashboard/dashboard-queries"
 import { CheckSquareIcon, TrendingUpIcon, WalletIcon } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
+
 export default function InvestorDashboard() {
   const { user } = useAuth()
-  const { data: dashboardData, isLoading } = useInvestorDashboardQuery()
+  const { data: dashboardData, isLoading, isError, error, refetch } = useInvestorDashboardQuery()
   const data = dashboardData?.data ?? null
   const collectedAmount = dashboardData?.collectedAmount ?? 0
 
   if (isLoading) {
     return <InvestorDashboardSkeleton />
+  }
+
+  if (isError) {
+    return (
+      <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="size-14 rounded-full bg-destructive/10 flex items-center justify-center mb-5">
+            <TrendingUpIcon className="size-7 text-destructive" />
+          </div>
+          <p className="font-bold text-lg">Error al cargar el panel de inversión</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+            {error instanceof Error ? error.message : "No se pudieron cargar tus inversiones. Intenta de nuevo."}
+          </p>
+          <Button onClick={() => refetch()} variant="default" className="mt-6 shadow-md">
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   const summary = data?.summary || {}
