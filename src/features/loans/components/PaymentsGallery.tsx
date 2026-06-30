@@ -324,6 +324,7 @@ export function PaymentsGallery({
     if (lastMessage.type === "voucher.updated" && data.voucherId === currentId) {
       const newStatus = typeof data.status === "string" ? data.status : null
       if (newStatus) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setRawSelectedItem((prev) => prev ? { ...prev, status: newStatus as LoanTransaction["status"] } : prev)
       }
     }
@@ -335,6 +336,7 @@ export function PaymentsGallery({
     if (lastMessage.type === "payment.deleted" && data.paymentId === currentId) {
       setRawSelectedItem((prev) => prev ? { ...prev, status: "reversed" as LoanTransaction["status"] } : prev)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastMessage, drawerOpen])
 
   const handleCardClick = (item: LoanTransaction) => {

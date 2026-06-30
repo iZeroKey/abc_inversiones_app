@@ -2,7 +2,7 @@ import {
 CheckCircleIcon,
   XCircleIcon,
 } from "lucide-react"
-import { useRef } from "react"
+import { useState, useEffect } from "react"
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
@@ -41,12 +41,12 @@ export function ReviewLoanDialog({
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
-  const lastValidModeRef = useRef(mode)
-  if (mode) {
-    lastValidModeRef.current = mode
-  }
+  const [lastValidMode, setLastValidMode] = useState(mode)
+  useEffect(() => {
+    if (mode) setLastValidMode(mode)
+  }, [mode])
 
-  const displayMode = mode || lastValidModeRef.current || "approve"
+  const displayMode = mode || lastValidMode || "approve"
   const approving = displayMode === "approve"
   const isMobile = useIsMobile()
 

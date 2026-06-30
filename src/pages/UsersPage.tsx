@@ -2271,6 +2271,7 @@ function LinkAuthDialog({
   onOpenChange: (open: boolean) => void
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
 }) {
+  const isMobile = useIsMobile()
   if (!user) return null
 
   const setGeneratedPassword = () => {
@@ -2286,7 +2287,6 @@ function LinkAuthDialog({
     })
   }
 
-  const isMobile = useIsMobile()
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
@@ -2496,10 +2496,10 @@ function RequestDetailSheet({
   onOpenChange: (open: boolean) => void
   onReview: (request: AccessRequest, action: "approved" | "rejected") => void
 }) {
+  const isMobile = useIsMobile()
   if (!request) return null
 
   const pending = Boolean(request && isPendingRequest(request.status))
-  const isMobile = useIsMobile()
 
   return (
     <Drawer open={Boolean(request)} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
@@ -2609,10 +2609,10 @@ function ReviewRequestDialog({
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
+  const isMobile = useIsMobile()
   if (!request || !action) return null
 
   const approving = action === "approved"
-  const isMobile = useIsMobile()
 
   return (
     <Drawer open={Boolean(request && action)} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>

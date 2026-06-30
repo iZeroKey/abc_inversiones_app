@@ -11,7 +11,8 @@ import {
   readApiPayload,
   type FetchWithAuth,
 } from "@/lib/api-client";
-import { fetchLoanInstallments } from "@/lib/loans-api";
+import type { Installment } from "@/types/loans";
+import { useRef } from "react";
 import { queryKeys } from "@/lib/query-keys";
 import { getAuthQueryScope } from "@/features/loans/loan-queries";
 
@@ -128,7 +129,7 @@ async function fetchClientDashboard(fetchWithAuth: FetchWithAuth) {
       body: JSON.stringify({ loanIds }),
     }
   );
-  const batchPayload = await readApiPayload<Record<string, any[]>>(batchResponse);
+  const batchPayload = await readApiPayload<Record<string, Installment[]>>(batchResponse);
   const batchInstallments = batchPayload.data || {};
 
   const installmentResponses = loans.map((loan) => ({
@@ -208,30 +209,36 @@ async function fetchInvestorDashboard(fetchWithAuth: FetchWithAuth) {
 
 export function useAdminDashboardQuery() {
   const { fetchWithAuth, session, user } = useAuth();
+  const fetchWithAuthRef = useRef(fetchWithAuth);
+  fetchWithAuthRef.current = fetchWithAuth;
   const scope = getAuthQueryScope(user);
 
   return useQuery({
     enabled: Boolean(session?.access_token),
     meta: { persist: true },
-    queryFn: () => fetchAdminDashboard(fetchWithAuth),
+    queryFn: () => fetchAdminDashboard((...args) => fetchWithAuthRef.current(...args)),
     queryKey: queryKeys.dashboard.admin(scope),
   });
 }
 
 export function useClientDashboardQuery() {
   const { fetchWithAuth, session, user } = useAuth();
+  const fetchWithAuthRef = useRef(fetchWithAuth);
+  fetchWithAuthRef.current = fetchWithAuth;
   const scope = getAuthQueryScope(user);
 
   return useQuery<ClientDashboardData>({
     enabled: Boolean(session?.access_token),
     meta: { persist: true },
-    queryFn: () => fetchClientDashboard(fetchWithAuth),
+    queryFn: () => fetchClientDashboard((...args) => fetchWithAuthRef.current(...args)),
     queryKey: queryKeys.dashboard.client(scope),
   });
 }
 
 export function useInvestorDashboardQuery() {
   const { fetchWithAuth, session, user } = useAuth();
+  const fetchWithAuthRef = useRef(fetchWithAuth);
+  fetchWithAuthRef.current = fetchWithAuth;
   const scope = getAuthQueryScope(user);
 
   return useQuery<InvestorDashboardData>({
