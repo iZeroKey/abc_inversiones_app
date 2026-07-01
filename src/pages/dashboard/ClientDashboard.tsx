@@ -14,6 +14,7 @@ import {
   type DashboardLoan as Loan,
 } from "@/pages/dashboard/dashboard-queries"
 
+import { motion } from "framer-motion"
 import { ChevronRightIcon, CreditCardIcon, ReceiptTextIcon, WalletIcon } from "lucide-react"
 import { Link } from "react-router-dom"
 
@@ -114,23 +115,34 @@ export default function ClientDashboard() {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-3 gap-3 md:gap-5">
-        <MetricCard 
-          icon={<WalletIcon className="size-5 md:size-6 text-primary" />} 
-          value={<AnimatedNumber value={loans.length} />} 
-          label="Préstamos" 
-        />
-        <MetricCard 
-          icon={<ReceiptTextIcon className="size-5 md:size-6 text-primary" />} 
-          value={<AnimatedNumber value={remainingDebt} isCurrency />} 
-          label="Por pagar" 
-        />
-        <MetricCard 
-          icon={<CreditCardIcon className="size-5 md:size-6 text-primary" />} 
-          value={<AnimatedNumber value={pendingInstallments} />} 
-          label="Cuotas" 
-        />
-      </div>
+      <motion.div
+        initial="initial"
+        animate="animate"
+        variants={{ initial: {}, animate: { transition: { staggerChildren: 0.08 } } }}
+        className="grid grid-cols-3 gap-3 md:gap-5"
+      >
+        <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
+          <MetricCard 
+            icon={<WalletIcon className="size-5 md:size-6 text-primary" />} 
+            value={<AnimatedNumber value={loans.length} />} 
+            label="Préstamos" 
+          />
+        </motion.div>
+        <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
+          <MetricCard 
+            icon={<ReceiptTextIcon className="size-5 md:size-6 text-primary" />} 
+            value={<AnimatedNumber value={remainingDebt} isCurrency />} 
+            label="Por pagar" 
+          />
+        </motion.div>
+        <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
+          <MetricCard 
+            icon={<CreditCardIcon className="size-5 md:size-6 text-primary" />} 
+            value={<AnimatedNumber value={pendingInstallments} />} 
+            label="Cuotas" 
+          />
+        </motion.div>
+      </motion.div>
 
       {/* Préstamo activo */}
       <div className="space-y-4">

@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/contexts/auth-context"
 import { formatPercent } from "@/lib/formatters"
 import { useInvestorDashboardQuery } from "@/pages/dashboard/dashboard-queries"
+import { motion } from "framer-motion"
 import { CheckSquareIcon, TrendingUpIcon, WalletIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -97,26 +98,37 @@ export default function InvestorDashboard() {
 
       <div className="space-y-4">
         <h3 className="font-bold text-xl tracking-tight">Detalles</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-5">
-          <MetricCard
-            icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />}
-            label="Retorno Total"
-            value={<AnimatedNumber value={totalReturn} isCurrency />}
-            subValue={`${formatPercent(roi)} ROI`}
-          />
-          <MetricCard
-            icon={<CheckSquareIcon className="size-5 md:size-6 text-primary" />}
-            label="Préstamos Activos"
-            value={<AnimatedNumber value={activeLoans} />}
-            subValue="En curso"
-          />
-          <MetricCard
-            icon={<WalletIcon className="size-5 md:size-6 text-primary" />}
-            label="Cobrado"
-            value={<AnimatedNumber value={collectedAmount} isCurrency />}
-            subValue={`${progressPercent.toFixed(1)}% del total`}
-          />
-        </div>
+        <motion.div
+          initial="initial"
+          animate="animate"
+          variants={{ initial: {}, animate: { transition: { staggerChildren: 0.08 } } }}
+          className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-5"
+        >
+          <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
+            <MetricCard
+              icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />}
+              label="Retorno Total"
+              value={<AnimatedNumber value={totalReturn} isCurrency />}
+              subValue={`${formatPercent(roi)} ROI`}
+            />
+          </motion.div>
+          <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
+            <MetricCard
+              icon={<CheckSquareIcon className="size-5 md:size-6 text-primary" />}
+              label="Préstamos Activos"
+              value={<AnimatedNumber value={activeLoans} />}
+              subValue="En curso"
+            />
+          </motion.div>
+          <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
+            <MetricCard
+              icon={<WalletIcon className="size-5 md:size-6 text-primary" />}
+              label="Cobrado"
+              value={<AnimatedNumber value={collectedAmount} isCurrency />}
+              subValue={`${progressPercent.toFixed(1)}% del total`}
+            />
+          </motion.div>
+        </motion.div>
       </div>
     </div>
   )
