@@ -16,38 +16,32 @@ export const fastEase: Transition = {
   ease: "easeOut",
 };
 
-export const pageVariants: Record<string, Variants> = {
-  forward: {
-    enter: {
-      opacity: 1,
-      filter: "blur(0px)",
-      x: 0,
-      scale: 1,
-      transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
-    },
-    exit: {
+export const pageVariants: Variants = {
+  initial: (custom: unknown) => {
+    const direction = custom as "forward" | "back"
+    return {
       opacity: 0,
-      filter: "blur(4px)",
-      x: -12,
+      filter: "blur(6px)",
+      x: direction === "back" ? -18 : 18,
       scale: 0.995,
-      transition: { duration: 0.14, ease: [0.55, 0, 1, 0.45] },
-    },
+    }
   },
-  back: {
-    enter: {
-      opacity: 1,
-      filter: "blur(0px)",
-      x: 0,
-      scale: 1,
-      transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
-    },
-    exit: {
+  animate: {
+    opacity: 1,
+    filter: "blur(0px)",
+    x: 0,
+    scale: 1,
+    transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
+  },
+  exit: (custom: unknown) => {
+    const direction = custom as "forward" | "back"
+    return {
       opacity: 0,
       filter: "blur(4px)",
-      x: 12,
+      x: direction === "back" ? 12 : -12,
       scale: 0.995,
       transition: { duration: 0.14, ease: [0.55, 0, 1, 0.45] },
-    },
+    }
   },
 };
 
