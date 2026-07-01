@@ -28,6 +28,7 @@ import {
   shouldReplaceSectionNavigation,
 } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
+import { motion } from "framer-motion"
 import { BellIcon, ChevronRightIcon, LogOutIcon } from "lucide-react"
 import type { ElementType, MouseEvent, ReactNode } from "react"
 import { useEffect, useRef } from "react"
@@ -484,7 +485,12 @@ function AppBottomNav({ navigationItems }: Pick<AppLayoutProps, "navigationItems
   }
 
   return (
-    <div className="fixed left-[calc(env(safe-area-inset-left,0)+1rem)] right-[calc(env(safe-area-inset-right,0)+1rem)] bottom-[calc(env(safe-area-inset-bottom,0)+1rem)] z-50">
+    <motion.div
+      initial={{ y: 100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+      className="fixed left-[calc(env(safe-area-inset-left,0)+1rem)] right-[calc(env(safe-area-inset-right,0)+1rem)] bottom-[calc(env(safe-area-inset-bottom,0)+1rem)] z-50"
+    >
       <div className="flex items-center justify-between rounded-4xl bg-background/95 px-2 py-2 shadow-lg backdrop-blur-md">
         {bottomItems.map((item) => {
           const isActive = location.pathname === item.href || (item.href !== homePath && location.pathname.startsWith(item.href + "/"))
@@ -527,6 +533,6 @@ function AppBottomNav({ navigationItems }: Pick<AppLayoutProps, "navigationItems
           )
         })}
       </div>
-    </div>
+    </motion.div>
   )
 }
