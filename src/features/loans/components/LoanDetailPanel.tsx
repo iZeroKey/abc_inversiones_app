@@ -1,3 +1,4 @@
+import { motion } from "framer-motion"
 import {
   AlertCircleIcon,
   ArrowRightIcon,
@@ -6,6 +7,11 @@ import {
   UserRoundIcon,
 } from "lucide-react"
 import { useState } from "react"
+
+const fadeIn = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: { duration: 0.25 } },
+}
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Button } from "@/components/ui/button"
@@ -190,9 +196,14 @@ export function LoanDetailPanel({
       )}
 
       {/* ── Body ── */}
-      <div className="flex flex-col gap-6">
+      <motion.div
+        className="flex flex-col gap-6"
+        variants={{ animate: { transition: { staggerChildren: 0.06 } } }}
+        initial="initial"
+        animate="animate"
+      >
         {error && (
-          <div className="flex items-start gap-3 text-sm rounded-xl bg-destructive/5 p-3">
+          <motion.div variants={fadeIn} className="flex items-start gap-3 text-sm rounded-xl bg-destructive/5 p-3">
             <AlertCircleIcon className="mt-0.5 shrink-0 text-destructive" />
             <div className="min-w-0 flex-1">
               <p className="font-medium text-destructive">Detalle parcial</p>
@@ -201,12 +212,12 @@ export function LoanDetailPanel({
             <Button variant="outline" size="sm" onClick={onRetry}>
               Reintentar
             </Button>
-          </div>
+          </motion.div>
         )}
 
         {/* ── Investor: pending review banner ── */}
         {perspective === "investor" && pendingVouchersCount > 0 && (
-          <div className="flex items-center justify-between rounded-xl bg-warning/5 p-4">
+          <motion.div variants={fadeIn} className="flex items-center justify-between rounded-xl bg-warning/5 p-4">
             <div className="flex items-center gap-3">
               <div className="flex size-9 items-center justify-center rounded-full bg-warning/10 text-warning">
                 <span className="text-sm font-bold">{pendingVouchersCount}</span>
@@ -219,7 +230,7 @@ export function LoanDetailPanel({
             <Button size="sm" variant="outline" onClick={() => {}}>
               Revisar
             </Button>
-          </div>
+          </motion.div>
         )}
 
         {/* ── Client: remaining + progress ── */}
@@ -255,16 +266,18 @@ export function LoanDetailPanel({
           </SectionBlock>
         )}
 
-        {/* ── Client: hero card ── */}
-        {perspective === "client" && (
-          <NextPaymentHero
-            amount={nextInstallment?.amount}
-            dueDate={nextInstallment?.dueDate}
-            canSubmitVoucher={canSubmitVoucher}
-            onSubmitVoucher={() => mutations.setVoucherDialogVoucher(null)}
-            intent="hero"
-          />
-        )}
+        <motion.div variants={fadeIn}>
+          {/* ── Client: hero card ── */}
+          {perspective === "client" && (
+            <NextPaymentHero
+              amount={nextInstallment?.amount}
+              dueDate={nextInstallment?.dueDate}
+              canSubmitVoucher={canSubmitVoucher}
+              onSubmitVoucher={() => mutations.setVoucherDialogVoucher(null)}
+              intent="hero"
+            />
+          )}
+        </motion.div>
 
         {/* ── Admin: top grid ── */}
         {perspective === "admin" && (
@@ -397,7 +410,7 @@ export function LoanDetailPanel({
             lastMutatedItem={mutations.lastMutatedItem}
           />
         </SectionBlock>
-      </div>
+      </motion.div>
 
       <DelayedOpenGate open={showSchedule} onOpenChange={setShowSchedule}>
         {(gateOpen, gateOnOpenChange) => (
@@ -424,8 +437,14 @@ export function LoanDetailPanel({
 
 function SectionBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-muted/30 rounded-xl p-4">
+    <motion.div
+      variants={{
+        initial: { opacity: 0, y: 12 },
+        animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] } },
+      }}
+      className="bg-muted/30 rounded-xl p-4"
+    >
       {children}
-    </div>
+    </motion.div>
   )
 }

@@ -1,13 +1,26 @@
+import { motion } from "framer-motion"
 import {
   AlertCircleIcon,
   CheckCircleIcon,
   ClockIcon,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
 
 import { Badge, type BadgeProps } from "@/components/ui/badge"
 import { statusLabels, voucherStatusLabels } from "@/features/loans/loan-constants"
 import { cn } from "@/lib/utils"
+
+const badgeSpring = {
+  scale: [1, 1.28, 0.9, 1.1, 0.96, 1],
+  transition: { duration: 0.7, ease: [0.25, 1.3, 0.4, 1] },
+}
+
+function AnimatedBadgeWrapper({ status, children }: { status: string; children: React.ReactNode }) {
+  return (
+    <motion.span key={status} animate={badgeSpring} className="inline-flex">
+      {children}
+    </motion.span>
+  )
+}
 
 export function LoanStatusBadge({
   status,
@@ -18,18 +31,6 @@ export function LoanStatusBadge({
   size?: BadgeProps["size"]
   className?: string
 }) {
-  const [animate, setAnimate] = useState(false)
-  const prevStatusRef = useRef(status)
-
-  useEffect(() => {
-    if (prevStatusRef.current !== status) {
-      setAnimate(true)
-      prevStatusRef.current = status
-      const timer = setTimeout(() => setAnimate(false), 900)
-      return () => clearTimeout(timer)
-    }
-  }, [status])
-
   const variant =
     status === "defaulted" || status === "rejected"
       ? "destructive"
@@ -40,82 +41,68 @@ export function LoanStatusBadge({
           : "warning"
 
   return (
-    <Badge
-      variant={variant}
-      size={size}
-      className={cn(
-        "relative rounded-full font-semibold uppercase transition-all duration-300 px-2",
-        className,
-        animate && "animate-badge-change",
-      )}
-    >
-      <span className="size-1.5 rounded-full bg-current shrink-0" />
-      {statusLabels[status] ?? status}
-    </Badge>
+    <AnimatedBadgeWrapper status={status}>
+      <Badge
+        variant={variant}
+        size={size}
+        className={cn(
+          "relative rounded-full font-semibold uppercase transition-all duration-300 px-2",
+          className,
+        )}
+      >
+        <span className="size-1.5 rounded-full bg-current shrink-0" />
+        {statusLabels[status] ?? status}
+      </Badge>
+    </AnimatedBadgeWrapper>
   )
 }
 
 export function InstallmentBadge({ status }: { status: string }) {
-  const [animate, setAnimate] = useState(false)
-  const prevStatusRef = useRef(status)
-
-  useEffect(() => {
-    if (prevStatusRef.current !== status) {
-      setAnimate(true)
-      prevStatusRef.current = status
-      const timer = setTimeout(() => setAnimate(false), 900)
-      return () => clearTimeout(timer)
-    }
-  }, [status])
-
   if (status === "paid") {
     return (
-      <Badge variant="success" className={cn("relative", animate && "animate-badge-change")}>
-        <CheckCircleIcon />
-        Pagada
-      </Badge>
+      <AnimatedBadgeWrapper status={status}>
+        <Badge variant="success" className="relative">
+          <CheckCircleIcon />
+          Pagada
+        </Badge>
+      </AnimatedBadgeWrapper>
     )
   }
 
   if (status === "overdue") {
     return (
-      <Badge variant="destructive" className={cn("relative", animate && "animate-badge-change")}>
-        <AlertCircleIcon />
-        Vencida
-      </Badge>
+      <AnimatedBadgeWrapper status={status}>
+        <Badge variant="destructive" className="relative">
+          <AlertCircleIcon />
+          Vencida
+        </Badge>
+      </AnimatedBadgeWrapper>
     )
   }
 
   if (status === "partial") {
     return (
-      <Badge variant="warning" className={cn("relative", animate && "animate-badge-change")}>
-        <ClockIcon />
-        Parcial
-      </Badge>
+      <AnimatedBadgeWrapper status={status}>
+        <Badge variant="warning" className="relative">
+          <ClockIcon />
+          Parcial
+        </Badge>
+      </AnimatedBadgeWrapper>
     )
   }
 
   return (
-    <Badge variant="outline" className={cn("relative", animate && "animate-badge-change")}>
-      <ClockIcon />
-      Pendiente
-    </Badge>
+    <AnimatedBadgeWrapper status={status}>
+      <Badge variant="outline" className="relative">
+        <ClockIcon />
+        Pendiente
+      </Badge>
+    </AnimatedBadgeWrapper>
   )
 }
 
 export function VoucherStatusBadge({ status }: { status?: string }) {
   const currentStatus = status ?? "pending_investor_review"
-  const [animate, setAnimate] = useState(false)
-  const prevStatusRef = useRef(currentStatus)
-
-  useEffect(() => {
-    if (prevStatusRef.current !== currentStatus) {
-      setAnimate(true)
-      prevStatusRef.current = currentStatus
-      const timer = setTimeout(() => setAnimate(false), 900)
-      return () => clearTimeout(timer)
-    }
-  }, [currentStatus])
 
   const variant =
     currentStatus === "owner_approved" || currentStatus === "investor_approved"
@@ -125,45 +112,30 @@ export function VoucherStatusBadge({ status }: { status?: string }) {
         : "warning"
 
   return (
-    <Badge
-      variant={variant}
-      className={cn(
-        "relative transition-all duration-300",
-        animate && "animate-badge-change",
-      )}
-    >
-      {voucherStatusLabels[currentStatus] ?? currentStatus}
-    </Badge>
+    <AnimatedBadgeWrapper status={currentStatus}>
+      <Badge
+        variant={variant}
+        className="relative transition-all duration-300"
+      >
+        {voucherStatusLabels[currentStatus] ?? currentStatus}
+      </Badge>
+    </AnimatedBadgeWrapper>
   )
 }
 
 export function PaymentStatusBadge({ status, className }: { status?: string, className?: string }) {
   const currentStatus = status ?? "confirmed"
-  const [animate, setAnimate] = useState(false)
-  const prevStatusRef = useRef(currentStatus)
-
-  useEffect(() => {
-    if (prevStatusRef.current !== currentStatus) {
-      setAnimate(true)
-      prevStatusRef.current = currentStatus
-      const timer = setTimeout(() => setAnimate(false), 900)
-      return () => clearTimeout(timer)
-    }
-  }, [currentStatus])
-
   const variant = currentStatus === "reversed" ? "destructive" : "success"
   const label = currentStatus === "reversed" ? "Revertido" : "Aplicado"
 
   return (
-    <Badge
-      variant={variant}
-      className={cn(
-        "relative transition-all duration-300",
-        animate && "animate-badge-change",
-        className
-      )}
-    >
-      {label}
-    </Badge>
+    <AnimatedBadgeWrapper status={currentStatus}>
+      <Badge
+        variant={variant}
+        className={cn("relative transition-all duration-300", className)}
+      >
+        {label}
+      </Badge>
+    </AnimatedBadgeWrapper>
   )
 }
