@@ -26,7 +26,7 @@ import { LoansListPanel } from "@/features/loans/components/LoansListPanel"
 import { LoanSummaryCard } from "@/features/loans/components/LoanSummaryCard"
 import { ReviewLoanDialog } from "@/features/loans/components/ReviewLoanDialog"
 import { PAGE_SIZE } from "@/features/loans/loan-constants"
-import { defaultLoanForm, type LoanFormState } from "@/features/loans/loan-form"
+import { createDefaultLoanForm, type LoanFormState } from "@/features/loans/loan-form"
 import {
   canCreateLoan,
   canReviewLoan,
@@ -124,7 +124,7 @@ export default function LoansPage() {
   })
 
   const [submittingAction, setSubmittingAction] = useState(false)
-  const [loanForm, setLoanForm] = useState<LoanFormState>(defaultLoanForm)
+  const [loanForm, setLoanForm] = useState<LoanFormState>(createDefaultLoanForm)
   const [creatingLoan, setCreatingLoan] = useState(false)
   const [clients, setClients] = useState<RelatedUser[]>([])
   const [investors, setInvestors] = useState<RelatedUser[]>([])
@@ -425,7 +425,7 @@ export default function LoansPage() {
         description: "La solicitud quedó registrada para revisión.",
       })
       setCreateOpen(false)
-      setLoanForm(defaultLoanForm)
+      setLoanForm(createDefaultLoanForm())
 
       if (createdLoan?.id) {
         const upsertCreatedLoan = (prevLoans: Loan[]) => [

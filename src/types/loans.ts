@@ -4,6 +4,7 @@ export type MaritalStatus = "single" | "married" | "unspecified";
 export type LoanStatus =
   | "pending"
   | "pending_investor_review"
+  | "pending_admin_review"
   | "approved"
   | "active"
   | "paid"

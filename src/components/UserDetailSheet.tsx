@@ -157,6 +157,8 @@ export function UserDetailSheet({
       fetchUserById(user.id).then((full) => {
         setLoadedUser(full ?? user)
         setLoading(false)
+      }).catch(() => {
+        setLoading(false)
       })
     }
   }, [user, fetchUserById])

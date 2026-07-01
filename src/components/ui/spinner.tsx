@@ -8,7 +8,7 @@ export function Spinner({
 }: React.ComponentProps<typeof Loader2Icon>): React.ReactElement {
   return (
     <Loader2Icon
-      aria-label="Loading"
+      aria-label="Cargando"
       className={cn("animate-spin", className)}
       role="status"
       {...props}

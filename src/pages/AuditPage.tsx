@@ -427,8 +427,10 @@ export default function AuditPage() {
   const isAdmin = user?.role === "admin" || Boolean(user?.isOwner)
 
   const loadLogs = useCallback(
-    async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
+    async ({ keepContent = false, filters }: { keepContent?: boolean; filters?: AuditFilters } = {}) => {
       if (!session?.access_token || !isAdmin) return
+
+      const activeFilters = filters ?? appliedFilters
 
       if (keepContent) {
         setRefreshing(true)
@@ -440,12 +442,12 @@ export default function AuditPage() {
       try {
         const result = await queryClient.fetchQuery({
           gcTime: 5 * 60 * 1000,
-          queryFn: () => fetchAuditLogs(fetchWithAuth, appliedFilters, page),
+          queryFn: () => fetchAuditLogs(fetchWithAuth, activeFilters, page),
           queryKey: queryKeys.audit.logs(queryScope, {
-            action: appliedFilters.action,
-            module: appliedFilters.module,
+            action: activeFilters.action,
+            module: activeFilters.module,
             page,
-            userId: appliedFilters.userId,
+            userId: activeFilters.userId,
           }),
           staleTime: 15 * 1000,
         })
@@ -663,7 +665,7 @@ export default function AuditPage() {
     setAppliedFilters(updatedFilters)
     setPage(1)
     if (page === 1) {
-      void loadLogs({ keepContent: true })
+      void loadLogs({ keepContent: true, filters: updatedFilters })
     }
   }
 

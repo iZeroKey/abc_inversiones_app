@@ -103,7 +103,14 @@ export default function AdminDashboard() {
                 <span className="opacity-70">Capital vs deuda activa</span>
                 <span><AnimatedNumber value={avance} decimals={0} suffix="%" /></span>
               </div>
-              <div className="w-full bg-white/20 h-3 rounded-full overflow-hidden">
+              <div
+                role="progressbar"
+                aria-valuenow={avance}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Capital vs deuda activa"
+                className="w-full bg-white/20 h-3 rounded-full overflow-hidden"
+              >
                 <div className="bg-white h-full rounded-full transition-all duration-1000" style={{ width: `${avance}%` }} />
               </div>
             </div>

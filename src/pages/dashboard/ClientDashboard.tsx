@@ -214,7 +214,7 @@ function MainLoanCard({ loan }: { loan: Loan }) {
   const publicCode = loan.publicCode
 
   return (
-    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} className="block">
+    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} aria-label={`Ver préstamo ${publicCode ?? ""}`} className="block focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-3xl">
       <Card className="bg-primary text-primary-foreground shadow-sm border-none rounded-3xl overflow-hidden hover:opacity-95 transition-opacity">
         <CardContent className="p-8 space-y-8">
           <div className="flex justify-between items-start">
@@ -234,7 +234,14 @@ function MainLoanCard({ loan }: { loan: Loan }) {
               <span className="opacity-70">Progreso de pago</span>
               <span><AnimatedNumber value={progressPercent} decimals={0} suffix="%" /></span>
             </div>
-            <div className="w-full bg-white/20 h-2.5 rounded-full overflow-hidden">
+            <div
+              role="progressbar"
+              aria-valuenow={progressPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Progreso de pago"
+              className="w-full bg-white/20 h-2.5 rounded-full overflow-hidden"
+            >
                <div className="bg-white h-full rounded-full transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
             </div>
             <p className="text-xs opacity-70">Pagado: <AnimatedNumber value={totalPaid} isCurrency /></p>
@@ -278,7 +285,7 @@ function OtherLoanCard({ loan }: { loan: Loan }) {
   const publicCode = loan.publicCode
 
   return (
-    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} className="block group">
+    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} aria-label={`Ver préstamo ${publicCode ?? ""}`} className="block group focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl">
       <Card className="border-border hover:shadow-md transition-shadow rounded-2xl overflow-hidden">
         <CardContent className="p-4 md:p-5 flex items-center justify-between">
           <div className="flex items-center gap-4">

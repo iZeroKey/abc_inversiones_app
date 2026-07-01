@@ -66,6 +66,7 @@ export function ResponsivePagination({
               key={item}
               variant={item === currentPage ? "default" : "outline"}
               size="icon"
+              aria-current={item === currentPage ? "page" : undefined}
               className={cn(
                 "size-9 rounded-full font-medium transition-all duration-200 cursor-pointer",
                 item === currentPage
