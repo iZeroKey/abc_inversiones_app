@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, type ReactNode } from "react"
 import { HashRouter, Navigate, Route, Routes, useLocation } from "react-router-dom"
 import "./App.css"
+import { ErrorBoundary } from "./components/ErrorBoundary"
 import { PageTransitionRoutes } from "./components/PageTransitionRoutes"
 import ProtectedRoute from "./components/ProtectedRoute"
 import { AppLayout } from "./components/layout/AppLayout"
@@ -128,13 +129,14 @@ function AppFallback() {
 
 function App() {
   return (
-    <TooltipProvider>
-      <ToastProvider>
-        <AnchoredToastProvider>
-          <AppQueryProvider>
-            <AuthProvider>
-              <RealtimeProvider>
-                <HashRouter>
+    <ErrorBoundary>
+      <TooltipProvider>
+        <ToastProvider>
+          <AnchoredToastProvider>
+            <AppQueryProvider>
+              <AuthProvider>
+                <RealtimeProvider>
+                  <HashRouter>
                   <AppDocumentTitle />
                   <Suspense fallback={<AppFallback />}>
                     <Routes>
@@ -150,6 +152,7 @@ function App() {
         </AnchoredToastProvider>
       </ToastProvider>
     </TooltipProvider>
+    </ErrorBoundary>
   )
 }
 export default App

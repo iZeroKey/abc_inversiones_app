@@ -281,9 +281,9 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   }, [loadRequests, loadUsers])
 
   useEffect(() => {
+    const newUserTimeout = newUserTimeoutRef.current
+    const newRequestTimeout = newRequestTimeoutRef.current
     return () => {
-      const newUserTimeout = newUserTimeoutRef.current
-      const newRequestTimeout = newRequestTimeoutRef.current
       if (newUserTimeout !== undefined) {
         window.clearTimeout(newUserTimeout)
       }
