@@ -1,48 +1,48 @@
 import {
-  AlertCircleIcon,
-  CalendarIcon,
-  CheckCircleIcon,
-  ChevronRightIcon,
-  HourglassIcon,
-  RefreshCwIcon,
-  SearchIcon,
-  XCircleIcon,
-  type LucideIcon,
+    AlertCircleIcon,
+    CalendarIcon,
+    CheckCircleIcon,
+    ChevronRightIcon,
+    HourglassIcon,
+    RefreshCwIcon,
+    SearchIcon,
+    XCircleIcon,
+    type LucideIcon,
 } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { ResponsivePagination } from "@/components/ResponsivePagination"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
+    InputGroup,
+    InputGroupAddon,
+    InputGroupInput,
 } from "@/components/ui/input-group"
 import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/progress"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Spinner } from "@/components/ui/spinner"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import {
-  EmptyLoanList,
-  ErrorState,
-  LoanListSkeleton,
+    EmptyLoanList,
+    ErrorState,
+    LoanListSkeleton,
 } from "@/features/loans/components/LoanPageStates"
 import { frequencyLabels, statusFilters } from "@/features/loans/loan-constants"
 import {
-  formatDate,
-  getLoanCardFooterIcon,
-  getLoanCardFooterText,
-  getLoanCardSecondaryLabel,
-  getLoanCardSecondaryValue,
-  getLoanCardTitle,
-  getLoanProgress,
-  getLoanStatusColor,
-  getStatusGroup,
-  loanPublicCode,
-  normalizeStatus,
-  toNumber,
+    formatDate,
+    getLoanCardFooterIcon,
+    getLoanCardFooterText,
+    getLoanCardSecondaryLabel,
+    getLoanCardSecondaryValue,
+    getLoanCardTitle,
+    getLoanProgress,
+    getLoanStatusColor,
+    getStatusGroup,
+    loanPublicCode,
+    normalizeStatus,
+    toNumber,
 } from "@/features/loans/loan-utils"
 import { cn } from "@/lib/utils"
 import type { Loan, LoanStatus, PaginationMeta } from "@/types/loans"
@@ -64,6 +64,7 @@ export function LoansListPanel({
   statusFilter,
   searchQuery,
   loading,
+  isFetching,
   error,
   emptyMessage,
   onRetry,
@@ -82,6 +83,7 @@ export function LoansListPanel({
   statusFilter: "all" | LoanStatus
   searchQuery: string
   loading: boolean
+  isFetching?: boolean
   error: string | null
   emptyMessage: string
   onRetry: () => void
@@ -127,7 +129,10 @@ export function LoansListPanel({
       </div>
 
       <div className="flex items-center justify-between gap-3 px-1">
-        <h2 className="text-base font-semibold">Préstamos</h2>
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          {perspective === "investor" ? "Inversiones" : "Préstamos"}
+          {isFetching && <Spinner className="size-4" />}
+        </h2>
         <p className="text-sm text-muted-foreground">
           {pagination.total ?? loans.length} encontrados
         </p>
@@ -138,9 +143,14 @@ export function LoansListPanel({
       ) : error ? (
         <ErrorState message={error} onRetry={onRetry} />
       ) : loans.length === 0 ? (
-        <EmptyLoanList message={emptyMessage} />
-      ) : variant === "cards" ? (
-        <div className="grid gap-3 md:grid-cols-2">
+        <EmptyLoanList 
+          title={perspective === "investor" ? "No hay inversiones" : "No hay préstamos"}
+          message={emptyMessage} 
+        />
+      ) : (
+        <div className={cn("transition-opacity duration-200", isFetching && "opacity-50 pointer-events-none")}>
+          {variant === "cards" ? (
+            <div className="grid gap-3 md:grid-cols-2">
           {loans.map((loan) => (
             <LoanCardRow
               key={loan.id}
@@ -163,6 +173,8 @@ export function LoansListPanel({
               onSelect={onSelectLoan}
             />
           ))}
+        </div>
+      )}
         </div>
       )}
 

@@ -92,18 +92,51 @@ export const queryKeys = {
   },
   payments: {
     all: ["abc", "payments"] as const,
-    list: (scope: QueryScope | undefined, loanId: string, params: PaymentListParams = {}) =>
-      ["abc", "payments", "list", scopeKey(scope), loanId, compactParams(params)] as const,
+    list: (
+      scope: QueryScope | undefined,
+      loanId: string,
+      params: PaymentListParams = {},
+    ) =>
+      [
+        "abc",
+        "payments",
+        "list",
+        scopeKey(scope),
+        loanId,
+        compactParams(params),
+      ] as const,
   },
   vouchers: {
     all: ["abc", "vouchers"] as const,
-    list: (scope: QueryScope | undefined, loanId: string, params: VoucherListParams = {}) =>
-      ["abc", "vouchers", "list", scopeKey(scope), loanId, compactParams(params)] as const,
+    list: (
+      scope: QueryScope | undefined,
+      loanId: string,
+      params: VoucherListParams = {},
+    ) =>
+      [
+        "abc",
+        "vouchers",
+        "list",
+        scopeKey(scope),
+        loanId,
+        compactParams(params),
+      ] as const,
   },
   transactions: {
     all: ["abc", "transactions"] as const,
-    list: (scope: QueryScope | undefined, loanId: string, params: TransactionListParams = {}) =>
-      ["abc", "transactions", "list", scopeKey(scope), loanId, compactParams(params)] as const,
+    list: (
+      scope: QueryScope | undefined,
+      loanId: string,
+      params: TransactionListParams = {},
+    ) =>
+      [
+        "abc",
+        "transactions",
+        "list",
+        scopeKey(scope),
+        loanId,
+        compactParams(params),
+      ] as const,
   },
   notifications: {
     all: ["abc", "notifications"] as const,
@@ -127,6 +160,12 @@ export const queryKeys = {
       ["abc", "users", "access-requests", scopeKey(scope)] as const,
     all: ["abc", "users"] as const,
     list: (scope?: QueryScope, params?: Record<string, unknown>) =>
-      ["abc", "users", "list", scopeKey(scope), ...(params ? [compactParams(params)] : [])] as const,
+      [
+        "abc",
+        "users",
+        "list",
+        scopeKey(scope),
+        ...(params ? [compactParams(params)] : []),
+      ] as const,
   },
 };

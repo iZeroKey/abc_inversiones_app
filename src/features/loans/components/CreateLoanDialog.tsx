@@ -23,6 +23,14 @@ import {
   ComboboxList,
   ComboboxPopup,
 } from "@/components/ui/combobox"
+import {
+  Drawer,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerPopup,
+  DrawerTitle,
+} from "@/components/ui/drawer"
 import { Empty, EmptyDescription, EmptyMedia } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Fieldset, FieldsetLegend } from "@/components/ui/fieldset"
@@ -35,15 +43,6 @@ import {
   NumberFieldInput,
 } from "@/components/ui/number-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import {
-  Drawer,
-  DrawerPopup,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerPanel,
-  DrawerTitle,
-} from "@/components/ui/drawer"
-import { useIsMobile } from "@/hooks/use-media-query"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -52,6 +51,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { LoanFormState } from "@/features/loans/loan-form"
 import { formatPreciseCurrencyWithSymbol, personName, publicUserCode, toNumber } from "@/features/loans/loan-utils"
+import { useIsMobile } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
 import type { RelatedUser } from "@/types/loans"
 

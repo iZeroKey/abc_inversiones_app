@@ -1,11 +1,11 @@
 import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type Column,
-  type ColumnDef,
-  type SortingState,
+    flexRender,
+    getCoreRowModel,
+    getSortedRowModel,
+    useReactTable,
+    type Column,
+    type ColumnDef,
+    type SortingState,
 } from "@tanstack/react-table"
 import { ArrowUpIcon } from "lucide-react"
 import { useState } from "react"
@@ -15,12 +15,12 @@ import { Button } from "@/components/ui/button"
 import { CardFrame } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 

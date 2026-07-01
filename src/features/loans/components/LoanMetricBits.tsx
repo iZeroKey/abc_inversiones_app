@@ -1,7 +1,7 @@
 import {
-  CalendarClockIcon,
-  ChevronRightIcon,
-  UploadIcon,
+    CalendarClockIcon,
+    ChevronRightIcon,
+    UploadIcon,
 } from "lucide-react"
 import type { ElementType, ReactNode } from "react"
 

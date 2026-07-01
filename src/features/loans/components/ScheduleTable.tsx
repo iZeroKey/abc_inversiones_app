@@ -5,8 +5,6 @@ import {
   DataTableCard,
   DataTableColumnHeader,
 } from "@/components/data-table-card"
-
-type SortDirection = false | "asc" | "desc"
 import { InstallmentBadge } from "@/features/loans/components/LoanBadges"
 import {
   CompactEmpty,
@@ -15,6 +13,8 @@ import {
 import { installmentStatusLabels } from "@/features/loans/loan-constants"
 import { formatDate, getInstallmentDisplayStatus } from "@/features/loans/loan-utils"
 import type { Installment } from "@/types/loans"
+
+type SortDirection = false | "asc" | "desc"
 
 const scheduleColumns: ColumnDef<Installment>[] = [
   {

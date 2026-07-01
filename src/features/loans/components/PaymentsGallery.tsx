@@ -1,31 +1,31 @@
-import { type ReactElement, useState, useRef, useEffect } from "react"
+import { ArrowDownIcon, CheckIcon, EditIcon, FileImageIcon, Loader2Icon, Trash2Icon, XIcon } from "lucide-react"
+import { type ReactElement, useEffect, useMemo, useRef, useState } from "react"
 import { PhotoProvider, PhotoView } from "react-photo-view"
-import { CheckIcon, EditIcon, FileImageIcon, Trash2Icon, XIcon, Loader2Icon, ArrowDownIcon } from "lucide-react"
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Button } from "@/components/ui/button"
 import {
   Drawer,
   DrawerClose,
-  DrawerPopup,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerPanel,
+  DrawerPopup,
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { Separator } from "@/components/ui/separator"
+import { useRealtime } from "@/contexts/realtime-context"
 import { PaymentStatusBadge, VoucherStatusBadge } from "@/features/loans/components/LoanBadges"
 import {
   CompactEmpty,
   relatedEmptyIcons,
 } from "@/features/loans/components/LoanPageStates"
+import { DelayedOpenGate } from "@/features/loans/hooks/usePaymentMutations"
 import { paymentMethodLabels } from "@/features/loans/loan-constants"
 import { formatDate } from "@/features/loans/loan-utils"
-import { DelayedOpenGate } from "@/features/loans/hooks/usePaymentMutations"
-import { useRealtime } from "@/contexts/realtime-context"
 import { useIsMobile } from "@/hooks/use-media-query"
-import type { PaginationMeta, Payment, PaymentVoucher, LoanTransaction } from "@/types/loans"
+import type { LoanTransaction, PaginationMeta, Payment, PaymentVoucher } from "@/types/loans"
 
 // ─── Detail Drawer ──────────────────────────────────────────────────
 
@@ -303,14 +303,17 @@ export function PaymentsGallery({
     }
   }
 
-  const selectedItem = rawSelectedItem
-
-  // Admin: update status from mutation result
-  useEffect(() => {
-    if (!lastMutatedItem || !rawSelectedItem) return
-    if (lastMutatedItem.id !== rawSelectedItem.id) return
-    setRawSelectedItem((prev) => prev ? { ...prev, status: lastMutatedItem.status, updatedAt: lastMutatedItem.updatedAt } : prev)
-  }, [lastMutatedItem])
+  const selectedItem = useMemo(() => {
+    if (!rawSelectedItem) return null
+    if (lastMutatedItem?.id === rawSelectedItem.id) {
+      return {
+        ...rawSelectedItem,
+        status: lastMutatedItem.status,
+        updatedAt: lastMutatedItem.updatedAt,
+      }
+    }
+    return rawSelectedItem
+  }, [rawSelectedItem, lastMutatedItem])
 
   // Client & Admin: update status from WebSocket events
   useEffect(() => {

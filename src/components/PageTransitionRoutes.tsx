@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react"
 import {
-  Routes,
-  useLocation,
-  useNavigationType,
-  type RoutesProps,
+    Routes,
+    useLocation,
+    useNavigationType,
+    type RoutesProps,
 } from "react-router-dom"
 
 import { cn } from "@/lib/utils"

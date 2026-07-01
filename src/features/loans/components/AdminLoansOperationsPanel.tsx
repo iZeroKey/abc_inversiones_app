@@ -1,6 +1,7 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import {
   CalendarIcon,
+  CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   FileSpreadsheetIcon,
@@ -8,10 +9,9 @@ import {
   ListChecksIcon,
   ReceiptTextIcon,
   Settings2Icon,
-  CheckIcon,
   XIcon,
 } from "lucide-react"
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useMemo, useState, type ReactNode } from "react"
 
 import iconAbc from "@/assets/icon-abc.png"
 import { AnimatedNumber } from "@/components/AnimatedNumber"
@@ -22,6 +22,16 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
+  Drawer,
+  DrawerClose,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerPopup,
+  DrawerTitle,
+} from "@/components/ui/drawer"
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -30,17 +40,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import {
-  Drawer,
-  DrawerPopup,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerPanel,
-  DrawerTitle,
-  DrawerFooter,
-  DrawerClose,
-} from "@/components/ui/drawer"
-import { useIsMobile } from "@/hooks/use-media-query"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toastManager } from "@/components/ui/toast"
@@ -62,8 +61,9 @@ import {
   normalizeStatus,
   toNumber,
 } from "@/features/loans/loan-utils"
+import { useIsMobile } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
-import type { Loan, LoanStatus, PaginationMeta, RelatedUser, LoanTransaction } from "@/types/loans"
+import type { Loan, LoanStatus, LoanTransaction, PaginationMeta, RelatedUser } from "@/types/loans"
 
 type OperationsFocus = "all" | "review" | "active" | "risk" | "company"
 type OperationsView = "table" | "cards"
@@ -103,8 +103,9 @@ type AdminLoansOperationsPanelProps = {
   statusFilter: "all" | LoanStatus
   searchQuery: string
   loadingList: boolean
+  isFetchingList?: boolean
   listError: string | null
-  emptyMessage: string
+  emptyMessage?: string
   relatedData: RelatedData
   loadingDetail: boolean
   detailError: string | null
@@ -366,10 +367,12 @@ export function AdminLoansOperationsPanel({
   loans,
   highlightedLoanIds,
   selectedLoan,
+  pagination,
   page,
   statusFilter,
   searchQuery,
   loadingList,
+  isFetchingList,
   listError,
   emptyMessage,
   relatedData,
@@ -448,18 +451,7 @@ export function AdminLoansOperationsPanel({
     [operationRows],
   )
 
-  const localTotalPages = Math.max(Math.ceil(operationRows.length / 10), 1)
-
-  useEffect(() => {
-    if (page > localTotalPages) {
-      onPageChange(1)
-    }
-  }, [localTotalPages, page, onPageChange])
-
-  const paginatedCards = useMemo(() => {
-    const startIndex = (page - 1) * 10
-    return operationRows.slice(startIndex, startIndex + 10)
-  }, [operationRows, page])
+  const paginatedCards = operationRows
 
   const allVisibleSelected = operationRows.length > 0 && selectedRows.length === operationRows.length
 
@@ -804,8 +796,10 @@ export function AdminLoansOperationsPanel({
           <p className="font-medium">Sin préstamos en esta vista</p>
           <p className="mt-1 text-sm text-muted-foreground">{emptyMessage}</p>
         </div>
-      ) : view === "cards" ? (
-        <div className="grid gap-3 xl:grid-cols-2">
+      ) : (
+        <div className={cn("transition-opacity duration-200", isFetchingList && "opacity-50 pointer-events-none")}>
+          {view === "cards" ? (
+            <div className="grid gap-3 xl:grid-cols-2">
           {paginatedCards.map((loan) => (
             <OperationCard
               key={loan.id}
@@ -822,7 +816,6 @@ export function AdminLoansOperationsPanel({
         <DataTableCard
           columns={operationColumns}
           data={operationRows}
-          clientPagination
           getRowId={(loan) => loan.id}
           getRowClassName={(loan) =>
             cn(
@@ -833,24 +826,26 @@ export function AdminLoansOperationsPanel({
           tableClassName="min-w-[1180px]"
           initialSorting={[{ id: "publicCode", desc: true }]}
           pagination={
-            localTotalPages > 1
+            pagination && (pagination.totalPages ?? 1) > 1
               ? {
                   page,
-                  pageSize: 10,
-                  totalPages: localTotalPages,
-                  total: operationRows.length,
+                  pageSize: pagination.limit ?? 10,
+                  totalPages: pagination.totalPages ?? 1,
+                  total: pagination.total ?? operationRows.length,
                   itemLabel: "préstamos",
                   onPageChange,
                 }
               : undefined
           }
         />
+        )}
+      </div>
       )}
 
-      {view === "cards" && (
+      {view === "cards" && pagination && (pagination.totalPages ?? 1) > 1 && (
         <ResponsivePagination
           currentPage={page}
-          totalPages={localTotalPages}
+          totalPages={pagination.totalPages ?? 1}
           onPageChange={onPageChange}
         />
       )}

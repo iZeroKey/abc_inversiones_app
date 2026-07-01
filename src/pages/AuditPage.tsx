@@ -34,6 +34,14 @@ import {
   ComboboxPopup,
 } from "@/components/ui/combobox"
 import {
+  Drawer,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerPopup,
+  DrawerTitle,
+} from "@/components/ui/drawer"
+import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -43,18 +51,10 @@ import {
 } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
-import {
-  Drawer,
-  DrawerPopup,
-  DrawerHeader,
-  DrawerPanel,
-  DrawerTitle,
-  DrawerDescription,
-} from "@/components/ui/drawer"
-import { useIsMobile } from "@/hooks/use-media-query"
 import { UserDetailSheet } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
 import { getAuthQueryScope } from "@/features/loans/loan-queries"
+import { useIsMobile } from "@/hooks/use-media-query"
 import { queryKeys } from "@/lib/query-keys"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import { cn } from "@/lib/utils"

@@ -34,7 +34,7 @@ export function getRoleCopy(role: LoanRole) {
       description:
         "Consulta préstamos asignados y revisa solicitudes pendientes cuando corresponda.",
       empty:
-        "Tus préstamos asignados aparecerán aquí cuando el backend los entregue.",
+        "Tus inversiones asignadas aparecerán aquí cuando estén disponibles.",
     };
   }
 

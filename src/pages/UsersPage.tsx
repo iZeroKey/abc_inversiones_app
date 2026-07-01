@@ -40,6 +40,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
+  Drawer,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerPopup,
+  DrawerTitle,
+} from "@/components/ui/drawer"
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -58,16 +67,6 @@ import {
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import {
-  Drawer,
-  DrawerPopup,
-  DrawerHeader,
-  DrawerPanel,
-  DrawerTitle,
-  DrawerDescription,
-  DrawerFooter,
-} from "@/components/ui/drawer"
-import { useIsMobile } from "@/hooks/use-media-query"
-import {
   Select,
   SelectContent,
   SelectGroup,
@@ -83,6 +82,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
 import { getAuthQueryScope } from "@/features/loans/loan-queries"
+import { useIsMobile } from "@/hooks/use-media-query"
 import { queryKeys } from "@/lib/query-keys"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import { cn } from "@/lib/utils"

@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from "framer-motion"
 import {
   CalendarIcon,
   CheckIcon,
@@ -9,11 +10,20 @@ import {
   XIcon,
 } from "lucide-react"
 import { useEffect, useRef, useState, type Dispatch, type DragEvent, type FormEvent, type SetStateAction } from "react"
-import { AnimatePresence, motion } from "framer-motion"
 
+import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
-import { AnimatedNumber } from "@/components/AnimatedNumber"
+import {
+  Drawer,
+  DrawerClose,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerPopup,
+  DrawerTitle,
+} from "@/components/ui/drawer"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -26,22 +36,12 @@ import {
 } from "@/components/ui/number-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Progress } from "@/components/ui/progress"
-import {
-  Drawer,
-  DrawerClose,
-  DrawerPopup,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerPanel,
-  DrawerTitle,
-} from "@/components/ui/drawer"
-import { useIsMobile } from "@/hooks/use-media-query"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
+import { useIsMobile } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
 import type {
   Payment,

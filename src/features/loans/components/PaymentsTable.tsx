@@ -14,6 +14,25 @@ import {
   DataTableColumnHeader,
   DataTableStaticHeader,
 } from "@/components/data-table-card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { VoucherStatusBadge } from "@/features/loans/components/LoanBadges"
+import {
+  CompactEmpty,
+  relatedEmptyIcons,
+} from "@/features/loans/components/LoanPageStates"
+import { EvidenceButton } from "@/features/loans/components/PaymentWorkflowDialogs"
+import { paymentMethodLabels, voucherStatusLabels } from "@/features/loans/loan-constants"
+import { formatDate } from "@/features/loans/loan-utils"
+import { cn } from "@/lib/utils"
+import type { Payment, PaymentVoucher } from "@/types/loans"
 
 type SortDirection = false | "asc" | "desc"
 
@@ -36,25 +55,6 @@ function sortableHeader<TData, TValue>(title: string, align: "left" | "right" = 
     />
   )
 }
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { VoucherStatusBadge } from "@/features/loans/components/LoanBadges"
-import {
-  CompactEmpty,
-  relatedEmptyIcons,
-} from "@/features/loans/components/LoanPageStates"
-import { paymentMethodLabels, voucherStatusLabels } from "@/features/loans/loan-constants"
-import { formatDate } from "@/features/loans/loan-utils"
-import { EvidenceButton } from "@/features/loans/components/PaymentWorkflowDialogs"
-import { cn } from "@/lib/utils"
-import type { Payment, PaymentVoucher } from "@/types/loans"
 
 function getPaymentEvidenceUrl(payment: Payment) {
   if (!payment.evidenceUrl || payment.evidenceUrl.startsWith("storage://")) return null

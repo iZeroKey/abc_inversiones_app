@@ -1,16 +1,16 @@
-import { useIsMobile } from "@/hooks/use-media-query"
+import { Button } from "@/components/ui/button"
 import {
   Drawer,
   DrawerClose,
-  DrawerPopup,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerPanel,
+  DrawerPopup,
   DrawerTitle,
 } from "@/components/ui/drawer"
-import { Button } from "@/components/ui/button"
 import { ScheduleTimeline } from "@/features/loans/components/ScheduleTimeline"
+import { useIsMobile } from "@/hooks/use-media-query"
 import type { Installment } from "@/types/loans"
 
 export function ScheduleDrawer({

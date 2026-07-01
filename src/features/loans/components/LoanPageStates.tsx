@@ -140,14 +140,14 @@ export function DetailSkeleton() {
   )
 }
 
-export function EmptyLoanList({ message }: { message: string }) {
+export function EmptyLoanList({ message, title = "No hay préstamos" }: { message: string; title?: string }) {
   return (
     <Empty>
       <EmptyHeader>
         <EmptyMedia>
           <SearchIcon />
         </EmptyMedia>
-        <EmptyTitle>No hay préstamos</EmptyTitle>
+        <EmptyTitle>{title}</EmptyTitle>
         <EmptyDescription>{message}</EmptyDescription>
       </EmptyHeader>
     </Empty>

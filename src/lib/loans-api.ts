@@ -194,7 +194,10 @@ export async function fetchAdminLoansSummary(
     AdminLoanSummaryRow[] | { items?: AdminLoanSummaryRow[] }
   >(
     fetchWithAuth,
-    buildUrl("/api/v1/loans/admin-summary", params as Record<string, string | number | boolean | undefined>),
+    buildUrl(
+      "/api/v1/loans/admin-summary",
+      params as Record<string, string | number | boolean | undefined>,
+    ),
   );
 
   const data = payload.data;
@@ -235,7 +238,10 @@ export async function fetchLoanInstallments(
     Installment[] | { installments?: Installment[] }
   >(
     fetchWithAuth,
-    buildUrl(`/api/v1/loans/${loanId}/installments`, params as Record<string, string | number | boolean | undefined>),
+    buildUrl(
+      `/api/v1/loans/${loanId}/installments`,
+      params as Record<string, string | number | boolean | undefined>,
+    ),
     init,
   );
 
@@ -257,12 +263,21 @@ export async function fetchLoanInstallments(
 export async function fetchLoanPayments(
   fetchWithAuth: FetchWithAuth,
   loanId: string,
-  params?: { page?: number; limit?: number; from?: string; to?: string; method?: string },
+  params?: {
+    page?: number;
+    limit?: number;
+    from?: string;
+    to?: string;
+    method?: string;
+  },
   init?: RequestInit,
 ): Promise<{ payments: Payment[]; meta: PaginationMeta }> {
   const payload = await readApiUrl<Payment[] | { payments?: Payment[] }>(
     fetchWithAuth,
-    buildUrl(`/api/v1/payments/loan/${loanId}`, params as Record<string, string | number | boolean | undefined>),
+    buildUrl(
+      `/api/v1/payments/loan/${loanId}`,
+      params as Record<string, string | number | boolean | undefined>,
+    ),
     init,
   );
 
@@ -283,14 +298,25 @@ export async function fetchLoanPayments(
 
 export async function fetchLoanVouchers(
   fetchWithAuth: FetchWithAuth,
-  params?: { loanId?: string; page?: number; limit?: number; status?: string; from?: string; to?: string; q?: string },
+  params?: {
+    loanId?: string;
+    page?: number;
+    limit?: number;
+    status?: string;
+    from?: string;
+    to?: string;
+    q?: string;
+  },
   init?: RequestInit,
 ): Promise<{ vouchers: PaymentVoucher[]; meta: PaginationMeta }> {
   const payload = await readApiUrl<
     PaymentVoucher[] | { vouchers?: PaymentVoucher[] }
   >(
     fetchWithAuth,
-    buildUrl("/api/v1/payment-vouchers", params as Record<string, string | number | boolean | undefined>),
+    buildUrl(
+      "/api/v1/payment-vouchers",
+      params as Record<string, string | number | boolean | undefined>,
+    ),
     init,
   );
 
@@ -331,11 +357,10 @@ export async function fetchLoanBundle(
     if (isAbortError(error)) throw error;
   }
 
-  const [detailResult, installmentsResult] =
-    await Promise.allSettled([
-      fetchLoanDetail(fetchWithAuth, loanId, init),
-      fetchLoanInstallments(fetchWithAuth, loanId, { limit: 200 }, init),
-    ]);
+  const [detailResult, installmentsResult] = await Promise.allSettled([
+    fetchLoanDetail(fetchWithAuth, loanId, init),
+    fetchLoanInstallments(fetchWithAuth, loanId, { limit: 200 }, init),
+  ]);
 
   return {
     installments:
@@ -620,10 +645,19 @@ export async function fetchLoanTransactions(
   loanId: string,
   params?: { page?: number; limit?: number; from?: string; to?: string },
   init?: RequestInit,
-): Promise<{ data: import("../types/loans").LoanTransaction[]; meta: PaginationMeta }> {
-  const payload = await readApiUrl<import("../types/loans").LoanTransaction[] | { data?: import("../types/loans").LoanTransaction[] }>(
+): Promise<{
+  data: import("../types/loans").LoanTransaction[];
+  meta: PaginationMeta;
+}> {
+  const payload = await readApiUrl<
+    | import("../types/loans").LoanTransaction[]
+    | { data?: import("../types/loans").LoanTransaction[] }
+  >(
     fetchWithAuth,
-    buildUrl(`/api/v1/loans/${loanId}/transactions`, params as Record<string, string | number | boolean | undefined>),
+    buildUrl(
+      `/api/v1/loans/${loanId}/transactions`,
+      params as Record<string, string | number | boolean | undefined>,
+    ),
     init,
   );
 

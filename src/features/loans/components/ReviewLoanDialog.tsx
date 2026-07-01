@@ -1,27 +1,27 @@
-import {
-CheckCircleIcon,
-  XCircleIcon,
-} from "lucide-react"
-import { useState, useEffect } from "react"
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import {
+  CheckCircleIcon,
+  XCircleIcon,
+} from "lucide-react"
+import { useRef } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Field, FieldLabel } from "@/components/ui/field"
 import {
   Drawer,
-  DrawerPopup,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerPanel,
+  DrawerPopup,
   DrawerTitle,
 } from "@/components/ui/drawer"
-import { useIsMobile } from "@/hooks/use-media-query"
+import { Field, FieldLabel } from "@/components/ui/field"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { loanClientName, loanPublicCode } from "@/features/loans/loan-utils"
+import { useIsMobile } from "@/hooks/use-media-query"
 import type { Loan } from "@/types/loans"
 
 export function ReviewLoanDialog({
@@ -41,12 +41,9 @@ export function ReviewLoanDialog({
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
-  const [lastValidMode, setLastValidMode] = useState(mode)
-  useEffect(() => {
-    if (mode) setLastValidMode(mode)
-  }, [mode])
-
-  const displayMode = mode || lastValidMode || "approve"
+  const lastValidModeRef = useRef(mode)
+  if (mode) lastValidModeRef.current = mode
+  const displayMode = mode || lastValidModeRef.current || "approve"
   const approving = displayMode === "approve"
   const isMobile = useIsMobile()
 

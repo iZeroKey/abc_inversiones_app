@@ -101,48 +101,63 @@ export function getRemainingDebt(loan: Loan, installments: Installment[] = []) {
 }
 
 export type VisibleInstallmentsResult = {
-  visible: Installment[]
-  total: number
-  hasMore: boolean
-  beforeCount: number
-  afterCount: number
-}
+  visible: Installment[];
+  total: number;
+  hasMore: boolean;
+  beforeCount: number;
+  afterCount: number;
+};
 
-export function getVisibleInstallments(installments: Installment[]): VisibleInstallmentsResult {
-  const maxVisible = 3
-  const total = installments.length
+export function getVisibleInstallments(
+  installments: Installment[],
+): VisibleInstallmentsResult {
+  const maxVisible = 3;
+  const total = installments.length;
 
-  if (total === 0) return { visible: [], total: 0, hasMore: false, beforeCount: 0, afterCount: 0 }
+  if (total === 0)
+    return {
+      visible: [],
+      total: 0,
+      hasMore: false,
+      beforeCount: 0,
+      afterCount: 0,
+    };
 
   const sorted = [...installments].sort((a, b) => {
-    const aNum = a.installmentNumber ?? a.number ?? 0
-    const bNum = b.installmentNumber ?? b.number ?? 0
-    return aNum - bNum
-  })
+    const aNum = a.installmentNumber ?? a.number ?? 0;
+    const bNum = b.installmentNumber ?? b.number ?? 0;
+    return aNum - bNum;
+  });
 
   if (total <= maxVisible) {
-    return { visible: sorted, total, hasMore: false, beforeCount: 0, afterCount: 0 }
+    return {
+      visible: sorted,
+      total,
+      hasMore: false,
+      beforeCount: 0,
+      afterCount: 0,
+    };
   }
 
   const nextIndex = sorted.findIndex(
     (inst) => getInstallmentDisplayStatus(inst) !== "paid",
-  )
+  );
 
-  let start: number
-  let end: number
+  let start: number;
+  let end: number;
 
   if (nextIndex === -1) {
-    end = total
-    start = Math.max(0, end - maxVisible)
+    end = total;
+    start = Math.max(0, end - maxVisible);
   } else if (nextIndex === 0) {
-    start = 0
-    end = Math.min(maxVisible, total)
+    start = 0;
+    end = Math.min(maxVisible, total);
   } else if (nextIndex === total - 1) {
-    end = total
-    start = Math.max(0, end - maxVisible)
+    end = total;
+    start = Math.max(0, end - maxVisible);
   } else {
-    start = nextIndex - 1
-    end = Math.min(start + maxVisible, total)
+    start = nextIndex - 1;
+    end = Math.min(start + maxVisible, total);
   }
 
   return {
@@ -151,7 +166,7 @@ export function getVisibleInstallments(installments: Installment[]): VisibleInst
     hasMore: total > end - start,
     beforeCount: start,
     afterCount: total - end,
-  }
+  };
 }
 
 export function getNextInstallment(installments: Installment[]) {
@@ -238,7 +253,13 @@ export function getStatusGroup(status: string) {
 }
 
 function isPendingStatus(status: string) {
-  return ["pending", "pending_investor_review", "pending_admin_review", "approved", "draft"].includes(status);
+  return [
+    "pending",
+    "pending_investor_review",
+    "pending_admin_review",
+    "approved",
+    "draft",
+  ].includes(status);
 }
 
 export function isPaidOrPending(status: string) {
@@ -289,7 +310,8 @@ export function getLoanCardSecondaryValue(loan: Loan) {
   const group = getStatusGroup(loan.status ?? "");
   if (group === "paid") return formatDate(loan.endDate);
   if (group === "pending") return formatDate(loan.startDate ?? loan.createdAt);
-  if (group === "rejected") return formatDate(loan.rejectedAt ?? loan.updatedAt);
+  if (group === "rejected")
+    return formatDate(loan.rejectedAt ?? loan.updatedAt);
   return getRemainingDebt(loan);
 }
 

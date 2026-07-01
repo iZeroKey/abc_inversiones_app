@@ -1,28 +1,27 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useQueryClient } from "@tanstack/react-query"
-import { PlusIcon, CheckIcon, XIcon } from "lucide-react"
+import { CheckIcon, PlusIcon, XIcon } from "lucide-react"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "react-router-dom"
 
 import { Button } from "@/components/ui/button"
 import {
   Drawer,
+  DrawerClose,
+  DrawerFooter,
   DrawerHeader,
   DrawerPanel,
   DrawerPopup,
   DrawerTitle,
-  DrawerFooter,
-  DrawerClose,
 } from "@/components/ui/drawer"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 import { toastManager } from "@/components/ui/toast"
 import { UserDetailSheet, type UserDetailProfile } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
-import { AdminLoansOperationsPanel } from "@/features/loans/components/AdminLoansOperationsPanel"
+
 import { CreateLoanDialog } from "@/features/loans/components/CreateLoanDialog"
-import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
-import { normalizeStatus } from "@/features/loans/loan-utils"
+import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
 import { LoansListPanel } from "@/features/loans/components/LoansListPanel"
 import { LoanSummaryCard } from "@/features/loans/components/LoanSummaryCard"
 import { ReviewLoanDialog } from "@/features/loans/components/ReviewLoanDialog"
@@ -37,14 +36,14 @@ import {
 import {
   getAuthQueryScope,
   useLoanBundleQuery,
-  useLoanTransactionsQuery,
   useLoansQuery,
   useLoansSummaryQuery,
+  useLoanTransactionsQuery,
   useLoanUsersByRoleQuery,
 } from "@/features/loans/loan-queries"
 import {
   getErrorMessage,
-  getLoanPaidAmount,
+  getLoanPaidAmount, normalizeStatus
 } from "@/features/loans/loan-utils"
 import { useDrawerHistory } from "@/hooks/use-drawer-history"
 import { useIsMobile } from "@/hooks/use-media-query"
@@ -113,7 +112,7 @@ export default function LoansPage() {
     status: statusFilter !== "all" ? statusFilter : undefined,
     search: deferredSearchQuery || undefined,
   })
-  const loans = loansQuery.data?.loans ?? []
+  const loans = useMemo(() => loansQuery.data?.loans ?? [], [loansQuery.data])
   const loadingList = loansQuery.isLoading || (loansQuery.isFetching && !loansQuery.data)
   const listError = loansQuery.error
     ? getErrorMessage(loansQuery.error, "No se pudieron cargar los préstamos.")
@@ -130,7 +129,7 @@ export default function LoansPage() {
   const [clients, setClients] = useState<RelatedUser[]>([])
   const [investors, setInvestors] = useState<RelatedUser[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
-  const [adminView, setAdminView] = useState(() => routeState?.adminView === "advanced" ? "advanced" : "simple")
+  const adminView = routeState?.adminView === "advanced" ? "advanced" : "simple"
   const [selectedUserForSheet, setSelectedUserForSheet] = useState<UserDetailProfile | null>(null)
   const [newLoanIds, setNewLoanIds] = useState<Set<string>>(() => new Set())
   const summaryQuery = useLoansSummaryQuery()
@@ -198,9 +197,6 @@ export default function LoansPage() {
     loadingDetail ||
       (detailLoanId && (!selectedLoanMatchesLookup || !detailDataMatchesLoan)),
   )
-  const isAdminView = role === "admin"
-
-  const filteredLoans = loans
   const paginatedLoans = loans
   const meta = loansQuery.data?.meta
   const pagination: PaginationMeta = useMemo(
@@ -229,7 +225,7 @@ export default function LoansPage() {
   useEffect(() => {
     if (!loansQuery.data) return
 
-    rememberVisibleLoans(loansQuery.data.loans, true)
+    rememberVisibleLoans(loansQuery.data.loans, false)
 
     if (adminView === "advanced" && !activeLoanIdRef.current && loansQuery.data.loans[0]) {
       activeLoanIdRef.current = loansQuery.data.loans[0].id
@@ -540,90 +536,27 @@ export default function LoansPage() {
       <LoanSummaryCard
         summary={summaryQuery.data}
         loading={summaryQuery.isFetching}
+        perspective={role}
       />
 
-      {isAdminView ? (
-        <Tabs value={adminView} onValueChange={setAdminView} className="gap-5">
-          <TabsList className="w-full overflow-x-auto md:w-fit">
-            <TabsTrigger value="simple" className="flex-1 md:flex-none">
-              Vista simple
-            </TabsTrigger>
-            <TabsTrigger value="advanced" className="flex-1 md:flex-none">
-              Vista avanzada
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="simple">
-            <SimpleLoansWorkspace
-              loans={paginatedLoans}
-              highlightedLoanIds={newLoanIds}
-              pagination={pagination}
-              page={page}
-              statusFilter={statusFilter}
-              searchQuery={searchQuery}
-              loadingList={loadingList}
-              listError={listError}
-              emptyMessage={roleCopy.empty}
-              perspective={role}
-              onRetryList={() => void loansQuery.refetch()}
-              onOpenLoan={handleOpenLoanDetail}
-              onPageChange={setPage}
-              onStatusFilterChange={handleStatusFilterChange}
-              onSearchQueryChange={setSearchQuery}
-            />
-          </TabsContent>
-          <TabsContent value="advanced">
-            <AdminLoansOperationsPanel
-              loans={filteredLoans}
-              highlightedLoanIds={newLoanIds}
-              selectedLoan={visibleSelectedLoan}
-              pagination={pagination}
-              page={page}
-              statusFilter={statusFilter}
-              searchQuery={searchQuery}
-              loadingList={loadingList}
-              listError={listError}
-              emptyMessage={roleCopy.empty}
-              relatedData={visibleRelatedData}
-              loadingDetail={detailLoadingVisible}
-              detailError={detailError}
-              canReview={canReviewLoan(visibleSelectedLoan, user)}
-              basePath={basePath}
-              onRetryList={() => void loansQuery.refetch()}
-              onSelectLoan={handleSelectLoan}
-              onPageChange={setPage}
-              onStatusFilterChange={handleStatusFilterChange}
-              onSearchQueryChange={setSearchQuery}
-              onApprove={() => setReviewDialog("approve")}
-              onReject={() => setReviewDialog("reject")}
-              onRetryDetail={() => visibleSelectedLoan && void loadDetail(visibleSelectedLoan.id, visibleSelectedLoan)}
-              onDataChanged={refreshSelectedLoanData}
-              onUserClick={setSelectedUserForSheet}
-              transactions={transactionsData}
-              transactionsMeta={transactionsMeta}
-              loadingTransactions={loadingTransactions}
-              onLoadMoreTransactions={() => transactionsQuery.fetchNextPage()}
-            />
-          </TabsContent>
-        </Tabs>
-      ) : (
-        <SimpleLoansWorkspace
-          loans={paginatedLoans}
-          highlightedLoanIds={newLoanIds}
-          pagination={pagination}
-          page={page}
-          statusFilter={statusFilter}
-          searchQuery={searchQuery}
-          loadingList={loadingList}
-          listError={listError}
-          emptyMessage={roleCopy.empty}
-          perspective={role}
-          onRetryList={() => void loansQuery.refetch()}
-          onOpenLoan={handleOpenLoanDetail}
-          onPageChange={setPage}
-          onStatusFilterChange={handleStatusFilterChange}
-          onSearchQueryChange={setSearchQuery}
-        />
-      )}
+      <SimpleLoansWorkspace
+        loans={paginatedLoans}
+        highlightedLoanIds={newLoanIds}
+        pagination={pagination}
+        page={page}
+        statusFilter={statusFilter}
+        searchQuery={searchQuery}
+        loadingList={loadingList}
+        isFetchingList={loansQuery.isFetching}
+        listError={listError}
+        emptyMessage={roleCopy.empty}
+        perspective={role}
+        onRetryList={() => void loansQuery.refetch()}
+        onOpenLoan={handleOpenLoanDetail}
+        onPageChange={setPage}
+        onStatusFilterChange={handleStatusFilterChange}
+        onSearchQueryChange={setSearchQuery}
+      />
 
       <Drawer
         open={isDetailOpen}
@@ -740,6 +673,7 @@ function SimpleLoansWorkspace({
   statusFilter,
   searchQuery,
   loadingList,
+  isFetchingList,
   listError,
   emptyMessage,
   perspective,
@@ -756,6 +690,7 @@ function SimpleLoansWorkspace({
   statusFilter: "all" | LoanStatus
   searchQuery: string
   loadingList: boolean
+  isFetchingList?: boolean
   listError: string | null
   emptyMessage: string
   perspective: "admin" | "client" | "investor"
@@ -776,6 +711,7 @@ function SimpleLoansWorkspace({
         statusFilter={statusFilter}
         searchQuery={searchQuery}
         loading={loadingList}
+        isFetching={isFetchingList}
         error={listError}
         emptyMessage={emptyMessage}
         perspective={perspective}
