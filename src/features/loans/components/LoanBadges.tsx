@@ -1,4 +1,4 @@
-import { motion } from "framer-motion"
+import { motion, type TargetAndTransition } from "framer-motion"
 import {
   AlertCircleIcon,
   CheckCircleIcon,
@@ -9,7 +9,7 @@ import { Badge, type BadgeProps } from "@/components/ui/badge"
 import { statusLabels, voucherStatusLabels } from "@/features/loans/loan-constants"
 import { cn } from "@/lib/utils"
 
-const badgeSpring = {
+const badgeSpring: TargetAndTransition = {
   scale: [1, 1.28, 0.9, 1.1, 0.96, 1],
   transition: { duration: 0.7, ease: [0.25, 1.3, 0.4, 1] },
 }

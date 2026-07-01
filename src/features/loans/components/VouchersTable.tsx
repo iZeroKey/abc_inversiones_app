@@ -194,7 +194,7 @@ export function VouchersTable({
         initial="initial"
         animate="animate"
       >
-        {galleryItems.map((item) => {
+        {galleryItems.map((item, index) => {
           const isDeleting = Boolean(
             deleteTarget &&
               deleteTarget.source === "gallery" &&

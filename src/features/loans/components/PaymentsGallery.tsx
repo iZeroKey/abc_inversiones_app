@@ -1,9 +1,9 @@
-import { motion } from "framer-motion"
+import { motion, type Variants } from "framer-motion"
 import { ArrowDownIcon, CheckIcon, EditIcon, FileImageIcon, Loader2Icon, Trash2Icon, XIcon } from "lucide-react"
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react"
 import { PhotoProvider, PhotoView } from "react-photo-view"
 
-const cardVariants = {
+const cardVariants: Variants = {
   initial: { opacity: 0, y: 12 },
   animate: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] } },
 }
