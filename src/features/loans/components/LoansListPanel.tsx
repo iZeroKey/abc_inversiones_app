@@ -1,3 +1,4 @@
+import { motion } from "framer-motion"
 import {
     AlertCircleIcon,
     CalendarIcon,
@@ -10,6 +11,11 @@ import {
     type LucideIcon,
 } from "lucide-react"
 import type { ReactNode } from "react"
+
+const cardVariants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] } },
+}
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { ResponsivePagination } from "@/components/ResponsivePagination"
@@ -150,30 +156,42 @@ export function LoansListPanel({
       ) : (
         <div className={cn("transition-opacity duration-200", isFetching && "opacity-50 pointer-events-none")}>
           {variant === "cards" ? (
-            <div className="grid gap-3 md:grid-cols-2">
+            <motion.div
+              className="grid gap-3 md:grid-cols-2"
+              variants={{ animate: { transition: { staggerChildren: 0.04 } } }}
+              initial="initial"
+              animate="animate"
+            >
           {loans.map((loan) => (
-            <LoanCardRow
-              key={loan.id}
-              loan={loan}
-              isNew={highlightedLoanIds?.has(loan.id) ?? false}
-              selected={loan.id === selectedLoan?.id}
-              onSelect={onSelectLoan}
-            />
+            <motion.div key={loan.id} variants={cardVariants}>
+              <LoanCardRow
+                loan={loan}
+                isNew={highlightedLoanIds?.has(loan.id) ?? false}
+                selected={loan.id === selectedLoan?.id}
+                onSelect={onSelectLoan}
+              />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       ) : (
-        <div className="flex flex-col divide-y border-y">
+        <motion.div
+          className="flex flex-col divide-y border-y"
+          variants={{ animate: { transition: { staggerChildren: 0.04 } } }}
+          initial="initial"
+          animate="animate"
+        >
           {loans.map((loan) => (
-            <LoanRow
-              key={loan.id}
-              loan={loan}
-              isNew={highlightedLoanIds?.has(loan.id) ?? false}
-              selected={loan.id === selectedLoan?.id}
-              perspective={perspective}
-              onSelect={onSelectLoan}
-            />
+            <motion.div key={loan.id} variants={cardVariants}>
+              <LoanRow
+                loan={loan}
+                isNew={highlightedLoanIds?.has(loan.id) ?? false}
+                selected={loan.id === selectedLoan?.id}
+                perspective={perspective}
+                onSelect={onSelectLoan}
+              />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
         </div>
       )}

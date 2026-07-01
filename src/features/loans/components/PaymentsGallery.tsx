@@ -1,6 +1,12 @@
+import { motion } from "framer-motion"
 import { ArrowDownIcon, CheckIcon, EditIcon, FileImageIcon, Loader2Icon, Trash2Icon, XIcon } from "lucide-react"
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react"
 import { PhotoProvider, PhotoView } from "react-photo-view"
+
+const cardVariants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] } },
+}
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Button } from "@/components/ui/button"
@@ -363,8 +369,13 @@ export function PaymentsGallery({
 
   return (
     <PhotoProvider>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {transactions.map((item, index) => {
+      <motion.div
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        variants={{ animate: { transition: { staggerChildren: 0.05 } } }}
+        initial="initial"
+        animate="animate"
+      >
+        {transactions.map((item) => {
           const isPayment = item.type === "payment"
           const evidenceUrl = item.evidenceUrl && !item.evidenceUrl.startsWith("storage://") ? item.evidenceUrl : null
           const amount = item.amount
@@ -375,12 +386,12 @@ export function PaymentsGallery({
           const reference = item.reference ?? item.operationId ?? null
 
           return (
-            <button
+            <motion.button
               key={item.id}
               type="button"
-              style={{ animationDelay: `${index * 50}ms`, animationFillMode: "backwards" }}
+              variants={cardVariants}
               onClick={() => handleCardClick(item)}
-              className="group relative flex w-full cursor-pointer items-start gap-4 rounded-2xl bg-card p-4 text-left shadow-xs/5 transition-all hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-500"
+              className="group relative flex w-full cursor-pointer items-start gap-4 rounded-2xl bg-card p-4 text-left shadow-xs/5 transition-all hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-muted-foreground/10 bg-muted/40">
                 {evidenceUrl ? (
@@ -423,10 +434,10 @@ export function PaymentsGallery({
                 )}
 
               </div>
-            </button>
+            </motion.button>
           )
         })}
-      </div>
+      </motion.div>
 
       {transactionsMeta && (
         <div className="col-span-full pt-4">

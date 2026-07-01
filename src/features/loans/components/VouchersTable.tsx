@@ -1,3 +1,4 @@
+import { motion } from "framer-motion"
 import { CheckIcon, EditIcon, FileImageIcon, MoreHorizontalIcon, Trash2Icon, XIcon } from "lucide-react"
 import { type ElementType, type ReactNode } from "react"
 import { PhotoProvider, PhotoView } from "react-photo-view"
@@ -187,8 +188,13 @@ export function VouchersTable({
 
   return (
     <PhotoProvider>
-      <div className="columns-1 gap-3 sm:columns-2 xl:columns-3">
-        {galleryItems.map((item, index) => {
+      <motion.div
+        className="columns-1 gap-3 sm:columns-2 xl:columns-3"
+        variants={{ animate: { transition: { staggerChildren: 0.05 } } }}
+        initial="initial"
+        animate="animate"
+      >
+        {galleryItems.map((item) => {
           const isDeleting = Boolean(
             deleteTarget &&
               deleteTarget.source === "gallery" &&
@@ -197,9 +203,12 @@ export function VouchersTable({
           )
 
           return (
-            <Card
+            <motion.div
               key={item.id}
-              className="relative mb-3 break-inside-avoid overflow-hidden rounded-xl before:rounded-[7px]"
+              className="mb-3 break-inside-avoid"
+              variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] } } }}
+            >
+            <Card className="relative overflow-hidden rounded-xl before:rounded-[7px]"
             >
               {isDeleting && (
                 <div className="absolute inset-0 z-20 flex flex-col bg-background/95 text-center animate-in fade-in duration-200">
@@ -277,9 +286,10 @@ export function VouchersTable({
                 </div>
               </CardFooter>
             </Card>
+            </motion.div>
           )
         })}
-      </div>
+      </motion.div>
     </PhotoProvider>
   )
 }
