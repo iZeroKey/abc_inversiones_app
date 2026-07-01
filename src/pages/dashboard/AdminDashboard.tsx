@@ -1,3 +1,4 @@
+import { motion } from "framer-motion"
 import { FileTextIcon, PieChartIcon, ReceiptIcon, TrendingUpIcon, UsersIcon, WalletIcon } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
@@ -135,28 +136,41 @@ export default function AdminDashboard() {
 
       <div className="space-y-4">
         <h3 className="font-bold text-xl tracking-tight">Métricas Operativas</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <MetricCard
-            icon={<UsersIcon className="size-5 md:size-6 text-primary" />}
-            value={<AnimatedNumber value={usersCount} />}
-            label="Usuarios"
-          />
-          <MetricCard
-            icon={<FileTextIcon className="size-5 md:size-6 text-primary" />}
-            value={<AnimatedNumber value={loansCount} />}
-            label="Préstamos"
-          />
-          <MetricCard
-            icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />}
-            value={<AnimatedNumber value={totalDebt} isCurrency />}
-            label="Deuda activa"
-          />
-          <MetricCard
-            icon={<WalletIcon className="size-5 md:size-6 text-primary" />}
-            value={<AnimatedNumber value={avance} decimals={0} suffix="%" />}
-            label="Eficiencia"
-          />
-        </div>
+        <motion.div
+          initial="initial"
+          animate="animate"
+          variants={{ initial: {}, animate: { transition: { staggerChildren: 0.08 } } }}
+          className="grid grid-cols-2 md:grid-cols-4 gap-4"
+        >
+          <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
+            <MetricCard
+              icon={<UsersIcon className="size-5 md:size-6 text-primary" />}
+              value={<AnimatedNumber value={usersCount} />}
+              label="Usuarios"
+            />
+          </motion.div>
+          <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
+            <MetricCard
+              icon={<FileTextIcon className="size-5 md:size-6 text-primary" />}
+              value={<AnimatedNumber value={loansCount} />}
+              label="Préstamos"
+            />
+          </motion.div>
+          <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
+            <MetricCard
+              icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />}
+              value={<AnimatedNumber value={totalDebt} isCurrency />}
+              label="Deuda activa"
+            />
+          </motion.div>
+          <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
+            <MetricCard
+              icon={<WalletIcon className="size-5 md:size-6 text-primary" />}
+              value={<AnimatedNumber value={avance} decimals={0} suffix="%" />}
+              label="Eficiencia"
+            />
+          </motion.div>
+        </motion.div>
       </div>
     </div>
   )
