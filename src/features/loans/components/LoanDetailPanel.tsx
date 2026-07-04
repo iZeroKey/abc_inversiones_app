@@ -100,7 +100,6 @@ export function LoanDetailPanel({
   sticky = true,
   onDataChanged,
   drawerWidth,
-  onUserClick,
   transactions,
   transactionsMeta,
   loadingTransactions,
@@ -120,7 +119,6 @@ export function LoanDetailPanel({
   hideBackButton?: boolean
   drawerWidth?: number
   onDataChanged?: () => Promise<void> | void
-  onUserClick?: (user: UserDetailProfile) => void
   onBack?: () => void
   transactions?: LoanTransaction[]
   transactionsMeta?: PaginationMeta
@@ -138,6 +136,7 @@ export function LoanDetailPanel({
   })
 
   const [showSchedule, setShowSchedule] = useState(false)
+  const [clientSheetUser, setClientSheetUser] = useState<UserDetailProfile | null>(null)
   const [investorSheetUser, setInvestorSheetUser] = useState<UserDetailProfile | null>(null)
 
   if (loading) {
@@ -345,7 +344,7 @@ export function LoanDetailPanel({
                 icon={UserIcon}
                 label="Cliente"
                 value={loanClientName(loan)}
-                onClick={clientUser ? () => onUserClick?.(clientUser) : undefined}
+                onClick={clientUser ? () => setClientSheetUser(clientUser) : undefined}
               />
               <InfoRow
                 icon={UserRoundIcon}
@@ -364,7 +363,7 @@ export function LoanDetailPanel({
               icon={UserIcon}
               label="Cliente"
               value={loanClientName(loan)}
-              onClick={clientUser ? () => onUserClick?.(clientUser) : undefined}
+              onClick={clientUser ? () => setClientSheetUser(clientUser) : undefined}
             />
           </SectionBlock>
         )}
@@ -419,6 +418,15 @@ export function LoanDetailPanel({
             installments={relatedData.installments}
             onOpenChange={gateOnOpenChange}
             drawerWidth={drawerWidth}
+          />
+        )}
+      </DelayedOpenGate>
+
+      <DelayedOpenGate open={clientSheetUser !== null} onOpenChange={(open) => { if (!open) setClientSheetUser(null) }}>
+        {(gateOpen, gateOnOpenChange) => (
+          <UserDetailSheet
+            user={gateOpen ? clientSheetUser : null}
+            onOpenChange={(open) => { if (!open) gateOnOpenChange(false) }}
           />
         )}
       </DelayedOpenGate>

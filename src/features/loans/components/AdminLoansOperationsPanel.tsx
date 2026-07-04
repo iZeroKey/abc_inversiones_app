@@ -878,7 +878,6 @@ export function AdminLoansOperationsPanel({
                   sticky={false}
                   hideBackButton
                   drawerWidth={760}
-                  onUserClick={onUserClick}
                   transactions={transactions}
                   transactionsMeta={transactionsMeta}
                   loadingTransactions={loadingTransactions}

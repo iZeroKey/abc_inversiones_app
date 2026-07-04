@@ -393,6 +393,7 @@ export default function LoansPage() {
       frequency: loanForm.frequency,
       startDate: startDate.toISOString(),
       observation: loanForm.observation.trim() || undefined,
+      name: loanForm.name.trim() || undefined,
     }
 
     const principal = Number.parseFloat(payload.principal)
@@ -597,7 +598,6 @@ export default function LoansPage() {
               onDataChanged={refreshSelectedLoanData}
               sticky={false}
               drawerWidth={760}
-              onUserClick={setSelectedUserForSheet}
               onBack={() => setDrawerLoanId(null)}
               transactions={transactionsData}
               transactionsMeta={transactionsMeta}

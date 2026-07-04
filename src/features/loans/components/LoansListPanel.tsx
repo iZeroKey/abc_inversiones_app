@@ -238,7 +238,7 @@ function LoanCardRow({
     <button
       type="button"
       className={cn(
-        "relative flex w-full flex-col rounded-2xl bg-card text-left shadow-xs/5",
+        "relative flex h-full w-full flex-col rounded-2xl bg-card text-left shadow-xs/5",
         "border-l-4",
         borderColor,
         isNew && "realtime-row-enter",
@@ -285,21 +285,19 @@ function LoanCardRow({
         </div>
       </div>
 
-      {/* Progress bar (active / defaulted only) — no label, no percentage text */}
-      {showProgress && (
-        <div className="mt-3 px-4">
-          <Progress value={progress}>
-            <ProgressTrack>
-              <ProgressIndicator
-                className={cn(
-                  "transition-all duration-500",
-                  isPaid ? "bg-muted-foreground/30" : group === "defaulted" ? "bg-destructive" : "bg-primary",
-                )}
-              />
-            </ProgressTrack>
-          </Progress>
-        </div>
-      )}
+      {/* Progress bar placeholder — invisible for statuses without progress, keeps card height consistent */}
+      <div className={cn("mt-3 px-4", !showProgress && "invisible")} aria-hidden={!showProgress}>
+        <Progress value={progress}>
+          <ProgressTrack>
+            <ProgressIndicator
+              className={cn(
+                "transition-all duration-500",
+                isPaid ? "bg-muted-foreground/30" : group === "defaulted" ? "bg-destructive" : "bg-primary",
+              )}
+            />
+          </ProgressTrack>
+        </Progress>
+      </div>
 
       {/* Footer with status icon and text — two columns */}
       <div className="flex-1" />

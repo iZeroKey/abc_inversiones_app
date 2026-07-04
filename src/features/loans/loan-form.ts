@@ -7,6 +7,7 @@ export type LoanFormState = {
   frequency: string;
   startDate: string;
   observation: string;
+  name: string;
 };
 
 export function createDefaultLoanForm(): LoanFormState {
@@ -19,5 +20,6 @@ export function createDefaultLoanForm(): LoanFormState {
     frequency: "monthly",
     startDate: new Date().toISOString().slice(0, 10),
     observation: "",
+    name: "",
   };
 }

@@ -215,6 +215,7 @@ export type LoanCreatePayload = {
   frequency: string;
   startDate: string;
   observation?: string;
+  name?: string;
 };
 
 export type LoanTransaction = {

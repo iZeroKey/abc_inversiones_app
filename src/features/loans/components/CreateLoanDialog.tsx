@@ -248,6 +248,13 @@ export function CreateLoanDialog({
 
               <Separator />
 
+              <Field>
+                <FieldLabel htmlFor="loan-name">Nombre del préstamo</FieldLabel>
+                <Input id="loan-name" size="sm" value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="Opcional — ej: Préstamo para capital de trabajo" />
+              </Field>
+
+              <Separator />
+
               <Fieldset className="flex flex-col gap-3">
                 <FieldsetLegend>Condiciones financieras</FieldsetLegend>
                 <div className="grid gap-3 md:grid-cols-2">

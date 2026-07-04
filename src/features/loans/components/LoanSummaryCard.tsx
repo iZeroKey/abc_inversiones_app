@@ -18,9 +18,10 @@ function extractNextPayment(summary: LoanSummary) {
 }
 
 function getTotalDebt(summary: LoanSummary) {
-  const stats = (summary as Record<string, unknown>).stats as Record<string, unknown> | undefined
+  const s = summary as Record<string, unknown>
+  const stats = s.stats as Record<string, unknown> | undefined
   if (stats?.totalDebt) return toNumber(stats.totalDebt as string | number | null | undefined)
-  return toNumber(summary.totalDebt ?? summary.debt)
+  return toNumber((s.totalDebt ?? s.debt ?? s.totalPortfolio ?? s.expectedRevenue) as string | number | null | undefined)
 }
 
 export function LoanSummaryCard({
@@ -61,7 +62,7 @@ export function LoanSummaryCard({
   }
 
   const totalPaid = toNumber(extractValue(["totalPaid", "paidAmount", "totalReturn"]) as string | number | null | undefined)
-  const activeLoans = Number(extractValue(["activeLoans", "active"])) || 0
+  const activeLoans = Number(extractValue(["activeLoans", "active", "totalActiveLoans"])) || 0
   const paidLoans = Number(extractValue(["paidLoans", "paid"])) || 0
 
   if (perspective === "admin" || perspective === "investor") {
