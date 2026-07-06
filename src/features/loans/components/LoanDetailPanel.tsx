@@ -77,6 +77,10 @@ function resolveClientUser(loan: Loan): UserDetailProfile | null {
   } : null)
 }
 
+function getInitials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U";
+}
+
 function resolveInvestorUser(loan: Loan): UserDetailProfile | null {
   const isCompanyFunded = loan.isCompanyFunded || (!loan.investorId && !loan.investorName && !loan.investor)
   if (isCompanyFunded) return { id: "__company__", isCompany: true }
@@ -298,17 +302,6 @@ export function LoanDetailPanel({
           </SectionBlock>
         )}
 
-        {/* ── Client: parties section ── */}
-        {perspective === "client" && (
-          <SectionBlock>
-            <InfoRow
-              icon={UserRoundIcon}
-              label="Inversionista"
-              value={isCompanyFunded ? "ABC Inversiones" : loanInvestorName(loan)}
-              onClick={!isCompanyFunded && investorUser ? () => setInvestorSheetUser(investorUser) : undefined}
-            />
-          </SectionBlock>
-        )}
 
         {/* ── Admin / Investor: conditions ── */}
         {(perspective === "admin" || perspective === "investor") && (
@@ -342,12 +335,14 @@ export function LoanDetailPanel({
             <div className="grid gap-4 sm:grid-cols-2">
               <InfoRow
                 icon={UserIcon}
+                avatar={{ src: clientUser?.avatarUrl, initials: getInitials(loanClientName(loan)), name: loanClientName(loan) }}
                 label="Cliente"
                 value={loanClientName(loan)}
                 onClick={clientUser ? () => setClientSheetUser(clientUser) : undefined}
               />
               <InfoRow
                 icon={UserRoundIcon}
+                avatar={{ src: investorUser?.avatarUrl, initials: getInitials(isCompanyFunded ? "ABC Inversiones" : loanInvestorName(loan)), name: isCompanyFunded ? "ABC Inversiones" : loanInvestorName(loan) }}
                 label="Inversionista"
                 value={isCompanyFunded ? "ABC Inversiones" : loanInvestorName(loan)}
                 onClick={!isCompanyFunded && investorUser ? () => setInvestorSheetUser(investorUser) : undefined}
@@ -356,17 +351,6 @@ export function LoanDetailPanel({
           </SectionBlock>
         )}
 
-        {/* ── Investor: parties section (client only) ── */}
-        {perspective === "investor" && (
-          <SectionBlock>
-            <InfoRow
-              icon={UserIcon}
-              label="Cliente"
-              value={loanClientName(loan)}
-              onClick={clientUser ? () => setClientSheetUser(clientUser) : undefined}
-            />
-          </SectionBlock>
-        )}
 
         {/* ── Cronograma ── */}
         <SectionBlock>

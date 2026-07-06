@@ -11,6 +11,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { frequencyLabels, interestPeriodLabels } from "@/features/loans/loan-constants"
 import { formatDate } from "@/features/loans/loan-utils"
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import iconAbc from "@/assets/icon-abc.png"
+
 export function AmountBlock({
   label,
   value,
@@ -28,20 +31,32 @@ export function AmountBlock({
 
 export function InfoRow({
   icon: Icon,
+  avatar,
   label,
   value,
   onClick,
 }: {
-  icon: ElementType
+  icon?: ElementType
+  avatar?: { src?: string | null; initials: string; name?: string } | null
   label: string
   value: ReactNode
   onClick?: () => void
 }) {
+  const isAbc = avatar?.name === "ABC Inversiones" || avatar?.name === "ABC INVERSIONES";
+  const finalAvatarUrl = isAbc ? iconAbc : avatar?.src;
+
   const content = (
     <>
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-        <Icon className="size-5" />
-      </div>
+      {avatar ? (
+        <Avatar className="size-10 rounded-xl shrink-0">
+          {finalAvatarUrl ? <AvatarImage src={finalAvatarUrl} alt="" className="object-cover" /> : null}
+          <AvatarFallback className="rounded-xl bg-primary/10 text-primary font-medium">{avatar.initials}</AvatarFallback>
+        </Avatar>
+      ) : Icon ? (
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Icon className="size-5" />
+        </div>
+      ) : null}
       <div className="min-w-0 text-left">
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className="truncate text-sm font-semibold">{value}</p>
@@ -231,7 +246,7 @@ export function LoanConditions({
         </div>
         <div className="flex justify-between items-center">
           <span className="text-muted-foreground">Cuotas</span>
-          <span className="font-semibold">{installmentsCount ?? "-"} · {frequencyLabels[String(frequency)] ?? frequency ?? "-"}</span>
+          <span className="font-semibold">{installmentsCount ?? <span className="text-muted-foreground/30 select-none">—</span>} · {frequencyLabels[String(frequency)] ?? frequency ?? <span className="text-muted-foreground/30 select-none">—</span>}</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-muted-foreground">Tasa</span>

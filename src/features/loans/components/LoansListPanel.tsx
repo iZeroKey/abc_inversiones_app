@@ -1,16 +1,15 @@
+import type { ColumnDef } from "@tanstack/react-table"
 import { motion, type Variants } from "framer-motion"
 import {
     AlertCircleIcon,
     CalendarIcon,
     CheckCircleIcon,
-    ChevronRightIcon,
     HourglassIcon,
     RefreshCwIcon,
-    SearchIcon,
     XCircleIcon,
     type LucideIcon,
 } from "lucide-react"
-import type { ReactNode } from "react"
+import { useMemo } from "react"
 
 const cardVariants: Variants = {
   initial: { opacity: 0, y: 12 },
@@ -18,16 +17,10 @@ const cardVariants: Variants = {
 }
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
-import { ResponsivePagination } from "@/components/ResponsivePagination"
-import { Badge } from "@/components/ui/badge"
+import { DataTableCard, DataTablePaginationBar, DataTableStaticHeader } from "@/components/data-table-card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import {
-    InputGroup,
-    InputGroupAddon,
-    InputGroupInput,
-} from "@/components/ui/input-group"
 import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/progress"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Spinner } from "@/components/ui/spinner"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import {
@@ -35,9 +28,10 @@ import {
     ErrorState,
     LoanListSkeleton,
 } from "@/features/loans/components/LoanPageStates"
-import { frequencyLabels, statusFilters } from "@/features/loans/loan-constants"
+import { frequencyLabels } from "@/features/loans/loan-constants"
 import {
     formatDate,
+    formatPreciseCurrencyWithSymbol,
     getLoanCardFooterIcon,
     getLoanCardFooterText,
     getLoanCardSecondaryLabel,
@@ -45,13 +39,61 @@ import {
     getLoanCardTitle,
     getLoanProgress,
     getLoanStatusColor,
+    getRemainingDebt,
     getStatusGroup,
+    loanInvestorName,
     loanPublicCode,
     normalizeStatus,
     toNumber,
 } from "@/features/loans/loan-utils"
 import { cn } from "@/lib/utils"
-import type { Loan, LoanStatus, PaginationMeta } from "@/types/loans"
+import type { Loan, PaginationMeta, RelatedUser } from "@/types/loans"
+
+import iconAbc from "@/assets/icon-abc.png"
+
+function shortId(value?: string | null) {
+  if (!value) return "-"
+  return value.length > 12 ? `${value.slice(0, 8)}...${value.slice(-4)}` : value
+}
+
+function UserCell({ 
+  user, 
+  fallbackName, 
+  perspective 
+}: { 
+  user?: RelatedUser | null
+  fallbackName: string
+  perspective: "admin" | "client" | "investor" 
+}) {
+  const name = user ? [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email || user.publicCode || fallbackName : fallbackName;
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U";
+  const showDetails = perspective === "admin";
+  
+  const isAbc = name === "ABC Inversiones" || name === "ABC INVERSIONES";
+  const finalAvatarUrl = isAbc ? iconAbc : user?.avatarUrl;
+
+  return (
+    <div className="flex items-center gap-2 max-w-64 -ml-2 px-2 py-1 h-auto sm:h-auto">
+      <Avatar className="size-7">
+        {finalAvatarUrl ? <AvatarImage src={finalAvatarUrl} alt="" className="object-cover" /> : null}
+        <AvatarFallback>{initials}</AvatarFallback>
+      </Avatar>
+      <span className="min-w-0">
+        <span className="block truncate font-medium text-sm text-left">{name}</span>
+        {showDetails && user && (user.publicCode || user.email || user.id) ? (
+          <span className="block truncate text-xs text-muted-foreground text-left">
+            {user.publicCode || user.email || shortId(user.id)}
+          </span>
+        ) : null}
+      </span>
+    </div>
+  )
+}
+
+
+function EmptyCell({ className }: { className?: string }) {
+  return <span className={cn("text-muted-foreground/30 select-none", className)}>—</span>
+}
 
 const statusIconMap: Record<string, LucideIcon> = {
   calendar: CalendarIcon,
@@ -65,10 +107,9 @@ export function LoansListPanel({
   loans,
   highlightedLoanIds,
   selectedLoan,
+  viewMode,
   pagination,
   page,
-  statusFilter,
-  searchQuery,
   loading,
   isFetching,
   error,
@@ -76,18 +117,14 @@ export function LoansListPanel({
   onRetry,
   onSelectLoan,
   onPageChange,
-  onStatusFilterChange,
-  onSearchQueryChange,
   perspective = "admin",
-  variant = "cards",
 }: {
   loans: Loan[]
   highlightedLoanIds?: Set<string>
   selectedLoan: Loan | null
+  viewMode: "cards" | "table"
   pagination: PaginationMeta
   page: number
-  statusFilter: "all" | LoanStatus
-  searchQuery: string
   loading: boolean
   isFetching?: boolean
   error: string | null
@@ -95,112 +132,366 @@ export function LoansListPanel({
   onRetry: () => void
   onSelectLoan: (loan: Loan) => void
   onPageChange: (page: number) => void
-  onStatusFilterChange: (status: "all" | LoanStatus) => void
-  onSearchQueryChange: (query: string) => void
   perspective?: "admin" | "client" | "investor"
-  variant?: "cards" | "rows"
 }) {
   const totalPages = Math.max(pagination.totalPages ?? 1, 1)
 
+  const loanColumns = useMemo<ColumnDef<Loan>[]>(() => {
+    const clientColumns: ColumnDef<Loan>[] = [
+      {
+        id: "publicCode",
+        accessorFn: (loan) => loan.publicCode ?? "",
+        header: () => <DataTableStaticHeader title="Código" />,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs font-semibold">#{loanPublicCode(row.original)}</span>
+        ),
+      },
+      {
+        id: "name",
+        accessorFn: (loan) => loan.name ?? "",
+        header: () => <DataTableStaticHeader title="Nombre" />,
+        cell: ({ row }) => (
+          <span className="block max-w-[20ch] truncate font-medium">{row.original.name ?? `Préstamo #${loanPublicCode(row.original)}`}</span>
+        ),
+      },
+      {
+        id: "principal",
+        accessorFn: (loan) => toNumber(loan.principal),
+        header: () => <DataTableStaticHeader title="Principal" align="right" />,
+        cell: ({ row }) => (
+          <span className="tabular-nums font-medium">{formatPreciseCurrencyWithSymbol(row.original.principal)}</span>
+        ),
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "totalDebt",
+        accessorFn: (loan) => toNumber(loan.totalDebt),
+        header: () => <DataTableStaticHeader title="Deuda total" align="right" />,
+        cell: ({ row }) => (
+          <span className="tabular-nums">{formatPreciseCurrencyWithSymbol(row.original.totalDebt)}</span>
+        ),
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "paid",
+        accessorFn: (loan) => toNumber(loan.totalPaid),
+        header: () => <DataTableStaticHeader title="Pagado" align="right" />,
+        cell: ({ row }) => (
+          <span className="tabular-nums">{formatPreciseCurrencyWithSymbol(row.original.totalPaid)}</span>
+        ),
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "remainingDebt",
+        accessorFn: (loan) => getRemainingDebt(loan),
+        header: () => <DataTableStaticHeader title="Saldo" align="right" />,
+        cell: ({ row }) => (
+          <span className="tabular-nums font-medium">{formatPreciseCurrencyWithSymbol(getRemainingDebt(row.original))}</span>
+        ),
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "frequency",
+        accessorFn: (loan) => frequencyLabels[String(loan.frequency)] ?? loan.frequency ?? "",
+        header: () => <DataTableStaticHeader title="Frecuencia" />,
+        cell: ({ row }) => frequencyLabels[String(row.original.frequency)] ?? row.original.frequency ?? <EmptyCell />,
+      },
+      {
+        id: "installmentsCount",
+        accessorFn: (loan) => loan.installmentsCount ?? 0,
+        header: () => <DataTableStaticHeader title="Cuotas" align="right" />,
+        cell: ({ row }) => row.original.installmentsCount ?? <EmptyCell />,
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "nextPayment",
+        accessorFn: (loan) => loan.nextInstallment?.dueDate ?? "",
+        header: () => <DataTableStaticHeader title="Próximo pago" />,
+        cell: ({ row }) => {
+          const next = row.original.nextInstallment
+          return next?.dueDate ? formatDate(next.dueDate) : <EmptyCell />
+        },
+      },
+      {
+        id: "status",
+        accessorFn: (loan) => normalizeStatus(loan),
+        header: () => <DataTableStaticHeader title="Estado" />,
+        cell: ({ row }) => <LoanStatusBadge status={normalizeStatus(row.original)} />,
+      },
+    ]
+
+    const investorColumns: ColumnDef<Loan>[] = [
+      {
+        id: "publicCode",
+        accessorFn: (loan) => loan.publicCode ?? "",
+        header: () => <DataTableStaticHeader title="Código" />,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs font-semibold">#{loanPublicCode(row.original)}</span>
+        ),
+      },
+      {
+        id: "name",
+        accessorFn: (loan) => loan.name ?? "",
+        header: () => <DataTableStaticHeader title="Nombre" />,
+        cell: ({ row }) => (
+          <span className="block max-w-[20ch] truncate font-medium">{row.original.name ?? `Préstamo #${loanPublicCode(row.original)}`}</span>
+        ),
+      },
+      {
+        id: "clientName",
+        accessorFn: (loan) => loan.clientName ?? "",
+        header: () => <DataTableStaticHeader title="Cliente" />,
+        cell: ({ row }) => (
+          <UserCell 
+            user={row.original.client} 
+            fallbackName={row.original.clientName ?? "Cliente"} 
+            perspective={perspective} 
+          />
+        ),
+      },
+      {
+        id: "principal",
+        accessorFn: (loan) => toNumber(loan.principal),
+        header: () => <DataTableStaticHeader title="Inversión" align="right" />,
+        cell: ({ row }) => (
+          <span className="tabular-nums font-medium">{formatPreciseCurrencyWithSymbol(row.original.principal)}</span>
+        ),
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "totalDebt",
+        accessorFn: (loan) => toNumber(loan.totalDebt),
+        header: () => <DataTableStaticHeader title="Retorno esperado" align="right" />,
+        cell: ({ row }) => (
+          <span className="tabular-nums">{formatPreciseCurrencyWithSymbol(row.original.totalDebt)}</span>
+        ),
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "paid",
+        accessorFn: (loan) => toNumber(loan.totalPaid),
+        header: () => <DataTableStaticHeader title="Recibido" align="right" />,
+        cell: ({ row }) => (
+          <span className="tabular-nums">{formatPreciseCurrencyWithSymbol(row.original.totalPaid)}</span>
+        ),
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "remainingDebt",
+        accessorFn: (loan) => getRemainingDebt(loan),
+        header: () => <DataTableStaticHeader title="Pendiente" align="right" />,
+        cell: ({ row }) => (
+          <span className="tabular-nums font-medium">{formatPreciseCurrencyWithSymbol(getRemainingDebt(row.original))}</span>
+        ),
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "frequency",
+        accessorFn: (loan) => frequencyLabels[String(loan.frequency)] ?? loan.frequency ?? "",
+        header: () => <DataTableStaticHeader title="Frecuencia" />,
+        cell: ({ row }) => frequencyLabels[String(row.original.frequency)] ?? row.original.frequency ?? <EmptyCell />,
+      },
+      {
+        id: "installmentsCount",
+        accessorFn: (loan) => loan.installmentsCount ?? 0,
+        header: () => <DataTableStaticHeader title="Cuotas" align="right" />,
+        cell: ({ row }) => row.original.installmentsCount ?? <EmptyCell />,
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "nextPayment",
+        accessorFn: (loan) => loan.nextInstallment?.dueDate ?? "",
+        header: () => <DataTableStaticHeader title="Próximo pago" />,
+        cell: ({ row }) => {
+          const next = row.original.nextInstallment
+          return next?.dueDate ? formatDate(next.dueDate) : <EmptyCell />
+        },
+      },
+      {
+        id: "status",
+        accessorFn: (loan) => normalizeStatus(loan),
+        header: () => <DataTableStaticHeader title="Estado" />,
+        cell: ({ row }) => <LoanStatusBadge status={normalizeStatus(row.original)} />,
+      },
+    ]
+
+    const adminColumns: ColumnDef<Loan>[] = [
+      {
+        id: "publicCode",
+        accessorFn: (loan) => loan.publicCode ?? "",
+        header: () => <DataTableStaticHeader title="Código" />,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs font-semibold">#{loanPublicCode(row.original)}</span>
+        ),
+      },
+      {
+        id: "name",
+        accessorFn: (loan) => loan.name ?? "",
+        header: () => <DataTableStaticHeader title="Nombre" />,
+        cell: ({ row }) => (
+          <span className="block max-w-[20ch] truncate font-medium">{row.original.name ?? `Préstamo #${loanPublicCode(row.original)}`}</span>
+        ),
+      },
+      {
+        id: "clientName",
+        accessorFn: (loan) => loan.clientName ?? "",
+        header: () => <DataTableStaticHeader title="Cliente" />,
+        cell: ({ row }) => (
+          <UserCell 
+            user={row.original.client} 
+            fallbackName={row.original.clientName ?? "Cliente"} 
+            perspective={perspective} 
+          />
+        ),
+      },
+      {
+        id: "investorName",
+        accessorFn: (loan) => loanInvestorName(loan),
+        header: () => <DataTableStaticHeader title="Inversionista" />,
+        cell: ({ row }) => (
+          <UserCell 
+            user={row.original.investor} 
+            fallbackName={loanInvestorName(row.original)} 
+            perspective={perspective} 
+          />
+        ),
+      },
+      {
+        id: "principal",
+        accessorFn: (loan) => toNumber(loan.principal),
+        header: () => <DataTableStaticHeader title="Principal" align="right" />,
+        cell: ({ row }) => (
+          <span className="tabular-nums font-medium">{formatPreciseCurrencyWithSymbol(row.original.principal)}</span>
+        ),
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "totalDebt",
+        accessorFn: (loan) => toNumber(loan.totalDebt),
+        header: () => <DataTableStaticHeader title="Deuda total" align="right" />,
+        cell: ({ row }) => (
+          <span className="tabular-nums">{formatPreciseCurrencyWithSymbol(row.original.totalDebt)}</span>
+        ),
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "paid",
+        accessorFn: (loan) => toNumber(loan.totalPaid),
+        header: () => <DataTableStaticHeader title="Pagado" align="right" />,
+        cell: ({ row }) => (
+          <span className="tabular-nums">{formatPreciseCurrencyWithSymbol(row.original.totalPaid)}</span>
+        ),
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "remainingDebt",
+        accessorFn: (loan) => getRemainingDebt(loan),
+        header: () => <DataTableStaticHeader title="Saldo" align="right" />,
+        cell: ({ row }) => (
+          <span className="tabular-nums font-medium">{formatPreciseCurrencyWithSymbol(getRemainingDebt(row.original))}</span>
+        ),
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "rate",
+        accessorFn: (loan) => toNumber(loan.interestRate),
+        header: () => <DataTableStaticHeader title="Tasa" align="right" />,
+        cell: ({ row }) => `${row.original.interestRate ?? 0}%`,
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "frequency",
+        accessorFn: (loan) => frequencyLabels[String(loan.frequency)] ?? loan.frequency ?? "",
+        header: () => <DataTableStaticHeader title="Frecuencia" />,
+        cell: ({ row }) => frequencyLabels[String(row.original.frequency)] ?? row.original.frequency ?? <EmptyCell />,
+      },
+      {
+        id: "installmentsCount",
+        accessorFn: (loan) => loan.installmentsCount ?? 0,
+        header: () => <DataTableStaticHeader title="Cuotas" align="right" />,
+        cell: ({ row }) => row.original.installmentsCount ?? <EmptyCell />,
+        meta: { headerClassName: "text-right", cellClassName: "text-right" },
+      },
+      {
+        id: "nextPayment",
+        accessorFn: (loan) => loan.nextInstallment?.dueDate ?? "",
+        header: () => <DataTableStaticHeader title="Próximo pago" />,
+        cell: ({ row }) => {
+          const next = row.original.nextInstallment
+          return next?.dueDate ? formatDate(next.dueDate) : <EmptyCell />
+        },
+      },
+      {
+        id: "status",
+        accessorFn: (loan) => normalizeStatus(loan),
+        header: () => <DataTableStaticHeader title="Estado" />,
+        cell: ({ row }) => <LoanStatusBadge status={normalizeStatus(row.original)} />,
+      },
+    ]
+
+    if (perspective === "client") return clientColumns
+    if (perspective === "investor") return investorColumns
+    return adminColumns
+  }, [perspective])
+
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-col gap-3">
-        <InputGroup>
-          <InputGroupAddon>
-            <SearchIcon />
-          </InputGroupAddon>
-          <InputGroupInput
-            type="search"
-            placeholder="Buscar por código, cliente o monto"
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-          />
-        </InputGroup>
-
-        <ScrollArea className="h-10 min-w-0" scrollFade>
-          <div className="flex w-max items-center gap-2 px-0.5 py-0.5 pr-2">
-            {statusFilters.map((status) => (
-              <Button
-                key={status.value}
-                variant={statusFilter === status.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => onStatusFilterChange(status.value)}
-                className="shrink-0 rounded-full px-3"
-              >
-                {status.label}
-              </Button>
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
-
-      <div className="flex items-center justify-between gap-3 px-1">
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          {perspective === "investor" ? "Inversiones" : "Préstamos"}
-          {isFetching && <Spinner className="size-4" />}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {pagination.total ?? loans.length} encontrados
-        </p>
-      </div>
-
       {loading ? (
-        <LoanListSkeleton />
+        <LoanListSkeleton variant={viewMode} />
       ) : error ? (
         <ErrorState message={error} onRetry={onRetry} />
       ) : loans.length === 0 ? (
-        <EmptyLoanList 
+        <EmptyLoanList
           title={perspective === "investor" ? "No hay inversiones" : "No hay préstamos"}
-          message={emptyMessage} 
+          message={emptyMessage}
         />
       ) : (
         <div className={cn("transition-opacity duration-200", isFetching && "opacity-50 pointer-events-none")}>
-          {variant === "cards" ? (
+          {viewMode === "cards" ? (
             <motion.div
               className="grid gap-3 md:grid-cols-2"
               variants={{ animate: { transition: { staggerChildren: 0.04 } } }}
               initial="initial"
               animate="animate"
             >
-          {loans.map((loan) => (
-            <motion.div key={loan.id} variants={cardVariants}>
-              <LoanCardRow
-                loan={loan}
-                isNew={highlightedLoanIds?.has(loan.id) ?? false}
-                selected={loan.id === selectedLoan?.id}
-                onSelect={onSelectLoan}
-              />
+              {loans.map((loan) => (
+                <motion.div key={loan.id} variants={cardVariants}>
+                  <LoanCardRow
+                    loan={loan}
+                    isNew={highlightedLoanIds?.has(loan.id) ?? false}
+                    selected={loan.id === selectedLoan?.id}
+                    onSelect={onSelectLoan}
+                  />
+                </motion.div>
+              ))}
             </motion.div>
-          ))}
-        </motion.div>
-      ) : (
-        <motion.div
-          className="flex flex-col divide-y border-y"
-          variants={{ animate: { transition: { staggerChildren: 0.04 } } }}
-          initial="initial"
-          animate="animate"
-        >
-          {loans.map((loan) => (
-            <motion.div key={loan.id} variants={cardVariants}>
-              <LoanRow
-                loan={loan}
-                isNew={highlightedLoanIds?.has(loan.id) ?? false}
-                selected={loan.id === selectedLoan?.id}
-                perspective={perspective}
-                onSelect={onSelectLoan}
-              />
-            </motion.div>
-          ))}
-        </motion.div>
-      )}
+          ) : (
+            <DataTableCard
+              columns={loanColumns}
+              data={loans}
+              tableVariant="clean"
+              getRowId={(loan) => loan.id}
+              onRowClick={onSelectLoan}
+              tableClassName={cn(
+                "min-w-[900px]",
+                perspective === "admin" && "min-w-[1200px]",
+                perspective === "investor" && "min-w-[1000px]",
+              )}
+              emptyMessage={emptyMessage}
+            />
+          )}
         </div>
       )}
 
       {!loading && !error && (
-        <ResponsivePagination
-          currentPage={page}
-          totalPages={totalPages}
-          onPageChange={onPageChange}
+        <DataTablePaginationBar
+          pagination={{
+            page,
+            totalPages,
+            total: pagination.total,
+            itemLabel: perspective === "investor" ? "inversiones" : "préstamos",
+            onPageChange,
+          }}
         />
       )}
     </div>
@@ -247,7 +538,6 @@ function LoanCardRow({
       )}
       onClick={() => onSelect(loan)}
     >
-      {/* Top row: ID + code + badge */}
       <div className="flex items-center justify-between gap-2 px-4 pt-4">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="text-xs font-semibold text-[#D2D2DE]">ID</span>
@@ -258,12 +548,10 @@ function LoanCardRow({
         <LoanStatusBadge status={status} size="default" className={cn(isPaid && "opacity-60")} />
       </div>
 
-      {/* Loan name */}
       <p className="mt-2 truncate px-4 text-xl font-semibold text-foreground">
         {loan.name ?? `Préstamo #${loanPublicCode(loan)}`}
       </p>
 
-      {/* Two-column content */}
       <div className="mt-3 grid grid-cols-2 gap-x-4 px-4">
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">{getLoanCardTitle(loan)}</p>
@@ -285,7 +573,6 @@ function LoanCardRow({
         </div>
       </div>
 
-      {/* Progress bar placeholder — invisible for statuses without progress, keeps card height consistent */}
       <div className={cn("mt-3 px-4", !showProgress && "invisible")} aria-hidden={!showProgress}>
         <Progress value={progress}>
           <ProgressTrack>
@@ -299,7 +586,6 @@ function LoanCardRow({
         </Progress>
       </div>
 
-      {/* Footer with status icon and text — two columns */}
       <div className="flex-1" />
       <div className="mt-3 grid grid-cols-[1fr_auto] gap-x-4 px-4 pb-4">
         <div className={cn("flex items-center gap-2 min-w-0", !hasRightFooter && "col-span-2")}>
@@ -339,105 +625,6 @@ function FooterIcon({ status, group }: { status: string; group: string }) {
 
   if (!Icon) return null
   return <Icon className={cn("size-3.5 shrink-0", iconColor)} />
-}
-
-/* ---- Legacy row variant (kept for admin "rows" view) ---- */
-
-function LoanRow({
-  loan,
-  isNew,
-  selected,
-  perspective,
-  onSelect,
-}: {
-  loan: Loan
-  isNew: boolean
-  selected: boolean
-  perspective: "admin" | "client" | "investor"
-  onSelect: (loan: Loan) => void
-}) {
-  const progress = getLoanProgress(loan)
-  const title =
-    perspective === "client"
-      ? "Préstamo con ABC Inversiones"
-      : `Préstamo de ${loanClientName(loan)}`
-  const date = formatDate(loan.startDate ?? loan.createdAt)
-
-  return (
-    <button
-      type="button"
-      className={cn(
-        "group relative flex w-full flex-col gap-3 px-1 py-4 pr-10 text-left transition-colors hover:bg-muted/40 md:px-0 md:pr-12",
-        isNew && "realtime-row-enter",
-        selected && "bg-accent/60",
-      )}
-      onClick={() => onSelect(loan)}
-    >
-      <span className="absolute inset-y-4 left-0 w-0.5 rounded-full bg-primary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-2">
-            <h3 className="truncate font-semibold leading-tight">{title}</h3>
-            <LoanStatusBadge status={normalizeStatus(loan)} />
-          </div>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            <span className="font-mono">{loanPublicCode(loan)}</span>
-            <span className="px-1.5">-</span>
-            <span>{date}</span>
-          </p>
-        </div>
-        <div className="shrink-0 text-right">
-          <div className="font-semibold tabular-nums"><AnimatedNumber value={loan.principal} isCurrency /></div>
-          <p className="text-xs text-muted-foreground">principal</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2 text-xs">
-        <LoanTinyMetric label="Deuda" value={<AnimatedNumber value={loan.totalDebt} isCurrency />} />
-        <LoanTinyMetric label="Restante" value={<AnimatedNumber value={getRemainingDebt(loan)} isCurrency />} />
-        <LoanTinyMetric label="Cuotas" value={<AnimatedNumber value={loan.installmentsCount} />} />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Avance de pago</span>
-          <span><AnimatedNumber value={progress} decimals={0} suffix="%" /></span>
-        </div>
-        <Progress value={progress} />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <Badge variant="outline">{frequencyLabels[String(loan.frequency)] ?? loan.frequency ?? "Frecuencia"}</Badge>
-        <Badge variant="outline">{loanInvestorName(loan)}</Badge>
-      </div>
-
-      <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1 text-xs font-medium text-muted-foreground transition-colors group-hover:text-foreground md:right-0">
-        <span className="hidden sm:inline">Ver detalle</span>
-        <ChevronRightIcon />
-      </div>
-    </button>
-  )
-}
-
-function LoanTinyMetric({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="min-w-0 border-l pl-3 first:border-l-0 first:pl-0">
-      <p className="truncate font-semibold tabular-nums">{value}</p>
-      <p className="text-muted-foreground">{label}</p>
-    </div>
-  )
-}
-
-function loanClientName(loan: Loan) {
-  return loan.clientName ?? "Cliente"
-}
-
-function loanInvestorName(loan: Loan) {
-  return loan.investorName ?? "Inversor"
-}
-
-function getRemainingDebt(loan: Loan) {
-  return Math.max(toNumber(loan.totalDebt) - toNumber(loan.totalPaid), 0)
 }
 
 export function RefreshButton({
