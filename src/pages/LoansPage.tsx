@@ -22,7 +22,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { CreateLoanDialog } from "@/features/loans/components/CreateLoanDialog"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
-import { LoansListPanel } from "@/features/loans/components/LoansListPanel"
+import { SimpleLoansWorkspace } from "@/features/loans/components/SimpleLoansWorkspace"
 import { LoanSummaryCard } from "@/features/loans/components/LoanSummaryCard"
 import { ReviewLoanDialog } from "@/features/loans/components/ReviewLoanDialog"
 import { PAGE_SIZE } from "@/features/loans/loan-constants"
@@ -87,7 +87,6 @@ export default function LoansPage() {
   const role = getLoanRole(user)
   const roleCopy = getRoleCopy(role)
   const basePath = location.pathname.startsWith("/investments") ? "/investments" : "/loans"
-  const routeState = location.state as { adminView?: string } | null
   const pageTitle = basePath === "/investments" ? "Inversiones" : roleCopy.title
   const isDetailOpen = Boolean(drawerLoanId)
 
@@ -129,7 +128,6 @@ export default function LoansPage() {
   const [clients, setClients] = useState<RelatedUser[]>([])
   const [investors, setInvestors] = useState<RelatedUser[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
-  const adminView = routeState?.adminView === "advanced" ? "advanced" : "simple"
   const [selectedUserForSheet, setSelectedUserForSheet] = useState<UserDetailProfile | null>(null)
   const [newLoanIds, setNewLoanIds] = useState<Set<string>>(() => new Set())
   const summaryQuery = useLoansSummaryQuery()
@@ -226,12 +224,7 @@ export default function LoansPage() {
     if (!loansQuery.data) return
 
     rememberVisibleLoans(loansQuery.data.loans, false)
-
-    if (adminView === "advanced" && !activeLoanIdRef.current && loansQuery.data.loans[0]) {
-      activeLoanIdRef.current = loansQuery.data.loans[0].id
-      setManualSelectedLoanId(loansQuery.data.loans[0].id)
-    }
-  }, [adminView, loansQuery.data, rememberVisibleLoans])
+  }, [loansQuery.data, rememberVisibleLoans])
 
   useEffect(() => {
     return () => {
@@ -325,13 +318,6 @@ export default function LoansPage() {
     setDetailError(getErrorMessage(detailQuery.error, "No se pudo cargar el detalle del préstamo."))
     setLoadingDetail(false)
   }, [detailLoanId, detailQuery.error])
-
-  useEffect(() => {
-    if (adminView !== "advanced" || isDetailOpen || activeLoanIdRef.current || !loans[0]) return
-
-    activeLoanIdRef.current = loans[0].id
-    setManualSelectedLoanId(loans[0].id)
-  }, [adminView, isDetailOpen, loans])
 
   useEffect(() => {
     if (!createOpen || !canCreateLoan(user)) return
@@ -662,66 +648,6 @@ export default function LoansPage() {
       />
     </div>
     </div>
-  )
-}
-
-function SimpleLoansWorkspace({
-  loans,
-  highlightedLoanIds,
-  pagination,
-  page,
-  statusFilter,
-  searchQuery,
-  loadingList,
-  isFetchingList,
-  listError,
-  emptyMessage,
-  perspective,
-  onRetryList,
-  onOpenLoan,
-  onPageChange,
-  onStatusFilterChange,
-  onSearchQueryChange,
-}: {
-  loans: Loan[]
-  highlightedLoanIds?: Set<string>
-  pagination: PaginationMeta
-  page: number
-  statusFilter: "all" | LoanStatus
-  searchQuery: string
-  loadingList: boolean
-  isFetchingList?: boolean
-  listError: string | null
-  emptyMessage: string
-  perspective: "admin" | "client" | "investor"
-  onRetryList: () => void
-  onOpenLoan: (loan: Loan) => void
-  onPageChange: (page: number) => void
-  onStatusFilterChange: (status: "all" | LoanStatus) => void
-  onSearchQueryChange: (query: string) => void
-}) {
-  return (
-    <section className="w-full">
-      <LoansListPanel
-        loans={loans}
-        highlightedLoanIds={highlightedLoanIds}
-        selectedLoan={null}
-        pagination={pagination}
-        page={page}
-        statusFilter={statusFilter}
-        searchQuery={searchQuery}
-        loading={loadingList}
-        isFetching={isFetchingList}
-        error={listError}
-        emptyMessage={emptyMessage}
-        perspective={perspective}
-        onRetry={onRetryList}
-        onSelectLoan={onOpenLoan}
-        onPageChange={onPageChange}
-        onStatusFilterChange={onStatusFilterChange}
-        onSearchQueryChange={onSearchQueryChange}
-      />
-    </section>
   )
 }
 
