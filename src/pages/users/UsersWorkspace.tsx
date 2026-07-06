@@ -443,9 +443,9 @@ export function UsersWorkspace({
         <DataTableCard
           columns={visibleUserColumns}
           data={users}
-          clientPagination
           getRowId={(item) => item.id}
           getRowClassName={(item) => cn(highlightedUserIds?.has(item.id) && "realtime-row-enter")}
+          tableVariant="clean"
           tableClassName="min-w-[1080px] table-fixed"
           bodyClassName={cn(refreshing && "opacity-70")}
           initialSorting={[{ id: "createdAt", desc: true }]}

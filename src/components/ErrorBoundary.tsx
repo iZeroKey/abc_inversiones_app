@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react"
 import { Button } from "./ui/button"
+import { ScrollArea } from "./ui/scroll-area"
 
 type Props = {
   children: ReactNode
@@ -61,7 +62,9 @@ export class ErrorBoundary extends Component<Props, State> {
           </div>
           {import.meta.env.DEV && this.state.error && (
             <pre className="mt-4 max-w-xl overflow-auto rounded-md bg-muted p-4 text-left text-xs text-muted-foreground">
-              {this.state.error.stack}
+              <ScrollArea>
+                {this.state.error.stack}
+              </ScrollArea>
             </pre>
           )}
         </div>

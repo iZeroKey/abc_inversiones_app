@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
   ActivityIcon,
@@ -14,7 +13,7 @@ import {
   UserIcon,
 } from "lucide-react"
 import type { ElementType } from "react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import {
   DataTableCard,
@@ -53,14 +52,15 @@ import { Field, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { UserDetailSheet } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
-import { getAuthQueryScope } from "@/features/loans/loan-queries"
+import { useAuditLogsQuery } from "@/hooks/queries/audit-queries"
+import { getErrorMessage } from "@/lib/api-client"
 import { useIsMobile } from "@/hooks/use-media-query"
-import { queryKeys } from "@/lib/query-keys"
+
+import { AUDIT_PAGE_SIZE, type AuditLog } from "@/lib/audit-api"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import { cn } from "@/lib/utils"
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
-const AUDIT_PAGE_SIZE = 25
+
 
 type AuditUser = {
   id: string
@@ -73,34 +73,6 @@ type AuditUser = {
   role?: "admin" | "client" | "investor" | string | null
   active?: boolean | null
   avatarUrl?: string | null
-}
-
-type AuditLog = {
-  id: string
-  userId?: string | null
-  user?: AuditUser | null
-  action: string
-  module: string
-  entityId?: string | null
-  oldData?: unknown
-  newData?: unknown
-  ipAddress?: string | null
-  userAgent?: string | null
-  createdAt: string
-}
-
-type PaginationMeta = {
-  page: number
-  limit: number
-  total: number
-  totalPages: number
-}
-
-type ApiResponse<T> = {
-  success: boolean
-  message?: string
-  data?: T
-  meta?: Partial<PaginationMeta> & Record<string, unknown>
 }
 
 type AuditFilters = {
@@ -220,19 +192,6 @@ const fieldLabels: Record<string, string> = {
   startDate: "Fecha de inicio",
 }
 
-function getApiBaseUrl() {
-  if (!API_BASE_URL) {
-    throw new Error("No se encontró VITE_API_URL para consultar auditoría.")
-  }
-
-  return API_BASE_URL
-}
-
-function getErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof Error && error.message) return error.message
-  return fallback
-}
-
 function formatAuditDate(value?: string | null) {
   if (!value) return "-"
   const date = new Date(value)
@@ -342,56 +301,11 @@ function getDetailSummary(log: AuditLog) {
   return pieces.join(" · ")
 }
 
-async function fetchAuditLogs(
-  fetchWithAuth: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
-  filters: AuditFilters,
-  page: number,
-) {
-  const params = new URLSearchParams({
-    page: String(page),
-    limit: String(AUDIT_PAGE_SIZE),
-  })
-  if (filters.module.trim()) params.set("module", filters.module.trim())
-  if (filters.action.trim()) params.set("action", filters.action.trim())
-  if (filters.userId.trim()) params.set("userId", filters.userId.trim())
-
-  const response = await fetchWithAuth(`${getApiBaseUrl()}/api/v1/audit-logs?${params.toString()}`)
-  const payload = (await response.json().catch(() => null)) as ApiResponse<AuditLog[]> | null
-
-  if (!response.ok || !payload?.success) {
-    throw new Error(payload?.message || "No se pudieron cargar los logs de auditoría.")
-  }
-
-  const logs = payload.data ?? []
-  const meta = payload.meta ?? {}
-  return {
-    logs,
-    meta: {
-      page: Number(meta.page ?? page) || page,
-      limit: Number(meta.limit ?? AUDIT_PAGE_SIZE) || AUDIT_PAGE_SIZE,
-      total: Number(meta.total ?? logs.length) || logs.length,
-      totalPages: Math.max(1, Number(meta.totalPages ?? Math.ceil(logs.length / AUDIT_PAGE_SIZE)) || 1),
-    } satisfies PaginationMeta,
-  }
-}
-
 export default function AuditPage() {
-  const { user, session, fetchWithAuth } = useAuth()
-  const queryClient = useQueryClient()
-  const queryScope = useMemo(() => getAuthQueryScope(user), [user])
-  const [logs, setLogs] = useState<AuditLog[]>([])
+  const { user } = useAuth()
   const [filters, setFilters] = useState<AuditFilters>(emptyFilters)
   const [appliedFilters, setAppliedFilters] = useState<AuditFilters>(emptyFilters)
   const [page, setPage] = useState(1)
-  const [pagination, setPagination] = useState<PaginationMeta>({
-    page: 1,
-    limit: AUDIT_PAGE_SIZE,
-    total: 0,
-    totalPages: 1,
-  })
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [selectedUser, setSelectedUser] = useState<AuditUser | null>(null)
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
   const [moduleQuery, setModuleQuery] = useState("")
@@ -401,6 +315,16 @@ export default function AuditPage() {
   const [newLogIds, setNewLogIds] = useState<Set<string>>(() => new Set())
   const visibleLogIdsRef = useRef<Set<string>>(new Set())
   const newLogTimeoutRef = useRef<number | undefined>(undefined)
+
+  const auditQuery = useAuditLogsQuery({
+    page,
+    module: appliedFilters.module || undefined,
+    action: appliedFilters.action || undefined,
+    userId: appliedFilters.userId || undefined,
+  })
+
+  const logs = auditQuery.data?.logs ?? []
+  const pagination = auditQuery.data?.meta ?? { page: 1, limit: AUDIT_PAGE_SIZE, total: 0, totalPages: 1 }
 
   const filteredModuleKeys = useMemo(() => {
     const query = moduleQuery.trim().toLowerCase()
@@ -426,80 +350,40 @@ export default function AuditPage() {
 
   const isAdmin = user?.role === "admin" || Boolean(user?.isOwner)
 
-  const loadLogs = useCallback(
-    async ({ keepContent = false, filters }: { keepContent?: boolean; filters?: AuditFilters } = {}) => {
-      if (!session?.access_token || !isAdmin) return
-
-      const activeFilters = filters ?? appliedFilters
-
-      if (keepContent) {
-        setRefreshing(true)
-      } else {
-        setLoading(true)
-      }
-      setError(null)
-
-      try {
-        const result = await queryClient.fetchQuery({
-          gcTime: 5 * 60 * 1000,
-          queryFn: () => fetchAuditLogs(fetchWithAuth, activeFilters, page),
-          queryKey: queryKeys.audit.logs(queryScope, {
-            action: activeFilters.action,
-            module: activeFilters.module,
-            page,
-            userId: activeFilters.userId,
-          }),
-          staleTime: 15 * 1000,
-        })
-        const previousIds = visibleLogIdsRef.current
-        const nextIds = new Set(result.logs.map((log) => log.id))
-        const addedIds =
-          keepContent && previousIds.size > 0
-            ? result.logs.map((log) => log.id).filter((id) => !previousIds.has(id))
-            : []
-
-        visibleLogIdsRef.current = nextIds
-        if (addedIds.length > 0) {
-          if (newLogTimeoutRef.current !== undefined) {
-            window.clearTimeout(newLogTimeoutRef.current)
-          }
-          setNewLogIds(new Set(addedIds))
-          newLogTimeoutRef.current = window.setTimeout(() => {
-            setNewLogIds(new Set())
-            newLogTimeoutRef.current = undefined
-          }, 2200)
-        }
-        setLogs(result.logs)
-        setPagination(result.meta)
-      } catch (loadError) {
-        setError(getErrorMessage(loadError, "No se pudieron cargar los logs de auditoría."))
-      } finally {
-        setLoading(false)
-        setRefreshing(false)
-      }
-    },
-    [appliedFilters, fetchWithAuth, isAdmin, page, queryClient, queryScope, session?.access_token],
-  )
-
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadLogs()
-    }, 0)
+    if (!auditQuery.data?.logs) return
+    const nextLogs = auditQuery.data.logs
+    const previousIds = visibleLogIdsRef.current
+    const nextIds = new Set(nextLogs.map((log) => log.id))
+    const addedIds =
+      previousIds.size > 0
+        ? nextLogs.map((log) => log.id).filter((id) => !previousIds.has(id))
+        : []
 
-    return () => window.clearTimeout(timeoutId)
-  }, [loadLogs])
+    visibleLogIdsRef.current = nextIds
+    if (addedIds.length > 0) {
+      if (newLogTimeoutRef.current !== undefined) {
+        window.clearTimeout(newLogTimeoutRef.current)
+      }
+      setNewLogIds(new Set(addedIds))
+      newLogTimeoutRef.current = window.setTimeout(() => {
+        setNewLogIds(new Set())
+        newLogTimeoutRef.current = undefined
+      }, 2200)
+    }
+  }, [auditQuery.data?.logs])
 
   useEffect(() => {
     const refreshFromRealtime = (event: Event) => {
       const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
       if (detail?.type === "audit.created") {
-        void loadLogs({ keepContent: true })
+        void auditQuery.refetch()
       }
     }
 
     window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
     return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
-  }, [loadLogs])
+  }, [auditQuery])
 
   useEffect(() => {
     return () => {
@@ -664,9 +548,6 @@ export default function AuditPage() {
     setFilters(updatedFilters)
     setAppliedFilters(updatedFilters)
     setPage(1)
-    if (page === 1) {
-      void loadLogs({ keepContent: true, filters: updatedFilters })
-    }
   }
 
   const clearFilters = () => {
@@ -712,11 +593,11 @@ export default function AuditPage() {
 
         <Button
           variant="outline"
-          onClick={() => void loadLogs({ keepContent: true })}
-          disabled={loading || refreshing}
+          onClick={() => void auditQuery.refetch()}
+          disabled={auditQuery.isLoading || auditQuery.isFetching}
         >
           <RefreshCwIcon data-icon="inline-start" />
-          {refreshing ? "Actualizando..." : "Actualizar"}
+          {auditQuery.isFetching && !auditQuery.isLoading ? "Actualizando..." : "Actualizar"}
         </Button>
       </header>
 
@@ -856,8 +737,9 @@ export default function AuditPage() {
         </div>
       </form>
 
-      {loading ? (
+      {auditQuery.isLoading ? (
         <DataTableSkeleton
+          variant="default"
           rows={8}
           tableClassName="min-w-[1040px]"
           columns={[
@@ -868,17 +750,17 @@ export default function AuditPage() {
             { className: "w-[320px]", headerWidth: "w-16", cellWidth: "w-64" },
           ]}
         />
-      ) : error ? (
+      ) : auditQuery.error ? (
         <Empty className="min-h-80 rounded-lg border bg-card shadow-xs/5">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <AlertCircleIcon />
             </EmptyMedia>
             <EmptyTitle>No se pudo cargar auditoría</EmptyTitle>
-            <EmptyDescription>{error}</EmptyDescription>
+            <EmptyDescription>{getErrorMessage(auditQuery.error, "No se pudieron cargar los logs de auditoría.")}</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button variant="outline" onClick={() => void loadLogs({ keepContent: true })}>
+            <Button variant="outline" onClick={() => void auditQuery.refetch()}>
               <RefreshCwIcon data-icon="inline-start" />
               Reintentar
             </Button>
@@ -891,11 +773,12 @@ export default function AuditPage() {
           emptyMessage="No hay logs para los filtros aplicados."
           getRowId={(log) => log.id}
           getRowClassName={(log) => cn(newLogIds.has(log.id) && "realtime-row-enter")}
+          tableVariant="clean"
           pagination={{
-            page: pagination.page,
-            pageSize: pagination.limit,
-            total: pagination.total,
-            totalPages: pagination.totalPages,
+            page: pagination.page ?? 1,
+            pageSize: pagination.limit ?? AUDIT_PAGE_SIZE,
+            total: pagination.total ?? 0,
+            totalPages: pagination.totalPages ?? 1,
             itemLabel: "registros",
             onPageChange: setPage,
           }}

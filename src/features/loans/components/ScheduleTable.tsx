@@ -88,6 +88,7 @@ export function ScheduleTable({ installments }: { installments: Installment[] })
       columns={scheduleColumns}
       data={installments}
       getRowId={(installment) => installment.id}
+      tableVariant="clean"
       tableClassName="min-w-[620px]"
     />
   )

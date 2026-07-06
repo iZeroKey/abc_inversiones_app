@@ -28,8 +28,9 @@ import {
 import { cn } from "@/lib/utils"
 
 import { ContactStack, ErrorState, RequestStatusBadge } from "./components"
-import type { AccessRequest, RequestRoleFilter, RequestStatusFilter } from "./utils"
+import type { AccessRequest, PaginationMeta, RequestRoleFilter, RequestStatusFilter } from "./utils"
 import {
+  USERS_PAGE_SIZE,
   displayPersonName,
   formatDate,
   getRequestStatusLabel,
@@ -41,32 +42,38 @@ import {
 
 export function RequestsWorkspace({
   requests,
-  filteredRequests,
   highlightedRequestIds,
+  pagination,
+  page,
   searchQuery,
   roleFilter,
   statusFilter,
   loading,
+  refreshing,
   error,
   onRetry,
   onSearchQueryChange,
   onRoleFilterChange,
   onStatusFilterChange,
+  onPageChange,
   onInspect,
   onReview,
 }: {
   requests: AccessRequest[]
-  filteredRequests: AccessRequest[]
   highlightedRequestIds?: Set<string>
+  pagination: PaginationMeta
+  page: number
   searchQuery: string
   roleFilter: RequestRoleFilter
   statusFilter: RequestStatusFilter
   loading: boolean
+  refreshing: boolean
   error: string | null
   onRetry: () => void
   onSearchQueryChange: (query: string) => void
   onRoleFilterChange: (value: RequestRoleFilter | null) => void
   onStatusFilterChange: (value: RequestStatusFilter | null) => void
+  onPageChange: (page: number) => void
   onInspect: (request: AccessRequest) => void
   onReview: (request: AccessRequest, action: "approved" | "rejected") => void
 }) {
@@ -273,6 +280,7 @@ export function RequestsWorkspace({
         <ErrorState message={error} onRetry={onRetry} />
       ) : loading ? (
         <DataTableSkeleton
+          variant="default"
           rows={6}
           tableClassName="min-w-[900px] table-fixed"
           columns={[
@@ -291,32 +299,30 @@ export function RequestsWorkspace({
             <EmptyMedia variant="icon">
               <UserIcon />
             </EmptyMedia>
-            <EmptyTitle>No hay solicitudes</EmptyTitle>
-            <EmptyDescription>
-              Cuando alguien solicite acceso, aparecerá en esta bandeja de revisión.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : filteredRequests.length === 0 ? (
-        <Empty className="min-h-90 rounded-lg border bg-card shadow-xs/5">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <SearchIcon />
-            </EmptyMedia>
             <EmptyTitle>No hay solicitudes para mostrar</EmptyTitle>
             <EmptyDescription>
-              Ajusta los filtros para ver otras solicitudes.
+              Ajusta los filtros o espera a que alguien solicite acceso.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
         <DataTableCard
           columns={requestColumns}
-          data={filteredRequests}
+          data={requests}
           getRowId={(request) => request.id}
           getRowClassName={(request) => cn(highlightedRequestIds?.has(request.id) && "realtime-row-enter")}
+          tableVariant="clean"
           tableClassName="min-w-[900px] table-fixed"
+          bodyClassName={cn(refreshing && "opacity-70")}
           initialSorting={[{ id: "createdAt", desc: true }]}
+          pagination={{
+            page: pagination.page ?? page,
+            pageSize: pagination.limit ?? USERS_PAGE_SIZE,
+            totalPages: pagination.totalPages ?? 1,
+            total: pagination.total,
+            itemLabel: "solicitudes",
+            onPageChange,
+          }}
         />
       )}
     </section>

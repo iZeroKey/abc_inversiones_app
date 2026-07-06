@@ -156,8 +156,14 @@ export const queryKeys = {
       ["abc", "profile", "me", scopeKey(scope)] as const,
   },
   users: {
-    accessRequests: (scope?: QueryScope) =>
-      ["abc", "users", "access-requests", scopeKey(scope)] as const,
+    accessRequests: (scope?: QueryScope, params?: Record<string, unknown>) =>
+      [
+        "abc",
+        "users",
+        "access-requests",
+        scopeKey(scope),
+        ...(params ? [compactParams(params)] : []),
+      ] as const,
     all: ["abc", "users"] as const,
     list: (scope?: QueryScope, params?: Record<string, unknown>) =>
       [

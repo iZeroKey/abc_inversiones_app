@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { PlusIcon, RefreshCwIcon, ShieldIcon } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
 import { getAuthQueryScope } from "@/features/loans/loan-queries"
+import { useUsersQuery, useAccessRequestsQuery } from "@/hooks/queries/users-queries"
+import { getErrorMessage } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 
@@ -29,7 +31,6 @@ import type {
   AccessRequest,
   LinkAuthFormState,
   ManagedUser,
-  PaginationMeta,
   RequestRoleFilter,
   RequestStatusFilter,
   RoleFilter,
@@ -44,23 +45,16 @@ import {
   createUser,
   defaultLinkAuthForm,
   defaultUserForm,
-  fetchAccessRequests,
-  fetchUsers,
   generateTemporaryPassword,
-  getErrorMessage,
   getUserEditPermissions,
   isPendingRequest,
   linkAuthAccount,
   normalizeEditableRole,
-  normalizeRequestStatus,
   normalizeRole,
-  normalizeSearch,
   readUsersPreferences,
-  rememberVisibleIds,
   reviewAccessRequest,
   serializeBankAccounts,
   updateUser,
-  upsertById,
   writeUsersPreferences,
 } from "./users/utils"
 
@@ -68,22 +62,23 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   const { user, session, fetchWithAuth } = useAuth()
   const queryClient = useQueryClient()
   const queryScope = useMemo(() => getAuthQueryScope(user), [user])
+
+  // ── Tab ────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<UsersTab>(() => readUsersPreferences().activeTab ?? initialTab)
-  const [users, setUsers] = useState<ManagedUser[]>([])
-  const [requests, setRequests] = useState<AccessRequest[]>([])
+
+  // ── Users filter state (drives server-side query) ─────────────────────
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+
+  // ── Requests filter state (drives server-side query) ──────────────────
+  const [requestPage, setRequestPage] = useState(1)
   const [requestSearchQuery, setRequestSearchQuery] = useState("")
   const [requestRoleFilter, setRequestRoleFilter] = useState<RequestRoleFilter>("all")
   const [requestStatusFilter, setRequestStatusFilter] = useState<RequestStatusFilter>("all")
-  const [loadingUsers, setLoadingUsers] = useState(true)
-  const [refreshingUsers, setRefreshingUsers] = useState(false)
-  const [loadingRequests, setLoadingRequests] = useState(true)
-  const [refreshingRequests, setRefreshingRequests] = useState(false)
-  const [usersError, setUsersError] = useState<string | null>(null)
-  const [requestsError, setRequestsError] = useState<string | null>(null)
+
+  // ── Dialogs & forms ───────────────────────────────────────────────────
   const [createOpen, setCreateOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null)
@@ -98,6 +93,8 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   const [requestObservation, setRequestObservation] = useState("")
   const [requestInitialPassword, setRequestInitialPassword] = useState("")
   const [submittingRequest, setSubmittingRequest] = useState(false)
+
+  // ── New-item highlighting ─────────────────────────────────────────────
   const [newUserIds, setNewUserIds] = useState<Set<string>>(() => new Set())
   const [newRequestIds, setNewRequestIds] = useState<Set<string>>(() => new Set())
   const visibleUserIdsRef = useRef<Set<string>>(new Set())
@@ -107,192 +104,119 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
   const isAdmin = user?.role === "admin" || Boolean(user?.isOwner)
 
-  const filteredUsers = useMemo(() => {
-    const query = normalizeSearch(searchQuery)
+  // ── Queries ───────────────────────────────────────────────────────────
+  const usersQuery = useUsersQuery({
+    page,
+    limit: USERS_PAGE_SIZE,
+    search: searchQuery || undefined,
+    role: roleFilter !== "all" ? roleFilter : undefined,
+    active: statusFilter === "active" ? "true" : statusFilter === "inactive" ? "false" : undefined,
+  })
 
-    return users.filter((item) => {
-      const matchesSearch =
-        !query ||
-        normalizeSearch(
-          [
-            item.firstName,
-            item.lastName,
-            item.email,
-            item.phone,
-            item.dni,
-            item.bank,
-            ...(item.bankAccounts ?? []),
-            item.publicCode,
-            item.id,
-          ]
-            .filter(Boolean)
-            .join(" "),
-        ).includes(query)
-      const matchesRole = roleFilter === "all" || normalizeRole(item.role) === roleFilter
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" && item.active !== false) ||
-        (statusFilter === "inactive" && item.active === false)
+  const requestsQuery = useAccessRequestsQuery({
+    page: requestPage,
+    limit: USERS_PAGE_SIZE,
+    search: requestSearchQuery || undefined,
+    roleRequested: requestRoleFilter !== "all" ? requestRoleFilter : undefined,
+    status: requestStatusFilter !== "all" ? requestStatusFilter : undefined,
+  })
 
-      return matchesSearch && matchesRole && matchesStatus
-    })
-  }, [roleFilter, searchQuery, statusFilter, users])
+  const users = usersQuery.data?.users ?? []
+  const usersPagination = usersQuery.data?.meta ?? { page: 1, limit: USERS_PAGE_SIZE, total: 0, totalPages: 1 }
+  const requests = requestsQuery.data?.requests ?? []
+  const requestsPagination = requestsQuery.data?.meta ?? { page: 1, limit: USERS_PAGE_SIZE, total: 0, totalPages: 1 }
 
-  const totalUserPages = Math.max(Math.ceil(filteredUsers.length / USERS_PAGE_SIZE), 1)
-  const currentUserPage = Math.min(page, totalUserPages)
-
-  const filteredRequests = useMemo(() => {
-    const query = normalizeSearch(requestSearchQuery)
-
-    return requests.filter((request) => {
-      const matchesSearch =
-        !query ||
-        normalizeSearch(
-          [
-            request.firstName,
-            request.lastName,
-            request.email,
-            request.phone,
-            request.id,
-            request.observation,
-          ]
-            .filter(Boolean)
-            .join(" "),
-        ).includes(query)
-      const normalizedRole = normalizeRole(request.roleRequested)
-      const matchesRole = requestRoleFilter === "all" || normalizedRole === requestRoleFilter
-      const normalizedStatus = normalizeRequestStatus(request.status)
-      const matchesStatus = requestStatusFilter === "all" || normalizedStatus === requestStatusFilter
-
-      return matchesSearch && matchesRole && matchesStatus
-    })
-  }, [requestRoleFilter, requestSearchQuery, requestStatusFilter, requests])
-
-  const usersPagination = useMemo<PaginationMeta>(
-    () => ({
-      page: currentUserPage,
-      limit: USERS_PAGE_SIZE,
-      total: filteredUsers.length,
-      totalPages: totalUserPages,
-    }),
-    [currentUserPage, filteredUsers.length, totalUserPages],
-  )
-
+  // ── Stats ─────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const total = users.length
+    const total = usersPagination.total ?? users.length
     const clients = users.filter((item) => normalizeRole(item.role) === "client").length
     const investors = users.filter((item) => normalizeRole(item.role) === "investor").length
     const admins = users.filter((item) => normalizeRole(item.role) === "admin" || item.isOwner).length
     const pendingRequests = requests.filter((item) => isPendingRequest(item.status)).length
 
     return { admins, clients, investors, pendingRequests, total }
-  }, [requests, users])
+  }, [requests, users, usersPagination.total])
 
-  const loadUsers = useCallback(
-    async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
-      if (!session?.access_token || !isAdmin) return
-
-      if (keepContent) {
-        setRefreshingUsers(true)
-      } else {
-        setLoadingUsers(true)
-      }
-      setUsersError(null)
-
-      try {
-        const { users: nextUsers } = await queryClient.fetchQuery({
-          meta: { persist: true },
-          queryFn: () => fetchUsers(fetchWithAuth, { page, limit: USERS_PAGE_SIZE }),
-          queryKey: queryKeys.users.list(queryScope, { page, limit: USERS_PAGE_SIZE }),
-        })
-        rememberVisibleIds(nextUsers, keepContent, visibleUserIdsRef, newUserTimeoutRef, setNewUserIds)
-        setUsers(nextUsers)
-      } catch (error) {
-        setUsersError(getErrorMessage(error, "No se pudieron cargar los usuarios."))
-      } finally {
-        setLoadingUsers(false)
-        setRefreshingUsers(false)
-      }
-    },
-    [fetchWithAuth, isAdmin, page, queryClient, queryScope, session?.access_token],
-  )
-
-  const loadRequests = useCallback(
-    async ({ keepContent = false }: { keepContent?: boolean } = {}) => {
-      if (!session?.access_token || !isAdmin) return
-
-      if (keepContent) {
-        setRefreshingRequests(true)
-      } else {
-        setLoadingRequests(true)
-      }
-      setRequestsError(null)
-
-      try {
-        const nextRequests = await queryClient.fetchQuery({
-          meta: { persist: true },
-          queryFn: () => fetchAccessRequests(fetchWithAuth),
-          queryKey: queryKeys.users.accessRequests(queryScope),
-        })
-        rememberVisibleIds(nextRequests, keepContent, visibleRequestIdsRef, newRequestTimeoutRef, setNewRequestIds)
-        setRequests(nextRequests)
-      } catch (error) {
-        setRequestsError(getErrorMessage(error, "No se pudieron cargar las solicitudes."))
-      } finally {
-        setLoadingRequests(false)
-        setRefreshingRequests(false)
-      }
-    },
-    [fetchWithAuth, isAdmin, queryClient, queryScope, session?.access_token],
-  )
-
+  // ── New-item highlight effect (users) ─────────────────────────────────
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadUsers()
-    }, 0)
+    if (!usersQuery.data?.users) return
+    const nextUsers = usersQuery.data.users
+    const previousIds = visibleUserIdsRef.current
+    const nextIds = new Set(nextUsers.map((item) => item.id))
+    const addedIds =
+      previousIds.size > 0
+        ? nextUsers.map((item) => item.id).filter((id) => !previousIds.has(id))
+        : []
 
-    return () => window.clearTimeout(timeoutId)
-  }, [loadUsers])
+    visibleUserIdsRef.current = nextIds
+    if (addedIds.length > 0) {
+      if (newUserTimeoutRef.current !== undefined) {
+        window.clearTimeout(newUserTimeoutRef.current)
+      }
+      setNewUserIds(new Set(addedIds))
+      newUserTimeoutRef.current = window.setTimeout(() => {
+        setNewUserIds(new Set())
+        newUserTimeoutRef.current = undefined
+      }, 2200)
+    }
+  }, [usersQuery.data?.users])
 
+  // ── New-item highlight effect (requests) ──────────────────────────────
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadRequests()
-    }, 0)
+    if (!requestsQuery.data?.requests) return
+    const nextRequests = requestsQuery.data.requests
+    const previousIds = visibleRequestIdsRef.current
+    const nextIds = new Set(nextRequests.map((item) => item.id))
+    const addedIds =
+      previousIds.size > 0
+        ? nextRequests.map((item) => item.id).filter((id) => !previousIds.has(id))
+        : []
 
-    return () => window.clearTimeout(timeoutId)
-  }, [loadRequests])
+    visibleRequestIdsRef.current = nextIds
+    if (addedIds.length > 0) {
+      if (newRequestTimeoutRef.current !== undefined) {
+        window.clearTimeout(newRequestTimeoutRef.current)
+      }
+      setNewRequestIds(new Set(addedIds))
+      newRequestTimeoutRef.current = window.setTimeout(() => {
+        setNewRequestIds(new Set())
+        newRequestTimeoutRef.current = undefined
+      }, 2200)
+    }
+  }, [requestsQuery.data?.requests])
 
+  // ── Realtime ──────────────────────────────────────────────────────────
   useEffect(() => {
     const refreshFromRealtime = (event: Event) => {
       const detail = (event as CustomEvent<RealtimeDomainDetail>).detail
       if (!detail?.type) return
 
       if (detail.type.startsWith("user.")) {
-        void loadUsers({ keepContent: true })
+        void usersQuery.refetch()
       }
 
       if (detail.type.startsWith("access-request.")) {
-        void loadRequests({ keepContent: true })
+        void requestsQuery.refetch()
       }
     }
 
     window.addEventListener(realtimeDomainEvent, refreshFromRealtime)
     return () => window.removeEventListener(realtimeDomainEvent, refreshFromRealtime)
-  }, [loadRequests, loadUsers])
+  }, [usersQuery, requestsQuery])
 
+  // ── Cleanup highlight timeouts ────────────────────────────────────────
   useEffect(() => {
-    const newUserTimeout = newUserTimeoutRef.current
-    const newRequestTimeout = newRequestTimeoutRef.current
     return () => {
-      if (newUserTimeout !== undefined) {
-        window.clearTimeout(newUserTimeout)
+      if (newUserTimeoutRef.current !== undefined) {
+        window.clearTimeout(newUserTimeoutRef.current)
       }
-      if (newRequestTimeout !== undefined) {
-        window.clearTimeout(newRequestTimeout)
+      if (newRequestTimeoutRef.current !== undefined) {
+        window.clearTimeout(newRequestTimeoutRef.current)
       }
     }
   }, [])
 
+  // ── Dialogs ───────────────────────────────────────────────────────────
   const openCreateDialog = () => {
     setUserForm(defaultUserForm)
     setEditingUser(null)
@@ -345,14 +269,6 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         : await createUser(fetchWithAuth, userForm)
       const savedUser = response.data
 
-      if (savedUser) {
-        setUsers((currentUsers) => upsertById(currentUsers, savedUser))
-        queryClient.setQueryData<ManagedUser[]>(
-          queryKeys.users.list(queryScope),
-          (currentUsers) => upsertById(currentUsers ?? [], savedUser),
-        )
-      }
-
       if (editingUser) {
         setEditingUser(savedUser ?? editingUser)
       }
@@ -365,6 +281,10 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       setCreateOpen(false)
       setEditOpen(false)
       setEditingUser(null)
+
+      // Refetch instead of manual cache update — server-side pagination
+      // makes client-side insertions unreliable
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
     } catch (error) {
       toastManager.add({
         type: "error",
@@ -382,15 +302,8 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
     setSavingLinkAuth(true)
     try {
-      const response = await linkAuthAccount(fetchWithAuth, linkingUser.id, linkAuthForm)
-      const linkedUser = response.data
-      if (linkedUser) {
-        setUsers((currentUsers) => upsertById(currentUsers, linkedUser))
-        queryClient.setQueryData<ManagedUser[]>(
-          queryKeys.users.list(queryScope),
-          (currentUsers) => upsertById(currentUsers ?? [], linkedUser),
-        )
-      }
+      await linkAuthAccount(fetchWithAuth, linkingUser.id, linkAuthForm)
+
       toastManager.add({
         type: "success",
         title: "Cuenta vinculada",
@@ -398,6 +311,8 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       })
       setLinkingUser(null)
       setLinkAuthForm(defaultLinkAuthForm)
+
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
     } catch (error) {
       toastManager.add({
         type: "error",
@@ -432,11 +347,6 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       )
       const reviewedRequest = response.data
       if (reviewedRequest) {
-        setRequests((currentRequests) => upsertById(currentRequests, reviewedRequest))
-        queryClient.setQueryData<AccessRequest[]>(
-          queryKeys.users.accessRequests(queryScope),
-          (currentRequests) => upsertById(currentRequests ?? [], reviewedRequest),
-        )
         setSelectedRequest((currentRequest) =>
           currentRequest?.id === reviewedRequest.id ? reviewedRequest : currentRequest,
         )
@@ -453,10 +363,9 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       setRequestAction(null)
       setRequestObservation("")
       setRequestInitialPassword("")
-      if (requestAction === "approved") {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.users.list(queryScope) })
-        await loadUsers({ keepContent: true })
-      }
+
+      // Invalidate both users and requests queries
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
     } catch (error) {
       toastManager.add({
         type: "error",
@@ -511,7 +420,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             <h1 className="text-2xl font-semibold tracking-normal md:text-3xl">
               Usuarios
             </h1>
-            {loadingUsers ? (
+            {usersQuery.isLoading ? (
               <Skeleton className="h-5 w-24 rounded-full" />
             ) : (
               <Badge variant="secondary">{stats.total} registros</Badge>
@@ -527,12 +436,14 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             variant="outline"
             size="icon"
             onClick={() => {
-              void Promise.all([loadUsers({ keepContent: true }), loadRequests({ keepContent: true })])
+              void Promise.all([usersQuery.refetch(), requestsQuery.refetch()])
             }}
-            disabled={loadingUsers || refreshingUsers || loadingRequests || refreshingRequests}
+            disabled={usersQuery.isLoading || usersQuery.isFetching || requestsQuery.isLoading || requestsQuery.isFetching}
             aria-label="Actualizar usuarios"
           >
-            {refreshingUsers || refreshingRequests ? <Spinner /> : <RefreshCwIcon />}
+            {(usersQuery.isFetching && !usersQuery.isLoading) || (requestsQuery.isFetching && !requestsQuery.isLoading)
+              ? <Spinner />
+              : <RefreshCwIcon />}
           </Button>
           <Button className="max-sm:px-2" onClick={openCreateDialog}>
             <PlusIcon data-icon="inline-start" />
@@ -542,11 +453,11 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       </header>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricTile label="Total" value={stats.total} loading={loadingUsers} />
-        <MetricTile label="Clientes" value={stats.clients} loading={loadingUsers} />
-        <MetricTile label="Inversionistas" value={stats.investors} loading={loadingUsers} />
-        <MetricTile label="Administradores" value={stats.admins} loading={loadingUsers} />
-        <MetricTile label="Solicitudes pendientes" value={stats.pendingRequests} loading={loadingRequests} emphasis />
+        <MetricTile label="Total" value={stats.total} loading={usersQuery.isLoading} />
+        <MetricTile label="Clientes" value={stats.clients} loading={usersQuery.isLoading} />
+        <MetricTile label="Inversionistas" value={stats.investors} loading={usersQuery.isLoading} />
+        <MetricTile label="Administradores" value={stats.admins} loading={usersQuery.isLoading} />
+        <MetricTile label="Solicitudes pendientes" value={stats.pendingRequests} loading={requestsQuery.isLoading} emphasis />
       </section>
 
       <Tabs
@@ -569,21 +480,21 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
         <TabsContent value="users">
           <UsersWorkspace
-            users={filteredUsers}
+            users={users}
             highlightedUserIds={newUserIds}
             pagination={usersPagination}
             page={page}
             roleFilter={roleFilter}
             statusFilter={statusFilter}
             searchQuery={searchQuery}
-            loading={loadingUsers}
-            refreshing={refreshingUsers}
-            error={usersError}
+            loading={usersQuery.isLoading}
+            refreshing={usersQuery.isFetching && !usersQuery.isLoading}
+            error={usersQuery.error ? getErrorMessage(usersQuery.error, "No se pudieron cargar los usuarios.") : null}
             currentUser={user}
             onEditUser={openEditDialog}
             onLinkAuth={openLinkAuthDialog}
             onPageChange={setPage}
-            onRetry={() => void loadUsers({ keepContent: true })}
+            onRetry={() => void usersQuery.refetch()}
             onRoleFilterChange={handleRoleFilterChange}
             onSearchQueryChange={(query) => {
               setSearchQuery(query)
@@ -596,17 +507,29 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         <TabsContent value="requests">
           <RequestsWorkspace
             requests={requests}
-            filteredRequests={filteredRequests}
             highlightedRequestIds={newRequestIds}
+            pagination={requestsPagination}
+            page={requestPage}
             searchQuery={requestSearchQuery}
             roleFilter={requestRoleFilter}
             statusFilter={requestStatusFilter}
-            loading={loadingRequests}
-            error={requestsError}
-            onRetry={() => void loadRequests({ keepContent: true })}
-            onSearchQueryChange={setRequestSearchQuery}
-            onRoleFilterChange={(value) => setRequestRoleFilter(value ?? "all")}
-            onStatusFilterChange={(value) => setRequestStatusFilter(value ?? "all")}
+            loading={requestsQuery.isLoading}
+            refreshing={requestsQuery.isFetching && !requestsQuery.isLoading}
+            error={requestsQuery.error ? getErrorMessage(requestsQuery.error, "No se pudieron cargar las solicitudes.") : null}
+            onRetry={() => void requestsQuery.refetch()}
+            onSearchQueryChange={(query) => {
+              setRequestSearchQuery(query)
+              setRequestPage(1)
+            }}
+            onRoleFilterChange={(value) => {
+              setRequestRoleFilter(value ?? "all")
+              setRequestPage(1)
+            }}
+            onStatusFilterChange={(value) => {
+              setRequestStatusFilter(value ?? "all")
+              setRequestPage(1)
+            }}
+            onPageChange={setRequestPage}
             onInspect={setSelectedRequest}
             onReview={openReviewRequestDialog}
           />

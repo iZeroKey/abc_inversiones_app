@@ -13,7 +13,7 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useState, type ElementType } from "react"
 
-import { ResponsivePagination } from "@/components/ResponsivePagination"
+import { DataTablePaginationBar } from "@/components/data-table-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -30,6 +30,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
+import { buildApiUrl, getErrorMessage, readApiPayload } from "@/lib/api-client"
 import { dispatchNotificationsUpdated } from "@/lib/realtime"
 import { cn } from "@/lib/utils"
 import {
@@ -40,18 +41,6 @@ import {
   type NotificationItem,
   type NotificationsPaginationMeta as PaginationMeta,
 } from "@/pages/notifications-queries"
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
-const PAGE_SIZE = NOTIFICATIONS_PAGE_SIZE
-
-type ApiResponse<T> = {
-  success: boolean
-  message?: string
-  data: T
-  meta?: {
-    timestamp?: string
-  } & PaginationMeta
-}
 
 const typeDetails: Record<
   string,
@@ -161,11 +150,6 @@ const titleDictionary: Record<string, string> = {
   "loan approved": "Préstamo aprobado",
 }
 
-function getErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof Error && error.message) return error.message
-  return fallback
-}
-
 function formatNotificationDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return "Fecha no disponible"
@@ -206,7 +190,7 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [pagination, setPagination] = useState<PaginationMeta>({
     page: 1,
-    limit: PAGE_SIZE,
+    limit: NOTIFICATIONS_PAGE_SIZE,
     total: 0,
     totalPages: 1,
     unreadCount: 0,
@@ -224,13 +208,6 @@ export default function NotificationsPage() {
     setNotifications(notificationsQuery.data.notifications)
     setPagination(notificationsQuery.data.pagination)
   }, [notificationsQuery.data])
-
-  const fetchNotifications = useCallback(
-    async () => {
-      await refetchNotifications()
-    },
-    [refetchNotifications],
-  )
 
   const updateUnreadCountQueries = useCallback(
     (updater: (current: number) => number) => {
@@ -264,7 +241,7 @@ export default function NotificationsPage() {
   }
 
   const handleMarkAllAsRead = async () => {
-    if (markingAll || !API_BASE_URL) return
+    if (markingAll) return
 
     setMarkingAll(true)
     
@@ -288,14 +265,10 @@ export default function NotificationsPage() {
 
     try {
       const response = await fetchWithAuth(
-        `${API_BASE_URL}/api/v1/notifications/read-all`,
+        buildApiUrl("/api/v1/notifications/read-all"),
         { method: "PATCH" },
       )
-      const payload = (await response.json().catch(() => null)) as ApiResponse<null> | null
-
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.message || "No se pudieron marcar las notificaciones.")
-      }
+      await readApiPayload<null>(response)
 
       void queryClient.invalidateQueries({ queryKey: ["abc", "notifications", "list"] })
       dispatchNotificationsUpdated()
@@ -326,7 +299,7 @@ export default function NotificationsPage() {
   }
 
   const handleMarkAsRead = async (notification: NotificationItem) => {
-    if (notification.isRead || markingIds.has(notification.id) || !API_BASE_URL) return
+    if (notification.isRead || markingIds.has(notification.id)) return
 
     setMarkingIds((current) => new Set(current).add(notification.id))
     setNotifications((current) =>
@@ -341,7 +314,7 @@ export default function NotificationsPage() {
       total: filter === "unread" ? Math.max((current.total ?? 0) - 1, 0) : current.total,
       totalPages:
         filter === "unread"
-          ? Math.max(Math.ceil(Math.max((current.total ?? 0) - 1, 0) / (current.limit ?? PAGE_SIZE)), 1)
+          ? Math.max(Math.ceil(Math.max((current.total ?? 0) - 1, 0) / (current.limit ?? NOTIFICATIONS_PAGE_SIZE)), 1)
           : current.totalPages,
       unreadCount: Math.max((current.unreadCount ?? 0) - 1, 0),
     }))
@@ -349,18 +322,10 @@ export default function NotificationsPage() {
 
     try {
       const response = await fetchWithAuth(
-        `${API_BASE_URL}/api/v1/notifications/${notification.id}/read`,
+        buildApiUrl(`/api/v1/notifications/${notification.id}/read`),
         { method: "PATCH" },
       )
-      const payload =
-        (await response.json().catch(() => null)) as ApiResponse<{
-          id: string
-          isRead: boolean
-        }> | null
-
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.message || "No se pudo marcar la notificación.")
-      }
+      await readApiPayload<{ id: string; isRead: boolean }>(response)
 
       dispatchNotificationsUpdated()
       void queryClient.invalidateQueries({ queryKey: ["abc", "notifications", "list"] })
@@ -377,7 +342,7 @@ export default function NotificationsPage() {
         total: filter === "unread" ? (current.total ?? 0) + 1 : current.total,
         totalPages:
           filter === "unread"
-            ? Math.max(Math.ceil(((current.total ?? 0) + 1) / (current.limit ?? PAGE_SIZE)), 1)
+            ? Math.max(Math.ceil(((current.total ?? 0) + 1) / (current.limit ?? NOTIFICATIONS_PAGE_SIZE)), 1)
             : current.totalPages,
         unreadCount: (current.unreadCount ?? 0) + 1,
       }))
@@ -420,7 +385,7 @@ export default function NotificationsPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => void fetchNotifications()}
+            onClick={() => void refetchNotifications()}
             disabled={loading || refreshing}
             aria-label="Actualizar notificaciones"
             title="Actualizar"
@@ -462,7 +427,7 @@ export default function NotificationsPage() {
       ) : error ? (
         <ErrorState
           message={error}
-          onRetry={() => void fetchNotifications()}
+          onRetry={() => void refetchNotifications()}
         />
       ) : notifications.length === 0 ? (
         <EmptyState filter={filter} />
@@ -480,10 +445,14 @@ export default function NotificationsPage() {
       )}
 
       {!loading && !error && (
-        <ResponsivePagination
-          currentPage={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
+        <DataTablePaginationBar
+          pagination={{
+            page,
+            totalPages,
+            total: pagination.total,
+            itemLabel: "notificaciones",
+            onPageChange: setPage,
+          }}
         />
       )}
     </div>

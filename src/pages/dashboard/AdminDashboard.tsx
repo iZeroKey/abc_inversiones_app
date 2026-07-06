@@ -76,7 +76,7 @@ export default function AdminDashboard() {
             size="lg"
             variant="default"
             className="w-full md:w-auto shadow-md"
-            onClick={() => navigate("/loans", { state: { adminView: "advanced", appBackTarget: "/home" } })}
+            onClick={() => navigate("/loans", { state: { appBackTarget: "/home" } })}
           >
             <ReceiptIcon data-icon="inline-start" />
             Revisar Vouchers ({vouchersCount})

@@ -1,8 +1,7 @@
-import type React from "react"
-import type { ApiResponse, MaritalStatus, PaginationMeta, UserRole } from "@/types/loans"
+import type { MaritalStatus, PaginationMeta, UserRole } from "@/types/loans"
+import { buildApiUrl, readApiPayload } from "@/lib/api-client"
 export type { PaginationMeta, UserRole }
 
-export const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 export const USERS_PAGE_SIZE = 10
 const usersPreferencesKey = "abc-users-page-preferences"
 const usersPreferencesVersion = 1
@@ -84,18 +83,7 @@ export type UserEditPermissions = {
   canUpdateActive: boolean
 }
 
-export type UsersEnvelope = {
-  users?: ManagedUser[]
-  items?: ManagedUser[]
-  results?: ManagedUser[]
-}
 
-export type RequestsEnvelope = {
-  accessRequests?: AccessRequest[]
-  requests?: AccessRequest[]
-  items?: AccessRequest[]
-  results?: AccessRequest[]
-}
 
 export type UsersPagePreferences = {
   activeTab?: UsersTab
@@ -182,57 +170,10 @@ export const defaultLinkAuthForm: LinkAuthFormState = {
   password: "",
 }
 
-export function getApiBaseUrl() {
-  if (!API_BASE_URL) {
-    throw new Error("No se encontró VITE_API_URL para consultar el servidor.")
-  }
-  return API_BASE_URL
-}
-
-export function unwrapUsers(data: ManagedUser[] | UsersEnvelope | null | undefined) {
-  if (Array.isArray(data)) return data
-  return data?.users ?? data?.items ?? data?.results ?? []
-}
-
-export function unwrapRequests(data: AccessRequest[] | RequestsEnvelope | null | undefined) {
-  if (Array.isArray(data)) return data
-  return data?.accessRequests ?? data?.requests ?? data?.items ?? data?.results ?? []
-}
-
 export function upsertById<T extends { id: string }>(items: T[], item: T) {
   const index = items.findIndex((currentItem) => currentItem.id === item.id)
   if (index === -1) return [item, ...items]
   return items.map((currentItem) => (currentItem.id === item.id ? item : currentItem))
-}
-
-export async function readApiPayload<T>(response: Response): Promise<ApiResponse<T>> {
-  const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null
-  if (!response.ok || !payload?.success) {
-    throw new Error(payload?.message || "No se pudo completar la solicitud.")
-  }
-  return payload
-}
-
-export async function fetchUsers(
-  fetchWithAuth: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
-  params?: { page?: number; limit?: number },
-): Promise<{ users: ManagedUser[]; meta?: { pagination?: PaginationMeta } & Record<string, unknown> }> {
-  const searchParams = new URLSearchParams()
-  if (params?.page) searchParams.set("page", String(params.page))
-  if (params?.limit) searchParams.set("limit", String(params.limit))
-  const qs = searchParams.toString()
-  const url = qs ? `${getApiBaseUrl()}/api/v1/users?${qs}` : `${getApiBaseUrl()}/api/v1/users`
-  const response = await fetchWithAuth(url)
-  const payload = await readApiPayload<ManagedUser[] | UsersEnvelope>(response)
-  return { users: unwrapUsers(payload.data), meta: payload.meta }
-}
-
-export async function fetchAccessRequests(
-  fetchWithAuth: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
-) {
-  const response = await fetchWithAuth(`${getApiBaseUrl()}/api/v1/access-requests`)
-  const payload = await readApiPayload<AccessRequest[] | RequestsEnvelope>(response)
-  return unwrapRequests(payload.data)
 }
 
 export function nullableText(value: string) {
@@ -291,7 +232,7 @@ export async function createUser(
   form: UserFormState,
 ) {
   const createAuthAccount = form.role === "admin" || form.createAuthAccount
-  const response = await fetchWithAuth(`${getApiBaseUrl()}/api/v1/users`, {
+  const response = await fetchWithAuth(buildApiUrl("/api/v1/users"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -310,7 +251,7 @@ export async function updateUser(
   form: UserFormState,
   options: UserEditPermissions,
 ) {
-  const response = await fetchWithAuth(`${getApiBaseUrl()}/api/v1/users/${userId}`, {
+  const response = await fetchWithAuth(buildApiUrl(`/api/v1/users/${userId}`), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(buildUserPayload(form, options)),
@@ -323,7 +264,7 @@ export async function linkAuthAccount(
   userId: string,
   form: LinkAuthFormState,
 ) {
-  const response = await fetchWithAuth(`${getApiBaseUrl()}/api/v1/users/${userId}/auth-account`, {
+  const response = await fetchWithAuth(buildApiUrl(`/api/v1/users/${userId}/auth-account`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -341,7 +282,7 @@ export async function reviewAccessRequest(
   observation: string,
   initialPassword?: string,
 ) {
-  const response = await fetchWithAuth(`${getApiBaseUrl()}/api/v1/access-requests/${requestId}/status`, {
+  const response = await fetchWithAuth(buildApiUrl(`/api/v1/access-requests/${requestId}/status`), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -374,30 +315,7 @@ export function writeUsersPreferences(nextPreferences: UsersPagePreferences) {
   localStorage.setItem(usersPreferencesKey, JSON.stringify({ ...usersPreferencesCache, version: usersPreferencesVersion }))
 }
 
-export function rememberVisibleIds<T extends { id: string }>(
-  nextItems: T[],
-  highlightNew: boolean,
-  visibleIdsRef: React.MutableRefObject<Set<string>>,
-  timeoutRef: React.MutableRefObject<number | undefined>,
-  setNewIds: React.Dispatch<React.SetStateAction<Set<string>>>,
-) {
-  const previousIds = visibleIdsRef.current
-  const nextIds = new Set(nextItems.map((item) => item.id))
-  const addedIds =
-    highlightNew && previousIds.size > 0
-      ? nextItems.map((item) => item.id).filter((id) => !previousIds.has(id))
-      : []
-  visibleIdsRef.current = nextIds
-  if (addedIds.length === 0) return
-  if (timeoutRef.current !== undefined) {
-    window.clearTimeout(timeoutRef.current)
-  }
-  setNewIds(new Set(addedIds))
-  timeoutRef.current = window.setTimeout(() => {
-    setNewIds(new Set())
-    timeoutRef.current = undefined
-  }, 2200)
-}
+
 
 export function normalizeRequestStatus(status?: RequestStatus | null): RequestStatusFilter {
   if (status === "approved" || status === "rejected" || status === "in_review") return status
@@ -511,9 +429,4 @@ export function formatDate(value?: string) {
   }).format(date)
 }
 
-export function getErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof Error && error.message) {
-    return error.message
-  }
-  return fallback
-}
+

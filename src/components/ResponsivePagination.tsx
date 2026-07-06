@@ -40,11 +40,12 @@ export function ResponsivePagination({
   return (
     <nav
       aria-label="Paginación"
-      className={cn("flex items-center justify-center gap-1.5 w-full mt-4", className)}
+      className={cn("flex items-center justify-center gap-2 w-full mt-4", className)}
     >
       <Button
-        variant="outline"
-        className="rounded-full gap-1 min-w-9 px-3 sm:px-4 h-9 cursor-pointer"
+        variant="ghost"
+        size="sm"
+        className="gap-1 min-w-9 px-2 h-8 cursor-pointer rounded-lg text-muted-foreground hover:text-foreground disabled:opacity-30"
         disabled={currentPage <= 1}
         onClick={() => onPageChange(currentPage - 1)}
       >
@@ -52,26 +53,26 @@ export function ResponsivePagination({
         <span className="hidden sm:inline">Anterior</span>
       </Button>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         {visiblePages.map((item, index) =>
           item === "ellipsis" ? (
             <span
               key={`ellipsis-${index}`}
-              className="flex h-9 w-9 items-center justify-center text-muted-foreground"
+              className="flex h-8 w-8 items-center justify-center text-xs text-muted-foreground/60"
             >
-              ...
+              &hellip;
             </span>
           ) : (
             <Button
               key={item}
-              variant={item === currentPage ? "default" : "outline"}
-              size="icon"
+              variant={item === currentPage ? "default" : "ghost"}
+              size="sm"
               aria-current={item === currentPage ? "page" : undefined}
               className={cn(
-                "size-9 rounded-full font-medium transition-all duration-200 cursor-pointer",
+                "min-w-8 h-8 px-2 text-sm font-medium transition-all duration-200 cursor-pointer rounded-lg",
                 item === currentPage
-                  ? "bg-slate-900 text-white hover:bg-slate-900/90 dark:bg-slate-50 dark:text-slate-900"
-                  : "border-border hover:bg-muted"
+                  ? "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
               onClick={() => onPageChange(item)}
             >
@@ -82,8 +83,9 @@ export function ResponsivePagination({
       </div>
 
       <Button
-        variant="outline"
-        className="rounded-full gap-1 min-w-9 px-3 sm:px-4 h-9 cursor-pointer"
+        variant="ghost"
+        size="sm"
+        className="gap-1 min-w-9 px-2 h-8 cursor-pointer rounded-lg text-muted-foreground hover:text-foreground disabled:opacity-30"
         disabled={currentPage >= totalPages}
         onClick={() => onPageChange(currentPage + 1)}
       >

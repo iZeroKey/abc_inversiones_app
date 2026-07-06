@@ -333,6 +333,7 @@ export function PaymentsTable({
       columns={columns}
       data={rows}
       getRowId={(row) => row.id}
+      tableVariant="clean"
       tableClassName="min-w-[740px]"
     />
   )

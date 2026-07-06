@@ -128,6 +128,7 @@ export function RequestStatusBadge({ status }: { status?: RequestStatus }) {
 export function UsersSkeleton() {
   return (
     <DataTableSkeleton
+      variant="default"
       rows={8}
       tableClassName="min-w-[1180px] table-fixed"
       columns={[

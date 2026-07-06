@@ -401,14 +401,13 @@ function SchedulePreview({
   return (
     <div className="flex flex-col gap-3 pt-3">
       <ScheduleSummary preview={preview} />
-      <div className="min-w-0 overflow-hidden rounded-2xl">
-        <DataTableCard
-          columns={schedulePreviewColumns}
-          data={preview.rows}
-          getRowId={(row) => String(row.installmentNumber)}
-          tableClassName="min-w-[820px]"
-        />
-      </div>
+      <DataTableCard
+        columns={schedulePreviewColumns}
+        data={preview.rows}
+        getRowId={(row) => String(row.installmentNumber)}
+        tableVariant="clean"
+        tableClassName="min-w-[820px]"
+      />
     </div>
   )
 }
