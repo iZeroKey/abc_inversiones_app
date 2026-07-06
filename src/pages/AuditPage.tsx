@@ -73,6 +73,7 @@ type AuditUser = {
   role?: "admin" | "client" | "investor" | string | null
   active?: boolean | null
   avatarUrl?: string | null
+  avatar?: string | null
 }
 
 type AuditFilters = {
@@ -315,6 +316,8 @@ export default function AuditPage() {
   const [newLogIds, setNewLogIds] = useState<Set<string>>(() => new Set())
   const visibleLogIdsRef = useRef<Set<string>>(new Set())
   const newLogTimeoutRef = useRef<number | undefined>(undefined)
+  const previousPageRef = useRef(page)
+  const previousFiltersRef = useRef(appliedFilters)
 
   const auditQuery = useAuditLogsQuery({
     page,
@@ -355,8 +358,13 @@ export default function AuditPage() {
     const nextLogs = auditQuery.data.logs
     const previousIds = visibleLogIdsRef.current
     const nextIds = new Set(nextLogs.map((log) => log.id))
+    
+    const isSameQuery = previousPageRef.current === page && previousFiltersRef.current === appliedFilters
+    previousPageRef.current = page
+    previousFiltersRef.current = appliedFilters
+
     const addedIds =
-      previousIds.size > 0
+      (previousIds.size > 0 && isSameQuery)
         ? nextLogs.map((log) => log.id).filter((id) => !previousIds.has(id))
         : []
 
@@ -371,7 +379,7 @@ export default function AuditPage() {
         newLogTimeoutRef.current = undefined
       }, 2200)
     }
-  }, [auditQuery.data?.logs])
+  }, [auditQuery.data?.logs, page, appliedFilters])
 
   useEffect(() => {
     const refreshFromRealtime = (event: Event) => {
@@ -456,7 +464,7 @@ export default function AuditPage() {
               onClick={() => setSelectedUser(auditUser)}
             >
               <Avatar className="size-7">
-                {auditUser.avatarUrl ? <AvatarImage src={auditUser.avatarUrl} alt="" /> : null}
+                {auditUser.avatarUrl || auditUser.avatar ? <AvatarImage src={(auditUser.avatarUrl ?? auditUser.avatar) || undefined} alt="" /> : null}
                 <AvatarFallback>{getUserInitials(auditUser)}</AvatarFallback>
               </Avatar>
               <span className="min-w-0">
