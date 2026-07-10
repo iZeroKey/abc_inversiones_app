@@ -11,7 +11,7 @@ export function Checkbox({
   return (
     <CheckboxPrimitive.Root
       className={cn(
-        "relative inline-flex size-4.5 shrink-0 items-center justify-center rounded-lg border border-input bg-background not-dark:bg-clip-padding shadow-xs/5 outline-none ring-ring transition-all duration-200 ease-out active:scale-[0.85] active:shadow-inner before:pointer-events-none before:absolute before:inset-0 before:rounded-[3px] not-data-disabled:not-data-checked:not-aria-invalid:before:shadow-[0_1px_--theme(--color-black/4%)] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-background aria-invalid:border-destructive/36 focus-visible:aria-invalid:border-destructive/64 focus-visible:aria-invalid:ring-destructive/48 data-disabled:cursor-not-allowed data-disabled:opacity-64 sm:size-4 dark:not-data-checked:bg-input/32 dark:aria-invalid:ring-destructive/24 dark:not-data-disabled:not-data-checked:not-aria-invalid:before:shadow-[0_-1px_--theme(--color-white/6%)] [[data-disabled],[data-checked],[aria-invalid]]:shadow-none",
+        "relative inline-flex size-4.5 shrink-0 items-center justify-center rounded-lg border-2 border-input bg-transparent outline-none ring-primary transition-all duration-200 ease-out active:scale-[0.95] active:brightness-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background data-checked:border-primary data-checked:bg-primary aria-invalid:ring-destructive data-disabled:cursor-not-allowed data-disabled:opacity-64 sm:size-4",
         className,
       )}
       data-slot="checkbox"

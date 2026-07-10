@@ -22,14 +22,14 @@ export function Input({
   ...props
 }: InputProps): React.ReactElement {
   const inputClassName = cn(
-    "h-9 w-full min-w-0 rounded-[inherit] px-[calc(--spacing(3)-1px)] leading-9 outline-none [transition:background-color_5000000s_ease-in-out_0s] placeholder:text-muted-foreground/72 sm:h-8 sm:leading-8",
+    "w-full min-w-0 rounded-[inherit] px-3.5 bg-transparent outline-none [transition:background-color_5000000s_ease-in-out_0s] placeholder:text-muted-foreground/72 h-10 sm:h-9",
     size === "sm" &&
-      "h-8 px-[calc(--spacing(2.5)-1px)] leading-8 sm:h-7 sm:leading-7",
-    size === "lg" && "h-10 leading-10 sm:h-9 sm:leading-9",
+      "px-3 h-9 sm:h-8",
+    size === "lg" && "px-4 h-12 sm:h-10",
     props.type === "search" &&
       "[&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none [&::-webkit-search-results-button]:appearance-none [&::-webkit-search-results-decoration]:appearance-none",
     props.type === "file" &&
-      "text-muted-foreground file:me-3 file:bg-transparent file:font-medium file:text-foreground file:text-sm",
+      "file:me-3 file:h-full file:self-center file:bg-transparent file:font-medium file:text-foreground file:text-sm file:leading-none file:py-0 file:inline-flex file:items-center",
   );
 
   return (
@@ -37,7 +37,7 @@ export function Input({
       className={
         cn(
           !unstyled &&
-            "relative inline-flex w-full rounded-xl border border-input bg-background not-dark:bg-clip-padding text-base text-foreground shadow-xs/5 ring-ring/24 transition-shadow before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] not-has-disabled:not-has-focus-visible:not-has-aria-invalid:before:shadow-[0_1px_--theme(--color-black/4%)] has-focus-visible:has-aria-invalid:border-destructive/64 has-focus-visible:has-aria-invalid:ring-destructive/16 has-aria-invalid:border-destructive/36 has-focus-visible:border-ring has-autofill:bg-foreground/4 has-disabled:opacity-64 has-[:disabled,:focus-visible,[aria-invalid]]:shadow-none has-focus-visible:ring-2 sm:text-sm dark:bg-input/32 dark:has-autofill:bg-foreground/8 dark:has-aria-invalid:ring-destructive/24 dark:not-has-disabled:not-has-focus-visible:not-has-aria-invalid:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+            "relative inline-flex w-full rounded-2xl border border-transparent bg-foreground/5 text-base text-foreground transition-all has-focus-visible:bg-foreground/10 has-autofill:bg-foreground/10 has-disabled:opacity-64 has-disabled:pointer-events-none has-aria-invalid:bg-destructive/10 sm:text-sm dark:bg-foreground/10 dark:has-autofill:bg-foreground/15 dark:has-focus-visible:bg-foreground/15",
           className,
         ) || undefined
       }

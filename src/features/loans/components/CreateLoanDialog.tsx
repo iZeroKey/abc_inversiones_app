@@ -43,7 +43,7 @@ import {
   NumberFieldInput,
 } from "@/components/ui/number-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, selectTriggerVariants } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
@@ -727,15 +727,17 @@ function DatePicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button type="button" variant="outline" size="sm" className="w-full justify-start font-normal" />}>
-        <CalendarIcon data-icon="inline-start" />
-        {selectedDate
-          ? new Intl.DateTimeFormat("es-PE", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            }).format(selectedDate)
-          : "Selecciona fecha"}
+      <PopoverTrigger render={<button type="button" className={cn(selectTriggerVariants({ size: "default" }), "justify-start font-normal h-10 sm:h-9")} />}>
+        <CalendarIcon className="mr-2 opacity-80 shrink-0" data-icon="inline-start" />
+        <span className="truncate">
+          {selectedDate
+            ? new Intl.DateTimeFormat("es-PE", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              }).format(selectedDate)
+            : "Selecciona fecha"}
+        </span>
       </PopoverTrigger>
       <PopoverContent align="start" className="flex w-auto flex-col gap-2 p-2">
         <Calendar

@@ -1,5 +1,6 @@
 "use client";
 
+import { buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { NumberField as NumberFieldPrimitive } from "@base-ui/react/number-field";
@@ -8,8 +9,10 @@ import * as React from "react";
 
 export const NumberFieldContext: React.Context<{
   fieldId: string;
+  size?: "sm" | "default" | "lg";
 } | null> = React.createContext<{
   fieldId: string;
+  size?: "sm" | "default" | "lg";
 } | null>(null);
 
 export function NumberField({
@@ -24,7 +27,7 @@ export function NumberField({
   const fieldId = id ?? generatedId;
 
   return (
-    <NumberFieldContext.Provider value={{ fieldId }}>
+    <NumberFieldContext.Provider value={{ fieldId, size }}>
       <NumberFieldPrimitive.Root
         className={cn("flex w-full flex-col items-start gap-2", className)}
         data-size={size}
@@ -40,10 +43,14 @@ export function NumberFieldGroup({
   className,
   ...props
 }: NumberFieldPrimitive.Group.Props): React.ReactElement {
+  const context = React.useContext(NumberFieldContext);
+
   return (
     <NumberFieldPrimitive.Group
       className={cn(
-        "relative flex w-full justify-between rounded-xl border border-input bg-background not-dark:bg-clip-padding text-base text-foreground shadow-xs/5 ring-ring/24 transition-shadow before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] not-data-disabled:not-focus-within:not-aria-invalid:before:shadow-[0_1px_--theme(--color-black/4%)] focus-within:border-ring focus-within:ring-2 has-aria-invalid:border-destructive/36 has-autofill:bg-foreground/4 focus-within:has-aria-invalid:border-destructive/64 focus-within:has-aria-invalid:ring-destructive/48 data-disabled:pointer-events-none data-disabled:opacity-64 sm:text-sm dark:bg-input/32 dark:has-autofill:bg-foreground/8 dark:has-aria-invalid:ring-destructive/24 dark:not-data-disabled:not-focus-within:not-aria-invalid:before:shadow-[0_-1px_--theme(--color-white/6%)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 [[data-disabled],:focus-within,[aria-invalid]]:shadow-none",
+        "flex h-10 w-full items-center rounded-2xl border border-transparent bg-foreground/5 transition-all has-focus-visible:bg-foreground/10 has-aria-invalid:bg-destructive/10 sm:h-9 dark:bg-foreground/10 dark:has-focus-visible:bg-foreground/15",
+        context?.size === "lg" && "h-12 sm:h-10",
+        context?.size === "sm" && "h-9 sm:h-8",
         className,
       )}
       data-slot="number-field-group"
@@ -59,13 +66,14 @@ export function NumberFieldDecrement({
   return (
     <NumberFieldPrimitive.Decrement
       className={cn(
-        "relative flex shrink-0 cursor-pointer items-center justify-center rounded-s-[calc(var(--radius-lg)-1px)] in-data-[size=sm]:px-[calc(--spacing(2.5)-1px)] px-[calc(--spacing(3)-1px)] transition-colors pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:bg-accent",
+        buttonVariants({ variant: "ghost", size: "icon-xs" }),
+        "pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 aria-disabled:cursor-not-allowed aria-disabled:opacity-40 relative cursor-pointer text-muted-foreground ms-[3px]",
         className,
       )}
       data-slot="number-field-decrement"
       {...props}
     >
-      <MinusIcon />
+      <MinusIcon className="size-3.5" />
     </NumberFieldPrimitive.Decrement>
   );
 }
@@ -77,13 +85,14 @@ export function NumberFieldIncrement({
   return (
     <NumberFieldPrimitive.Increment
       className={cn(
-        "relative flex shrink-0 cursor-pointer items-center justify-center rounded-e-[calc(var(--radius-lg)-1px)] in-data-[size=sm]:px-[calc(--spacing(2.5)-1px)] px-[calc(--spacing(3)-1px)] transition-colors pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:bg-accent",
+        buttonVariants({ variant: "ghost", size: "icon-xs" }),
+        "pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 aria-disabled:cursor-not-allowed aria-disabled:opacity-40 relative cursor-pointer text-muted-foreground me-[3px]",
         className,
       )}
       data-slot="number-field-increment"
       {...props}
     >
-      <PlusIcon />
+      <PlusIcon className="size-3.5" />
     </NumberFieldPrimitive.Increment>
   );
 }
@@ -92,10 +101,13 @@ export function NumberFieldInput({
   className,
   ...props
 }: NumberFieldPrimitive.Input.Props): React.ReactElement {
+  const context = React.useContext(NumberFieldContext);
+
   return (
     <NumberFieldPrimitive.Input
       className={cn(
-        "h-8.5 in-data-[size=lg]:h-9.5 in-data-[size=sm]:h-7.5 w-full min-w-0 grow bg-transparent in-data-[size=sm]:px-[calc(--spacing(2.5)-1px)] px-[calc(--spacing(3)-1px)] text-center tabular-nums in-data-[size=lg]:leading-9.5 in-data-[size=sm]:leading-7.5 leading-8.5 outline-none [transition:background-color_5000000s_ease-in-out_0s] sm:h-7.5 sm:in-data-[size=lg]:h-8.5 sm:in-data-[size=sm]:h-6.5 sm:in-data-[size=lg]:leading-8.5 sm:in-data-[size=sm]:leading-8.5 sm:leading-7.5",
+        "w-full min-w-0 grow bg-transparent px-3.5 text-center tabular-nums outline-none [transition:background-color_5000000s_ease-in-out_0s]",
+        context?.size === "lg" ? "h-12 sm:h-10" : context?.size === "sm" ? "h-9 sm:h-8" : "h-10 sm:h-9",
         className,
       )}
       data-slot="number-field-input"
