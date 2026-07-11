@@ -1,19 +1,21 @@
+"use no memo"
+
 import {
-    flexRender,
-    getCoreRowModel,
-    useReactTable,
-    type ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
 } from "@tanstack/react-table"
 
 import { ResponsivePagination } from "@/components/ResponsivePagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 
@@ -74,6 +76,7 @@ export function DataTableCard<TData, TValue>({
   pagination,
   tableClassName,
 }: DataTableCardProps<TData, TValue>) {
+// eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table is incompatible with React Compiler; "use no memo" opts out
   const table = useReactTable({
     data,
     columns,
