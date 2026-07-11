@@ -2,6 +2,7 @@ import { LayoutGridIcon, SearchIcon, TableIcon } from "lucide-react"
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Field, FieldLabel } from "@/components/ui/field"
 import {
     InputGroup,
     InputGroupAddon,
@@ -75,35 +76,44 @@ export function SimpleLoansWorkspace({
 
   return (
     <section className="flex w-full flex-col gap-4">
-      <div className="flex flex-col gap-3">
-        <InputGroup>
-          <InputGroupAddon>
-            <SearchIcon />
-          </InputGroupAddon>
-          <InputGroupInput
-            type="search"
-            placeholder="Buscar por código, cliente o monto"
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-          />
-        </InputGroup>
+      <div className="rounded-2xl bg-card p-4 shadow-xs/5">
+        <div className="flex flex-col gap-3">
+          <Field>
+            <FieldLabel>Buscar</FieldLabel>
+            <InputGroup>
+              <InputGroupAddon>
+                <SearchIcon />
+              </InputGroupAddon>
+              <InputGroupInput
+                type="search"
+                placeholder="Código, cliente o monto"
+                value={searchQuery}
+                onChange={(event) => onSearchQueryChange(event.target.value)}
+              />
+            </InputGroup>
+          </Field>
 
-        <ScrollArea className="h-10 min-w-0" scrollFade>
-          <div className="flex w-max items-center gap-2 px-0.5 py-0.5 pr-2">
-            {statusFilters.map((status) => (
-              <Button
-                key={status.value}
-                variant={statusFilter === status.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => onStatusFilterChange(status.value)}
-                className="shrink-0 rounded-full px-3"
-              >
-                {status.label}
-              </Button>
-            ))}
-          </div>
-        </ScrollArea>
+          <Field>
+            <FieldLabel>Estado</FieldLabel>
+            <ScrollArea className="h-10 min-w-0" scrollFade>
+              <div className="flex w-max items-center gap-2 px-0.5 py-0.5 pr-2">
+                {statusFilters.map((status) => (
+                  <Button
+                    key={status.value}
+                    variant={statusFilter === status.value ? "default" : "secondary"}
+                    size="sm"
+                    onClick={() => onStatusFilterChange(status.value)}
+                    className="shrink-0 rounded-full px-3 shadow-none"
+                  >
+                    {status.label}
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+          </Field>
+        </div>
       </div>
+
 
       <div className="flex items-center justify-between gap-3 px-1">
         <div className="flex items-center gap-2 min-w-0">

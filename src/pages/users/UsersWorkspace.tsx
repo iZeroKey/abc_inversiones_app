@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react"
-import { ChevronDownIcon, LinkIcon, SearchIcon, Settings2Icon, UserCogIcon, UsersIcon } from "lucide-react"
+import { useMemo } from "react"
+import { LinkIcon, SearchIcon, UserCogIcon, UsersIcon } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import {
@@ -8,14 +8,7 @@ import {
   DataTableStaticHeader,
 } from "@/components/data-table-card"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Field, FieldLabel } from "@/components/ui/field"
 import {
   Empty,
   EmptyDescription,
@@ -50,24 +43,18 @@ import type {
   PaginationMeta,
   RoleFilter,
   StatusFilter,
-  UserColumnKey,
 } from "./utils"
 import {
   USERS_PAGE_SIZE,
   canLinkAuthAccount,
   canManageUser,
-  defaultVisibleUserColumns,
   displayPersonName,
   formatDate,
   getMaritalStatusLabel,
   getRoleLabel,
   normalizeRole,
-  readUsersPreferences,
   roleItems,
   statusItems,
-  userColumnGroups,
-  userColumnsConfig,
-  writeUsersPreferences,
 } from "./utils"
 
 export function UsersWorkspace({
@@ -109,25 +96,7 @@ export function UsersWorkspace({
   onSearchQueryChange: (query: string) => void
   onStatusFilterChange: (value: StatusFilter | null) => void
 }) {
-  const [visibleColumnKeys, setVisibleColumnKeys] = useState<UserColumnKey[]>(() => {
-    const savedColumns = readUsersPreferences().visibleColumns?.filter((key) =>
-      userColumnsConfig.some((column) => column.key === key),
-    )
-    return savedColumns?.length ? savedColumns : defaultVisibleUserColumns
-  })
-  const handleToggleColumn = (key: UserColumnKey, checked: boolean) => {
-    setVisibleColumnKeys((current) => {
-      if (checked) {
-        const nextColumns = current.includes(key) ? current : [...current, key]
-        writeUsersPreferences({ visibleColumns: nextColumns })
-        return nextColumns
-      }
-      if (key === "user" || key === "action") return current
-      const nextColumns = current.filter((columnKey) => columnKey !== key)
-      writeUsersPreferences({ visibleColumns: nextColumns })
-      return nextColumns
-    })
-  }
+
   const userColumns = useMemo<ColumnDef<ManagedUser>[]>(
     () => [
       {
@@ -328,7 +297,7 @@ export function UsersWorkspace({
               )}
               {editable && (
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => onEditUser(row.original)}
                 >
@@ -347,79 +316,58 @@ export function UsersWorkspace({
     ],
     [currentUser, onEditUser, onLinkAuth],
   )
-  const visibleUserColumns = useMemo(
-    () => userColumns.filter((column) => visibleColumnKeys.includes(column.id as UserColumnKey)),
-    [userColumns, visibleColumnKeys],
-  )
 
   return (
     <section className="flex min-w-0 flex-col gap-4">
-      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center">
-        <InputGroup className="flex-1">
-          <InputGroupAddon align="inline-start">
-            <SearchIcon />
-          </InputGroupAddon>
-          <InputGroupInput
-            value={searchQuery}
-            placeholder="Buscar por código, nombre, DNI, correo, teléfono o banco"
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-          />
-        </InputGroup>
-        <div className="grid gap-2 sm:grid-cols-3 lg:w-140">
-          <Select items={roleItems} value={roleFilter} onValueChange={onRoleFilterChange}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {roleItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <Select items={statusItems} value={statusFilter} onValueChange={onStatusFilterChange}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {statusItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="outline" className="w-full justify-between" />}>
-              <Settings2Icon data-icon="inline-start" />
-              Columnas
-              <ChevronDownIcon data-icon="inline-end" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-              {userColumnGroups.map((group) => (
-                <DropdownMenuGroup key={group}>
-                  <DropdownMenuLabel>{group}</DropdownMenuLabel>
-                  {userColumnsConfig
-                    .filter((column) => column.group === group)
-                    .map((column) => (
-                      <DropdownMenuCheckboxItem
-                        key={column.key}
-                        checked={visibleColumnKeys.includes(column.key)}
-                        disabled={column.key === "user" || column.key === "action"}
-                        onCheckedChange={(checked) => handleToggleColumn(column.key, Boolean(checked))}
-                      >
-                        {column.label}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                </DropdownMenuGroup>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+      <div className="rounded-2xl bg-card p-4 shadow-xs/5">
+        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+          <Field>
+            <FieldLabel>Buscar</FieldLabel>
+            <InputGroup>
+              <InputGroupAddon align="inline-start">
+                <SearchIcon />
+              </InputGroupAddon>
+              <InputGroupInput
+                value={searchQuery}
+                placeholder="Código, nombre, DNI, correo, teléfono o banco"
+                onChange={(event) => onSearchQueryChange(event.target.value)}
+              />
+            </InputGroup>
+          </Field>
+          <Field>
+            <FieldLabel>Rol</FieldLabel>
+            <Select items={roleItems} value={roleFilter} onValueChange={onRoleFilterChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {roleItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel>Estado</FieldLabel>
+            <Select items={statusItems} value={statusFilter} onValueChange={onStatusFilterChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {statusItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
         </div>
       </div>
 
@@ -441,11 +389,10 @@ export function UsersWorkspace({
         </Empty>
       ) : (
         <DataTableCard
-          columns={visibleUserColumns}
+          columns={userColumns}
           data={users}
           getRowId={(item) => item.id}
           getRowClassName={(item) => cn(highlightedUserIds?.has(item.id) && "realtime-row-enter")}
-          tableVariant="clean"
           tableClassName="min-w-[1080px] table-fixed"
           bodyClassName={cn(refreshing && "opacity-70")}
           initialSorting={[{ id: "createdAt", desc: true }]}

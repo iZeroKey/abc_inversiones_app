@@ -16,6 +16,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { Field, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import {
   Select,
@@ -203,7 +204,7 @@ export function RequestsWorkspace({
           return (
             <div className="flex justify-end gap-2">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => onInspect(row.original)}
               >
@@ -233,46 +234,55 @@ export function RequestsWorkspace({
 
   return (
     <section className="flex min-w-0 flex-col gap-4">
-      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center">
-        <InputGroup className="flex-1">
-          <InputGroupAddon align="inline-start">
-            <SearchIcon />
-          </InputGroupAddon>
-          <InputGroupInput
-            value={searchQuery}
-            placeholder="Buscar por nombre, correo, teléfono u observación"
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-          />
-        </InputGroup>
-        <div className="grid gap-2 sm:grid-cols-2 lg:w-100">
-          <Select items={requestRoleItems} value={roleFilter} onValueChange={onRoleFilterChange}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {requestRoleItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <Select items={requestStatusItems} value={statusFilter} onValueChange={onStatusFilterChange}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {requestStatusItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+      <div className="rounded-2xl bg-card p-4 shadow-xs/5">
+        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+          <Field>
+            <FieldLabel>Buscar</FieldLabel>
+            <InputGroup>
+              <InputGroupAddon align="inline-start">
+                <SearchIcon />
+              </InputGroupAddon>
+              <InputGroupInput
+                value={searchQuery}
+                placeholder="Nombre, correo, teléfono u observación"
+                onChange={(event) => onSearchQueryChange(event.target.value)}
+              />
+            </InputGroup>
+          </Field>
+          <Field>
+            <FieldLabel>Rol solicitado</FieldLabel>
+            <Select items={requestRoleItems} value={roleFilter} onValueChange={onRoleFilterChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {requestRoleItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel>Estado</FieldLabel>
+            <Select items={requestStatusItems} value={statusFilter} onValueChange={onStatusFilterChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {requestStatusItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
         </div>
       </div>
 
@@ -280,7 +290,6 @@ export function RequestsWorkspace({
         <ErrorState message={error} onRetry={onRetry} />
       ) : loading ? (
         <DataTableSkeleton
-          variant="default"
           rows={6}
           tableClassName="min-w-[900px] table-fixed"
           columns={[
@@ -311,7 +320,6 @@ export function RequestsWorkspace({
           data={requests}
           getRowId={(request) => request.id}
           getRowClassName={(request) => cn(highlightedRequestIds?.has(request.id) && "realtime-row-enter")}
-          tableVariant="clean"
           tableClassName="min-w-[900px] table-fixed"
           bodyClassName={cn(refreshing && "opacity-70")}
           initialSorting={[{ id: "createdAt", desc: true }]}

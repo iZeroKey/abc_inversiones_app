@@ -489,7 +489,7 @@ export default function AuditPage() {
             </span>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               className="shrink-0"
               onClick={() => setSelectedLog(row.original)}
@@ -600,7 +600,7 @@ export default function AuditPage() {
         </div>
 
         <Button
-          variant="outline"
+          variant="secondary"
           onClick={() => void auditQuery.refetch()}
           disabled={auditQuery.isLoading || auditQuery.isFetching}
         >
@@ -615,6 +615,7 @@ export default function AuditPage() {
         <MetricCard icon={UserIcon} label="Usuarios" value={stats.users} />
       </section>
 
+      <div className="rounded-2xl bg-card p-4 shadow-xs/5">
       <form
         className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr_auto]"
         onSubmit={(event) => {
@@ -737,17 +738,17 @@ export default function AuditPage() {
           </Button>
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             onClick={clearFilters}
           >
             Limpiar
           </Button>
         </div>
       </form>
+      </div>
 
       {auditQuery.isLoading ? (
         <DataTableSkeleton
-          variant="default"
           rows={8}
           tableClassName="min-w-[1040px]"
           columns={[
@@ -768,7 +769,7 @@ export default function AuditPage() {
             <EmptyDescription>{getErrorMessage(auditQuery.error, "No se pudieron cargar los logs de auditoría.")}</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button variant="outline" onClick={() => void auditQuery.refetch()}>
+            <Button variant="secondary" onClick={() => void auditQuery.refetch()}>
               <RefreshCwIcon data-icon="inline-start" />
               Reintentar
             </Button>
@@ -781,7 +782,6 @@ export default function AuditPage() {
           emptyMessage="No hay logs para los filtros aplicados."
           getRowId={(log) => log.id}
           getRowClassName={(log) => cn(newLogIds.has(log.id) && "realtime-row-enter")}
-          tableVariant="clean"
           pagination={{
             page: pagination.page ?? 1,
             pageSize: pagination.limit ?? AUDIT_PAGE_SIZE,
