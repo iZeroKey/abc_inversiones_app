@@ -28,7 +28,7 @@ export default function ClientDashboard() {
 
   if (isLoading) {
     return (
-      <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
+      <div className="p-0 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
         <div className="flex flex-col gap-1">
           <Skeleton className="h-10 w-64 max-w-full" />
           <Skeleton className="h-4 w-72 max-w-full" />
@@ -77,7 +77,7 @@ export default function ClientDashboard() {
 
   if (isError) {
     return (
-      <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
+      <div className="p-0 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="size-14 rounded-full bg-destructive/10 flex items-center justify-center mb-5">
             <CreditCardIcon className="size-7 text-destructive" />
@@ -105,7 +105,7 @@ export default function ClientDashboard() {
   const otherLoans = activeLoans.length > 1 ? activeLoans.slice(1) : []
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
+    <div className="p-0 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
       {/* Header Hero */}
       <div className="flex flex-col gap-1">
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight">

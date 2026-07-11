@@ -103,12 +103,7 @@ export function UsersWorkspace({
         id: "user",
         accessorFn: (item) => `${displayPersonName(item)} ${item.publicCode ?? item.id}`,
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Usuario"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Usuario" />
         ),
         cell: ({ row }) => <UserIdentity user={row.original} />,
         meta: {

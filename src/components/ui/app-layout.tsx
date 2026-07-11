@@ -155,7 +155,7 @@ function AppLayoutContent({
         />
         <main className="flex-1 min-w-0 relative flex flex-col min-h-0 bg-[#F8F8FE]">
           <ScrollArea className="flex-1 min-h-0">
-            <div className={cn(isMobile ? "pb-28 px-4 pt-4" : "p-6")}>
+            <div className={cn(isMobile ? "pb-28 px-4 pt-4" : "p-4 sm:p-6")}>
               {children}
             </div>
           </ScrollArea>

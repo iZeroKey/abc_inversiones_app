@@ -1,6 +1,6 @@
-import { useMemo } from "react"
-import { CheckIcon, EyeIcon, SearchIcon, UserIcon } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
+import { CheckIcon, EyeIcon, SearchIcon, UserIcon } from "lucide-react"
+import { useMemo } from "react"
 
 import {
   DataTableCard,

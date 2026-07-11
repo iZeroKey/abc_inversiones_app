@@ -16,7 +16,6 @@ import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
-import { getAuthQueryScope } from "@/features/loans/loan-queries"
 import { useUsersQuery, useAccessRequestsQuery } from "@/hooks/queries/users-queries"
 import { getErrorMessage } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
@@ -59,9 +58,8 @@ import {
 } from "./users/utils"
 
 export default function UsersPage({ initialTab = "users" }: { initialTab?: UsersTab }) {
-  const { user, session, fetchWithAuth } = useAuth()
+  const { user, fetchWithAuth } = useAuth()
   const queryClient = useQueryClient()
-  const queryScope = useMemo(() => getAuthQueryScope(user), [user])
 
   // ── Tab ────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<UsersTab>(() => readUsersPreferences().activeTab ?? initialTab)
@@ -121,9 +119,9 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
     status: requestStatusFilter !== "all" ? requestStatusFilter : undefined,
   })
 
-  const users = usersQuery.data?.users ?? []
+  const users = useMemo(() => usersQuery.data?.users ?? [], [usersQuery.data?.users])
   const usersPagination = usersQuery.data?.meta ?? { page: 1, limit: USERS_PAGE_SIZE, total: 0, totalPages: 1 }
-  const requests = requestsQuery.data?.requests ?? []
+  const requests = useMemo(() => requestsQuery.data?.requests ?? [], [requestsQuery.data?.requests])
   const requestsPagination = requestsQuery.data?.meta ?? { page: 1, limit: USERS_PAGE_SIZE, total: 0, totalPages: 1 }
 
   // ── Stats ─────────────────────────────────────────────────────────────
@@ -396,7 +394,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
   if (!isAdmin) {
     return (
-      <main className="mx-auto flex max-w-5xl flex-col gap-6 px-3 py-4 md:px-8 md:py-8">
+      <main className="mx-auto flex max-w-5xl flex-col gap-6 px-0 py-2 md:px-8 md:py-8">
         <Empty className="min-h-105 rounded-lg border bg-card shadow-xs/5">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -413,7 +411,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   }
 
   return (
-    <main className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-5 px-3 py-4 md:px-8 md:py-8">
+    <main className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-5 px-0 py-2 md:px-8 md:py-8">
       <header className="flex items-start justify-between gap-3 border-b border-border pb-5">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">

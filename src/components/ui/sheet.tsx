@@ -9,7 +9,7 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { XIcon } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef, useId } from "react";
+import { useEffect, useId, useRef } from "react";
 
 const sheetHistoryStateKey = "__abcSheetEntry";
 export type SheetHistoryMode = "auto" | "always" | "never";

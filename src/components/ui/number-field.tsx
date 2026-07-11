@@ -67,7 +67,7 @@ export function NumberFieldDecrement({
     <NumberFieldPrimitive.Decrement
       className={cn(
         buttonVariants({ variant: "ghost", size: "icon-xs" }),
-        "pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 aria-disabled:cursor-not-allowed aria-disabled:opacity-40 relative cursor-pointer text-muted-foreground ms-[3px]",
+        "pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 aria-disabled:cursor-not-allowed aria-disabled:opacity-40 relative cursor-pointer text-muted-foreground ms-0.75",
         className,
       )}
       data-slot="number-field-decrement"
@@ -86,7 +86,7 @@ export function NumberFieldIncrement({
     <NumberFieldPrimitive.Increment
       className={cn(
         buttonVariants({ variant: "ghost", size: "icon-xs" }),
-        "pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 aria-disabled:cursor-not-allowed aria-disabled:opacity-40 relative cursor-pointer text-muted-foreground me-[3px]",
+        "pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 aria-disabled:cursor-not-allowed aria-disabled:opacity-40 relative cursor-pointer text-muted-foreground me-0.75",
         className,
       )}
       data-slot="number-field-increment"
@@ -167,3 +167,4 @@ export function CursorGrowIcon(
 }
 
 export { NumberFieldPrimitive };
+

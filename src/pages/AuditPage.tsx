@@ -326,7 +326,7 @@ export default function AuditPage() {
     userId: appliedFilters.userId || undefined,
   })
 
-  const logs = auditQuery.data?.logs ?? []
+  const logs = useMemo(() => auditQuery.data?.logs ?? [], [auditQuery.data?.logs])
   const pagination = auditQuery.data?.meta ?? { page: 1, limit: AUDIT_PAGE_SIZE, total: 0, totalPages: 1 }
 
   const filteredModuleKeys = useMemo(() => {
@@ -464,7 +464,7 @@ export default function AuditPage() {
               onClick={() => setSelectedUser(auditUser)}
             >
               <Avatar className="size-7">
-                {auditUser.avatarUrl || auditUser.avatar ? <AvatarImage src={(auditUser.avatarUrl ?? auditUser.avatar) || undefined} alt="" /> : null}
+                {auditUser.avatarUrl ? <AvatarImage src={auditUser.avatarUrl} alt="" /> : null}
                 <AvatarFallback>{getUserInitials(auditUser)}</AvatarFallback>
               </Avatar>
               <span className="min-w-0">
@@ -585,7 +585,7 @@ export default function AuditPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-5 px-3 py-4 md:px-8 md:py-8">
+    <div className="mx-auto flex max-w-7xl flex-col gap-5 px-0 py-2 md:px-8 md:py-8">
       <header className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -615,7 +615,7 @@ export default function AuditPage() {
         <MetricCard icon={UserIcon} label="Usuarios" value={stats.users} />
       </section>
 
-      <div className="rounded-2xl bg-card p-4 shadow-xs/5">
+      <div className="rounded-2xl bg-card p-3 max-[480px]:p-3 sm:p-4 shadow-xs/5">
       <form
         className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr_auto]"
         onSubmit={(event) => {

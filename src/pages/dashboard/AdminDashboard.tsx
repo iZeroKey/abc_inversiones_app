@@ -22,7 +22,7 @@ export default function AdminDashboard() {
 
   if (isError) {
     return (
-      <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+      <div className="p-0 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="size-14 rounded-full bg-destructive/10 flex items-center justify-center mb-5">
             <PieChartIcon className="size-7 text-destructive" />
@@ -54,7 +54,7 @@ export default function AdminDashboard() {
   const pendingLoans = data?.loans?.pendingLoans || 0
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+    <div className="p-0 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border">
         <div className="flex items-center gap-5">
           <Avatar className="size-16 md:size-20 border-2 border-background shadow-md">
@@ -117,15 +117,15 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
-              <div className="bg-white/10 p-4 rounded-2xl">
+              <div className="bg-white/10 p-3 max-[480px]:p-3 sm:p-4 rounded-2xl">
                 <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Activos</div>
                 <div className="text-2xl font-bold"><AnimatedNumber value={loansActive} /></div>
               </div>
-              <div className="bg-white/10 p-4 rounded-2xl">
+              <div className="bg-white/10 p-3 max-[480px]:p-3 sm:p-4 rounded-2xl">
                 <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Mora</div>
                 <div className="text-2xl font-bold"><AnimatedNumber value={loansMora} /></div>
               </div>
-              <div className="bg-white/10 p-4 rounded-2xl">
+              <div className="bg-white/10 p-3 max-[480px]:p-3 sm:p-4 rounded-2xl">
                 <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Pendientes</div>
                 <div className="text-2xl font-bold"><AnimatedNumber value={pendingLoans} /></div>
               </div>
@@ -178,7 +178,7 @@ export default function AdminDashboard() {
 
 function AdminDashboardSkeleton() {
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+    <div className="p-0 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
       <div className="flex flex-col gap-6 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
         <div className="flex items-center gap-5">
           <Skeleton className="size-16 rounded-full md:size-20" />

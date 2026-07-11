@@ -251,8 +251,8 @@ export function Sidebar({
         className={cn(
           "fixed top-[env(safe-area-inset-top,0px)] bottom-[env(safe-area-inset-bottom,0px)] z-10 hidden w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
           side === "left"
-            ? "left-[env(safe-area-inset-left,0px)] group-data-[collapsible=offcanvas]:left-[calc(env(safe-area-inset-left,0px)-var(--sidebar-width))]"
-            : "right-[env(safe-area-inset-right,0px)] group-data-[collapsible=offcanvas]:right-[calc(env(safe-area-inset-right,0px)-var(--sidebar-width))]",
+            ? "left-[env(safe-area-inset-left,0px)] group-data-[collapsible=offcanvas]:left-[calc(env(safe-area-inset-left,0)-var(--sidebar-width))]"
+            : "right-[env(safe-area-inset-right,0px)] group-data-[collapsible=offcanvas]:right-[calc(env(safe-area-inset-right,0)-var(--sidebar-width))]",
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",

@@ -517,7 +517,7 @@ export default function ProfilePage() {
         document.body
       )}
 
-      <div id="profile-container" className="mx-auto flex max-w-6xl flex-col gap-6 p-4 duration-500 animate-in fade-in md:p-8">
+      <div id="profile-container" className="mx-auto flex max-w-6xl flex-col gap-6 p-0 md:p-8 duration-500 animate-in fade-in">
         <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
           <div className="flex flex-col gap-6">
             <Card className="overflow-hidden border-border/60 relative transition-all duration-300">
@@ -938,7 +938,7 @@ export default function ProfilePage() {
 
 function ProfileSkeleton() {
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="p-0 md:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
       <Card className="overflow-hidden border-border/60">
         <div className="px-6 py-6 md:px-8 md:py-7">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">

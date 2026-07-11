@@ -133,10 +133,10 @@ export function ScheduleTimeline({ installments }: { installments: Installment[]
         return (
           <div key={installment.id} className="relative flex gap-4">
             {hasLine && (
-              <div className="absolute left-[15px] top-[24px] bottom-[-48px] w-[2px] bg-border/40" />
+              <div className="absolute left-3.75 top-6 -bottom-12 w-0.5 bg-border/40" />
             )}
 
-            <div className={cn("relative z-10 flex shrink-0 items-start", isPending ? "pt-[12px]" : "pt-[8px]")}>
+            <div className={cn("relative z-10 flex shrink-0 items-start", isPending ? "pt-3" : "pt-2")}>
               <div
                 className={cn(
                   "flex size-8 items-center justify-center rounded-full border-2",
@@ -159,7 +159,7 @@ export function ScheduleTimeline({ installments }: { installments: Installment[]
                   </div>
                 )}
 
-                <div className={cn("flex items-center justify-between gap-4", !isPending && "mt-2")}>
+                <div className={cn("flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4", !isPending && "mt-2")}>
                   <div className="min-w-0">
                     <div
                       className={cn(
@@ -179,7 +179,7 @@ export function ScheduleTimeline({ installments }: { installments: Installment[]
                   </div>
                   <span
                     className={cn(
-                      "whitespace-nowrap text-xl font-bold tabular-nums tracking-tight",
+                      "whitespace-nowrap text-lg sm:text-xl font-bold tabular-nums tracking-tight",
                       isPaid
                         ? "text-foreground/70"
                         : status === "overdue"

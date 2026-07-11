@@ -365,7 +365,7 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4 py-4 md:px-8 md:py-8">
+    <div className="mx-auto flex max-w-3xl flex-col gap-4 px-0 py-2 md:px-8 md:py-8">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">

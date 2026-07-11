@@ -193,7 +193,7 @@ function PaymentDetailDrawer({
               <p className="font-medium text-muted-foreground">Observación</p>
               <div className="rounded-xl bg-muted/40 p-3.5 text-foreground">
                 {observation ? (
-                  <p className="whitespace-pre-wrap break-words">{observation}</p>
+                  <p className="whitespace-pre-wrap wrap-break-word">{observation}</p>
                 ) : (
                   <p className="text-muted-foreground/70 italic text-xs">Sin observación</p>
                 )}

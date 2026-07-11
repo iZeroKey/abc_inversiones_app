@@ -1,13 +1,13 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import { motion, type Variants } from "framer-motion"
 import {
-    AlertCircleIcon,
-    CalendarIcon,
-    CheckCircleIcon,
-    HourglassIcon,
-    RefreshCwIcon,
-    XCircleIcon,
-    type LucideIcon,
+  AlertCircleIcon,
+  CalendarIcon,
+  CheckCircleIcon,
+  HourglassIcon,
+  RefreshCwIcon,
+  XCircleIcon,
+  type LucideIcon,
 } from "lucide-react"
 import { useMemo } from "react"
 
@@ -24,27 +24,27 @@ import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/prog
 import { Spinner } from "@/components/ui/spinner"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import {
-    EmptyLoanList,
-    ErrorState,
-    LoanListSkeleton,
+  EmptyLoanList,
+  ErrorState,
+  LoanListSkeleton,
 } from "@/features/loans/components/LoanPageStates"
 import { frequencyLabels } from "@/features/loans/loan-constants"
 import {
-    formatDate,
-    formatPreciseCurrencyWithSymbol,
-    getLoanCardFooterIcon,
-    getLoanCardFooterText,
-    getLoanCardSecondaryLabel,
-    getLoanCardSecondaryValue,
-    getLoanCardTitle,
-    getLoanProgress,
-    getLoanStatusColor,
-    getRemainingDebt,
-    getStatusGroup,
-    loanInvestorName,
-    loanPublicCode,
-    normalizeStatus,
-    toNumber,
+  formatDate,
+  formatPreciseCurrencyWithSymbol,
+  getLoanCardFooterIcon,
+  getLoanCardFooterText,
+  getLoanCardSecondaryLabel,
+  getLoanCardSecondaryValue,
+  getLoanCardTitle,
+  getLoanProgress,
+  getLoanStatusColor,
+  getRemainingDebt,
+  getStatusGroup,
+  loanInvestorName,
+  loanPublicCode,
+  normalizeStatus,
+  toNumber,
 } from "@/features/loans/loan-utils"
 import { cn } from "@/lib/utils"
 import type { Loan, PaginationMeta, RelatedUser } from "@/types/loans"

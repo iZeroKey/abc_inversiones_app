@@ -22,7 +22,7 @@ export default function InvestorDashboard() {
 
   if (isError) {
     return (
-      <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+      <div className="p-0 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="size-14 rounded-full bg-destructive/10 flex items-center justify-center mb-5">
             <TrendingUpIcon className="size-7 text-destructive" />
@@ -49,7 +49,7 @@ export default function InvestorDashboard() {
   const progressPercent = totalReturn > 0 ? (collectedAmount / totalReturn) * 100 : 0
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
+    <div className="p-0 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
       <div className="flex flex-col gap-1">
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
           ¡Hola, <span className="text-primary">{user?.firstName}</span>!
@@ -136,7 +136,7 @@ export default function InvestorDashboard() {
 
 function InvestorDashboardSkeleton() {
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
+    <div className="p-0 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
       <div className="flex flex-col gap-2">
         <Skeleton className="h-10 w-64 max-w-full" />
         <div className="flex items-center gap-2">
@@ -147,7 +147,7 @@ function InvestorDashboardSkeleton() {
       <div className="space-y-4">
         <Skeleton className="h-7 w-56" />
         <Card className="border-none bg-primary/10 shadow-sm rounded-3xl overflow-hidden">
-          <CardContent className="p-8">
+          <CardContent className="p-4 max-[480px]:p-4 sm:p-8">
             <div className="grid items-center gap-8 md:grid-cols-2">
               <div className="space-y-3">
                 <Skeleton className="h-3 w-36" />
