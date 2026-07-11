@@ -469,7 +469,6 @@ export function LoansListPanel({
             <DataTableCard
               columns={loanColumns}
               data={loans}
-              tableVariant="clean"
               getRowId={(loan) => loan.id}
               onRowClick={onSelectLoan}
               tableClassName={cn(
@@ -636,7 +635,7 @@ export function RefreshButton({
 }) {
   return (
     <Button
-      variant="outline"
+      variant="secondary"
       size="icon"
       onClick={onClick}
       disabled={loading}

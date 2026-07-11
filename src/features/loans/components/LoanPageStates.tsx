@@ -29,7 +29,6 @@ export function LoanListSkeleton({
   if (variant === "table") {
     return (
       <DataTableSkeleton
-        variant="default"
         rows={7}
         tableClassName="min-w-[1180px]"
         columns={[
@@ -168,7 +167,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry: () 
         <EmptyDescription>{message}</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button variant="outline" onClick={onRetry}>
+        <Button variant="secondary" onClick={onRetry}>
           <RefreshCwIcon data-icon="inline-start" />
           Reintentar
         </Button>

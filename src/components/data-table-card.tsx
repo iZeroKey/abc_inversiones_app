@@ -6,7 +6,6 @@ import {
 } from "@tanstack/react-table"
 
 import { ResponsivePagination } from "@/components/ResponsivePagination"
-import { CardFrame } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
     Table,
@@ -17,8 +16,6 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
-
-export type TableVariant = "card" | "clean"
 
 type DataTableColumnMeta = {
   headerClassName?: string
@@ -48,7 +45,6 @@ type DataTableCardProps<TData, TValue> = {
   onRowClick?: (row: TData) => void
   pagination?: DataTablePagination
   tableClassName?: string
-  tableVariant?: TableVariant
 }
 
 type DataTableSkeletonProps = {
@@ -61,7 +57,6 @@ type DataTableSkeletonProps = {
   }>
   rows?: number
   tableClassName?: string
-  variant?: "card" | "default"
 }
 
 export function DataTableCard<TData, TValue>({
@@ -78,10 +73,7 @@ export function DataTableCard<TData, TValue>({
   onRowClick,
   pagination,
   tableClassName,
-  tableVariant,
 }: DataTableCardProps<TData, TValue>) {
-  const effectiveVariant: TableVariant = tableVariant ?? (cardRows ? "clean" : "card")
-
   const table = useReactTable({
     data,
     columns,
@@ -99,36 +91,16 @@ export function DataTableCard<TData, TValue>({
       )
       : rows
 
-  const showAccentDots = effectiveVariant === "clean" || (effectiveVariant === "card" && cardRows)
-
   const tableContent = (
-    <Table
-      variant={effectiveVariant === "card" ? "card" : "default"}
-      className={cn(
-        effectiveVariant === "clean" && "[border-collapse:separate] [border-spacing:0]",
-        effectiveVariant === "card" && cardRows && "[border-spacing:0_8px!important]",
-        tableClassName,
-      )}
-    >
-      <TableHeader className={cn(
-        effectiveVariant === "clean" && "sticky top-0 z-10",
-      )}>
+    <Table className={tableClassName}>
+      <TableHeader>
         {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id} className={cn(
-            effectiveVariant === "clean" && "border-0",
-          )}>
+          <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => {
               const meta = header.column.columnDef.meta as DataTableColumnMeta | undefined
 
               return (
-                <TableHead
-                  key={header.id}
-                  className={cn(
-                    meta?.headerClassName,
-                    effectiveVariant === "clean" && "border-b border-border/30 px-3 py-3 text-sm font-medium text-muted-foreground",
-                    effectiveVariant === "card" && cardRows && "px-3",
-                  )}
-                >
+                <TableHead key={header.id} className={meta?.headerClassName}>
                   {header.isPlaceholder
                     ? null
                     : flexRender(header.column.columnDef.header, header.getContext())}
@@ -144,35 +116,21 @@ export function DataTableCard<TData, TValue>({
             <TableRow
               key={row.id}
               className={cn(
-                effectiveVariant === "clean" && [
-                  "border-b border-border/30",
-                  "cursor-pointer transition-colors duration-150 hover:bg-muted/20",
-                ],
-                effectiveVariant === "card" && !cardRows && "cursor-pointer transition-colors duration-150",
-                effectiveVariant === "card" && cardRows && "cursor-pointer",
+                "cursor-pointer",
                 getRowClassName?.(row.original),
               )}
               onClick={() => onRowClick?.(row.original)}
             >
               {row.getVisibleCells().map((cell, cellIndex) => {
                 const meta = cell.column.columnDef.meta as DataTableColumnMeta | undefined
-                const cells = row.getVisibleCells()
-                const accentColor = showAccentDots && cellIndex === 0
+                const accentColor = cardRows && cellIndex === 0
                   ? getRowAccentColor?.(row.original)
                   : undefined
 
                 return (
                   <TableCell
                     key={cell.id}
-                    className={cn(
-                      meta?.cellClassName,
-                      effectiveVariant === "clean" && "px-3 py-3.5 relative",
-                      effectiveVariant === "card" && cardRows && [
-                        "px-3 py-2.5 relative hover:bg-muted/50 transition-colors duration-150",
-                        cellIndex === 0 && "rounded-s-xl ps-0",
-                        cellIndex === cells.length - 1 && "rounded-e-xl",
-                      ],
-                    )}
+                    className={cn(meta?.cellClassName, "relative")}
                   >
                     {accentColor && (
                       <span
@@ -202,18 +160,6 @@ export function DataTableCard<TData, TValue>({
     </Table>
   )
 
-  if (effectiveVariant === "card") {
-    return (
-      <div className="flex min-w-0 max-w-full flex-col gap-3">
-        <CardFrame className={cn("min-w-0 max-w-full overflow-hidden", className)}>
-          {tableContent}
-        </CardFrame>
-
-        {pagination && <DataTablePaginationBar pagination={pagination} />}
-      </div>
-    )
-  }
-
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-3">
       <div className={cn("bg-card rounded-xl shadow-xs/5 overflow-hidden", className)}>
@@ -228,12 +174,11 @@ export function DataTableSkeleton({
   columns,
   rows = 6,
   tableClassName,
-  variant = "card",
 }: DataTableSkeletonProps) {
   const content = (
-    <Table variant={variant} className={tableClassName}>
+    <Table className={tableClassName}>
       <TableHeader>
-        <TableRow className={cn(variant === "default" && "border-0")}>
+        <TableRow>
           {columns.map((column, index) => (
             <TableHead key={index} className={column.className}>
               <Skeleton className={cn("h-4", column.headerWidth ?? "w-20")} />
@@ -257,15 +202,11 @@ export function DataTableSkeleton({
     </Table>
   )
 
-  if (variant === "default") {
-    return (
-      <div className="flex min-w-0 max-w-full flex-col bg-card rounded-xl shadow-xs/5 overflow-hidden">
-        {content}
-      </div>
-    )
-  }
-
-  return <CardFrame>{content}</CardFrame>
+  return (
+    <div className="flex min-w-0 max-w-full flex-col bg-card rounded-xl shadow-xs/5 overflow-hidden">
+      {content}
+    </div>
+  )
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -128,7 +128,6 @@ export function RequestStatusBadge({ status }: { status?: RequestStatus }) {
 export function UsersSkeleton() {
   return (
     <DataTableSkeleton
-      variant="default"
       rows={8}
       tableClassName="min-w-[1180px] table-fixed"
       columns={[
@@ -155,7 +154,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry: () 
         <EmptyDescription>{message}</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button variant="outline" onClick={onRetry}>
+        <Button variant="secondary" onClick={onRetry}>
           <RefreshCwIcon data-icon="inline-start" />
           Reintentar
         </Button>
