@@ -29,6 +29,7 @@ import { DetailSkeleton, EmptyDetail } from "@/features/loans/components/LoanPag
 import { PaymentsGallery } from "@/features/loans/components/PaymentsGallery"
 import { ScheduleDrawer } from "@/features/loans/components/ScheduleDrawer"
 import { ScheduleTimeline } from "@/features/loans/components/ScheduleTimeline"
+import { SectionBlock } from "@/features/loans/components/SectionBlock"
 import { DelayedOpenGate, usePaymentMutations } from "@/features/loans/hooks/usePaymentMutations"
 import {
   canDeleteVoucher,
@@ -212,7 +213,7 @@ export function LoanDetailPanel({
               <p className="font-medium text-destructive">Detalle parcial</p>
               <p className="text-muted-foreground">{error}</p>
             </div>
-            <Button variant="outline" size="sm" onClick={onRetry}>
+            <Button variant="secondary" size="sm" onClick={onRetry}>
               Reintentar
             </Button>
           </motion.div>
@@ -230,7 +231,7 @@ export function LoanDetailPanel({
                 <p className="text-xs text-muted-foreground">Pendientes de aprobación</p>
               </div>
             </div>
-            <Button size="sm" variant="outline" onClick={() => {}}>
+            <Button size="sm" variant="secondary" onClick={() => {}}>
               Revisar
             </Button>
           </motion.div>
@@ -238,7 +239,7 @@ export function LoanDetailPanel({
 
         {/* ── Client: remaining + progress ── */}
         {perspective === "client" && (
-          <SectionBlock>
+          <SectionBlock animate>
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Saldo total pendiente</p>
               <p className="text-3xl font-black tabular-nums tracking-tight text-foreground">
@@ -284,7 +285,7 @@ export function LoanDetailPanel({
 
         {/* ── Admin: top grid ── */}
         {perspective === "admin" && (
-          <SectionBlock>
+          <SectionBlock animate>
             <div className="grid gap-4 sm:grid-cols-2">
               <NextPaymentHero
                 amount={nextInstallment?.amount}
@@ -305,7 +306,7 @@ export function LoanDetailPanel({
 
         {/* ── Admin / Investor: conditions ── */}
         {(perspective === "admin" || perspective === "investor") && (
-          <SectionBlock>
+          <SectionBlock animate>
             <LoanConditions
               principal={loan.principal}
               installmentsCount={loan.installmentsCount}
@@ -319,7 +320,7 @@ export function LoanDetailPanel({
 
         {/* ── Investor: summary ── */}
         {perspective === "investor" && (
-          <SectionBlock>
+          <SectionBlock animate>
             <LoanSummaryBar
               totalDebt={loan.totalDebt ?? 0}
               paidAmount={paidAmount}
@@ -331,7 +332,7 @@ export function LoanDetailPanel({
 
         {/* ── Admin: parties section ── */}
         {perspective === "admin" && (
-          <SectionBlock>
+          <SectionBlock animate>
             <div className="grid gap-4 sm:grid-cols-2">
               <InfoRow
                 icon={UserIcon}
@@ -353,7 +354,7 @@ export function LoanDetailPanel({
 
 
         {/* ── Cronograma ── */}
-        <SectionBlock>
+        <SectionBlock animate>
           <h3 className="text-sm font-semibold text-foreground mb-3">Cronograma</h3>
           <ScheduleTimeline installments={visibleInstallments.visible} />
           {visibleInstallments.hasMore && (
@@ -371,7 +372,7 @@ export function LoanDetailPanel({
         </SectionBlock>
 
         {/* ── Pagos y Vouchers ── */}
-        <SectionBlock>
+        <SectionBlock animate>
           <h3 className="text-sm font-semibold text-foreground mb-3">Pagos</h3>
           <PaymentsGallery
             transactions={transactions ?? []}
@@ -424,19 +425,5 @@ export function LoanDetailPanel({
         )}
       </DelayedOpenGate>
     </section>
-  )
-}
-
-function SectionBlock({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      variants={{
-        initial: { opacity: 0, y: 12 },
-        animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] } },
-      }}
-      className="bg-muted/30 rounded-xl p-4"
-    >
-      {children}
-    </motion.div>
   )
 }
