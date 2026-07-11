@@ -433,7 +433,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
         <div className="flex shrink-0 items-center justify-end gap-2">
           <Button
-            variant="outline"
+            variant="secondary"
             size="icon"
             onClick={() => {
               void Promise.all([usersQuery.refetch(), requestsQuery.refetch()])

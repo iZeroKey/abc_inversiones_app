@@ -607,7 +607,7 @@ export default function LoansPage() {
                   </>
                 )}
               </div>
-              <DrawerClose render={<Button variant="outline" />}>
+              <DrawerClose render={<Button variant="secondary" />}>
                 Cerrar
               </DrawerClose>
             </div>

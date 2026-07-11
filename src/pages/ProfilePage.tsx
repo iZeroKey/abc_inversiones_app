@@ -612,7 +612,7 @@ export default function ProfilePage() {
                     <div className="flex flex-col gap-2 w-full">
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         className="w-full gap-2 cursor-pointer"
                         onClick={openAvatarPicker}
                         disabled={saving || removingAvatar}
@@ -704,7 +704,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <Button 
-                  variant="outline" 
+                  variant="secondary" 
                   className="w-full cursor-pointer" 
                   onClick={() => setIsPasswordDialogOpen(true)}
                 >
@@ -901,7 +901,7 @@ export default function ProfilePage() {
                         {isEditing && (
                           <Button
                             type="button"
-                            variant="outline"
+                            variant="secondary"
                             className="h-8.5 w-full justify-center border-dashed text-muted-foreground animate-in fade-in-0 slide-in-from-top-1 sm:h-7.5"
                             onClick={addBankAccount}
                           >

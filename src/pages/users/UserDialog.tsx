@@ -384,7 +384,7 @@ export function UserDialog({
                   {canAddBankAccount && (
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="secondary"
                       className="h-8.5 w-full justify-center border-dashed text-muted-foreground animate-in fade-in-0 slide-in-from-top-1 sm:h-7.5"
                       onClick={addBankAccount}
                     >
@@ -500,7 +500,7 @@ export function UserDialog({
         </DrawerPanel>
 
         <DrawerFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
           <Button type="submit" form="user-form" disabled={!canSubmit}>
@@ -619,7 +619,7 @@ export function LinkAuthDialog({
         </DrawerPanel>
 
         <DrawerFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
           <Button type="submit" form="link-auth-form" disabled={saving}>
@@ -660,7 +660,6 @@ function RoleAccessPanel({
             aria-label="Rol"
             value={getRoleLabel(normalizedRole)}
             readOnly
-            size="lg"
             className="font-medium"
           />
           {editingUser?.isOwner && (
@@ -681,7 +680,7 @@ function RoleAccessPanel({
             }))
           }
         >
-          <SelectTrigger id="role" size="lg">
+          <SelectTrigger id="role">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

@@ -318,7 +318,7 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
                 </div>
 
                 <div className="flex flex-col gap-2 border-t pt-4">
-                  <Button className="w-full shadow-md shadow-primary/10" onClick={handleCrop}>
+                  <Button className="w-full" onClick={handleCrop}>
                     <CheckIcon data-icon="inline-start" />
                     Guardar foto
                   </Button>

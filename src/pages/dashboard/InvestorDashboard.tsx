@@ -31,7 +31,7 @@ export default function InvestorDashboard() {
           <p className="text-sm text-muted-foreground mt-1 max-w-xs">
             {error instanceof Error ? error.message : "No se pudieron cargar tus inversiones. Intenta de nuevo."}
           </p>
-          <Button onClick={() => refetch()} variant="default" className="mt-6 shadow-md">
+          <Button onClick={() => refetch()} variant="default" className="mt-6">
             Reintentar
           </Button>
         </div>

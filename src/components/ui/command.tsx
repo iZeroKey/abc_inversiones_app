@@ -125,7 +125,6 @@ export function CommandInput({
           className,
         )}
         placeholder={placeholder}
-        size="lg"
         startAddon={<SearchIcon />}
         {...props}
       />

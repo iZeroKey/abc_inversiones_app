@@ -383,7 +383,7 @@ export default function NotificationsPage() {
 
         <div className="flex shrink-0 items-center gap-2">
           <Button
-            variant="outline"
+            variant="secondary"
             size="icon"
             onClick={() => void refetchNotifications()}
             disabled={loading || refreshing}
@@ -520,7 +520,7 @@ function ErrorState({
         <EmptyDescription>{message}</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button variant="outline" onClick={onRetry}>
+        <Button variant="secondary" onClick={onRetry}>
           <RefreshCwIcon data-icon="inline-start" />
           Reintentar
         </Button>

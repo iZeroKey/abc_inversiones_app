@@ -53,7 +53,7 @@ export class ErrorBoundary extends Component<Props, State> {
             Ocurrió un error inesperado. Podés intentar recargar la página o volver al inicio.
           </p>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => window.location.reload()}>
+            <Button variant="secondary" onClick={() => window.location.reload()}>
               Recargar página
             </Button>
             <Button onClick={this.handleReset}>

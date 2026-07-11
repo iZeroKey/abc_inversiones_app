@@ -94,7 +94,7 @@ export function RequestDetailSheet({
               {pending && (
                 <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:justify-end">
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => onReview(request, "rejected")}
                   >
                     <XIcon data-icon="inline-start" />
@@ -218,7 +218,7 @@ export function ReviewRequestDialog({
         </DrawerPanel>
 
         <DrawerFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancelar
           </Button>
           <Button

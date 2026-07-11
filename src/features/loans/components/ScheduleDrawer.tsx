@@ -44,7 +44,7 @@ export function ScheduleDrawer({
           <ScheduleTimeline installments={installments} />
         </DrawerPanel>
         <DrawerFooter variant="bare">
-          <DrawerClose render={<Button variant="outline" />}>
+          <DrawerClose render={<Button variant="secondary" />}>
             Cerrar
           </DrawerClose>
         </DrawerFooter>

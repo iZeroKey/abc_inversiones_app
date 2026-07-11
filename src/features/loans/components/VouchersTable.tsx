@@ -234,7 +234,7 @@ export function VouchersTable({
                     </Button>
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       className="w-full h-8"
                       disabled={submitting}

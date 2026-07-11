@@ -149,7 +149,7 @@ export function NextPaymentHero({
           {canSubmitVoucher && (
             <Button
               size="sm"
-              className="bg-white text-primary hover:bg-white/90 shadow-xs rounded-xl px-6"
+              className="bg-white text-primary hover:bg-white/90 rounded-xl px-6"
               onClick={onSubmitVoucher}
             >
               <UploadIcon className="size-4" />

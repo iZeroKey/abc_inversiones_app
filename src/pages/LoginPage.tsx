@@ -510,7 +510,7 @@ export default function LoginPage() {
                     Administración revisará tus datos y te contactará cuando el acceso esté listo.
                   </CardDescription>
                 </div>
-                <Button type="button" variant="outline" onClick={showLoginForm}>
+                <Button type="button" variant="secondary" onClick={showLoginForm}>
                   <ArrowLeftIcon data-icon="inline-start" />
                   Iniciar sesión
                 </Button>
@@ -600,7 +600,7 @@ export default function LoginPage() {
                         updateAccessForm({ roleRequested: (value ?? "client") as AccessRequestForm["roleRequested"] })
                       }
                     >
-                      <SelectTrigger size="lg">
+                      <SelectTrigger>
                         <LandmarkIcon data-icon="inline-start" />
                         <SelectValue />
                       </SelectTrigger>

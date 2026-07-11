@@ -114,7 +114,7 @@ export function ReviewLoanDialog({
           </DrawerPanel>
         </div>
         <DrawerFooter className="shrink-0">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button type="button" variant={approving ? "default" : "destructive"} onClick={onConfirm} disabled={submitting}>

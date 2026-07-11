@@ -9,19 +9,19 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
+          "bg-primary text-primary-foreground hover:bg-primary/90",
         outline:
-          "border border-input bg-background shadow-sm hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border border-input bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
-          "bg-secondary/25 text-secondary-foreground shadow-sm hover:bg-secondary/40 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "bg-muted text-foreground hover:bg-muted/80 aria-expanded:bg-muted aria-expanded:text-foreground dark:bg-muted/50 dark:hover:bg-muted/70",
         ghost:
           "hover:bg-muted/60 hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/30",
         destructive:
-          "bg-destructive/15 text-destructive shadow-sm hover:bg-destructive/25 dark:bg-destructive/25 dark:hover:bg-destructive/35",
+          "bg-destructive/15 text-destructive hover:bg-destructive/25 dark:bg-destructive/25 dark:hover:bg-destructive/35",
         link:
           "text-primary underline-offset-4 decoration-2 hover:underline decoration-primary/30",
         elevated:
-          "bg-background text-foreground shadow-md hover:shadow-lg hover:bg-muted/30 dark:bg-card dark:hover:bg-accent",
+          "bg-background text-foreground hover:bg-muted/30 dark:bg-card dark:hover:bg-accent",
       },
       size: {
         default:

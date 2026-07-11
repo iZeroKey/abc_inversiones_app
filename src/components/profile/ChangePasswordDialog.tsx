@@ -197,7 +197,7 @@ export function ChangePasswordDialog({ isOpen, onClose }: ChangePasswordDialogPr
         </div>
 
           <DrawerFooter variant="bare">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={saving} className="w-full sm:w-auto">
+            <Button type="button" variant="secondary" onClick={handleClose} disabled={saving} className="w-full sm:w-auto">
               <XIcon data-icon="inline-start" />
               Cancelar
             </Button>

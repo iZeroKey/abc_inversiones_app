@@ -71,7 +71,7 @@ export function ResponsivePagination({
               className={cn(
                 "min-w-8 h-8 px-2 text-sm font-medium transition-all duration-200 cursor-pointer rounded-lg",
                 item === currentPage
-                  ? "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
               onClick={() => onPageChange(item)}

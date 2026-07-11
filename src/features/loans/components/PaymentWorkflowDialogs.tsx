@@ -213,7 +213,6 @@ export function PaymentDialog({
                     ) : (
                       <Input
                         id="payment-reference"
-                        size="lg"
                         value={form.reference}
                         onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))}
                         placeholder="Nro. operación"
@@ -242,7 +241,7 @@ export function PaymentDialog({
                         setForm((current) => ({ ...current, method: (value ?? "cash") as PaymentMethod }))
                       }
                     >
-                      <SelectTrigger size="lg">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -272,7 +271,7 @@ export function PaymentDialog({
             variant="bare"
             className={cn("shrink-0", isPanel && "mt-4 border-t bg-transparent px-0 pb-0 pt-4")}
           >
-            <DrawerClose render={<Button variant="outline" />}>
+            <DrawerClose render={<Button variant="secondary" />}>
               Cancelar
             </DrawerClose>
             <Button type="submit" disabled={!canSubmit}>
@@ -429,7 +428,6 @@ export function VoucherDialog({
                   <FieldLabel htmlFor="voucher-operation">Operación</FieldLabel>
                   <Input
                     id="voucher-operation"
-                    size="lg"
                     value={form.operationId}
                     onChange={(event) => setForm((current) => ({ ...current, operationId: event.target.value }))}
                     placeholder="Código bancario"
@@ -457,7 +455,7 @@ export function VoucherDialog({
             </div>
           </DrawerPanel>
           <DrawerFooter variant="bare">
-            <DrawerClose render={<Button variant="outline" />}>
+            <DrawerClose render={<Button variant="secondary" />}>
               Cancelar
             </DrawerClose>
             <Button type="submit" disabled={!canSubmit}>
@@ -522,7 +520,7 @@ export function ProcessVoucherDialog({
             </DrawerPanel>
           </div>
           <DrawerFooter variant="bare" className="shrink-0">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" variant={mode === "reject" ? "destructive" : "default"} disabled={submitting}>
@@ -565,7 +563,7 @@ export function DeleteWorkflowDialog({
         </DrawerHeader>
         <div className="min-h-0 flex-1" />
         <DrawerFooter variant="bare" className="shrink-0">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button type="button" variant="destructive" disabled={submitting} onClick={onConfirm}>
@@ -633,7 +631,6 @@ function MoneyNumberField({
     <NumberField
       id={id}
       min={value.trim() ? (min ? Number(min) : undefined) : undefined}
-      size="lg"
       step={step ? Number(step) : undefined}
       value={numericValue}
       onValueChange={(nextValue) => onValueChange(formatNumberFieldValue(nextValue))}
