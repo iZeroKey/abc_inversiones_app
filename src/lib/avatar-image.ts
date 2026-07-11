@@ -64,6 +64,7 @@ export async function optimizeAvatarImage(blob: Blob) {
     throw new Error("La imagen optimizada supera el límite de 2 MB.");
   }
 
+  return webpBlob;
 }
 
 export const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
