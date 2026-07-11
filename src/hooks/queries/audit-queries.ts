@@ -1,17 +1,17 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { useAuth } from "@/contexts/auth-context"
-import { getAuthQueryScope } from "@/features/loans/loan-queries"
+import { useAuth } from "@/contexts/auth-context";
+import { getAuthQueryScope } from "@/features/loans/loan-queries";
 import {
-  fetchAuditLogs,
   AUDIT_PAGE_SIZE,
+  fetchAuditLogs,
   type AuditLogsQueryData,
-} from "@/lib/audit-api"
-import { queryKeys, type AuditParams } from "@/lib/query-keys"
+} from "@/lib/audit-api";
+import { queryKeys, type AuditParams } from "@/lib/query-keys";
 
 export function useAuditLogsQuery(params: AuditParams = {}) {
-  const { fetchWithAuth, session, user } = useAuth()
-  const scope = getAuthQueryScope(user)
+  const { fetchWithAuth, session, user } = useAuth();
+  const scope = getAuthQueryScope(user);
 
   return useQuery<AuditLogsQueryData>({
     enabled: Boolean(session?.access_token),
@@ -30,5 +30,5 @@ export function useAuditLogsQuery(params: AuditParams = {}) {
         { signal },
       ),
     queryKey: queryKeys.audit.logs(scope, params),
-  })
+  });
 }

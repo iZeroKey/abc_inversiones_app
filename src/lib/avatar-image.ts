@@ -67,12 +67,20 @@ export async function optimizeAvatarImage(blob: Blob) {
   return webpBlob;
 }
 
-export const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+export const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(
+  /\/$/,
+  "",
+);
 
 export function resolveAvatarUrl(url?: string | null) {
-  if (!url) return undefined
-  if (url.startsWith("storage://")) return undefined
-  if (/^(https?:)?\/\//.test(url) || url.startsWith("data:") || url.startsWith("blob:")) return url
-  if (url.startsWith("/") && API_BASE_URL) return `${API_BASE_URL}${url}`
-  return url
+  if (!url) return undefined;
+  if (url.startsWith("storage://")) return undefined;
+  if (
+    /^(https?:)?\/\//.test(url) ||
+    url.startsWith("data:") ||
+    url.startsWith("blob:")
+  )
+    return url;
+  if (url.startsWith("/") && API_BASE_URL) return `${API_BASE_URL}${url}`;
+  return url;
 }

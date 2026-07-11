@@ -1,5 +1,5 @@
 import { buildApiUrl, readApiUrl, type FetchWithAuth } from "@/lib/api-client"
-import type { PaginationMeta } from "@/types/loans"
+import type { MaritalStatus, PaginationMeta } from "@/types/loans"
 
 export const USERS_PAGE_SIZE = 10
 
@@ -15,7 +15,7 @@ export type ManagedUser = {
   address?: string | null
   bank?: string | null
   bankAccounts?: string[]
-  maritalStatus?: string | null
+  maritalStatus?: MaritalStatus | null
   avatarUrl?: string | null
   avatar?: string | null
   role?: string

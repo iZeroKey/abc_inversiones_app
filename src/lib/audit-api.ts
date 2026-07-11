@@ -1,43 +1,43 @@
-import { buildApiUrl, readApiUrl, type FetchWithAuth } from "@/lib/api-client"
-import type { PaginationMeta } from "@/types/loans"
+import { buildApiUrl, readApiUrl, type FetchWithAuth } from "@/lib/api-client";
+import type { PaginationMeta } from "@/types/loans";
 
-export const AUDIT_PAGE_SIZE = 50
+export const AUDIT_PAGE_SIZE = 50;
 
 export type AuditLog = {
-  action: string
-  createdAt: string
-  entityId?: string | null
-  id: string
-  ipAddress?: string | null
-  module: string
-  newData?: unknown
-  oldData?: unknown
+  action: string;
+  createdAt: string;
+  entityId?: string | null;
+  id: string;
+  ipAddress?: string | null;
+  module: string;
+  newData?: unknown;
+  oldData?: unknown;
   user?: {
-    avatarUrl?: string | null
-    email?: string | null
-    firstName?: string | null
-    id: string
-    lastName?: string | null
-    publicCode?: string | null
-    role?: string | null
-  } | null
-  userAgent?: string | null
-  userId?: string | null
-}
+    avatarUrl?: string | null;
+    email?: string | null;
+    firstName?: string | null;
+    id: string;
+    lastName?: string | null;
+    publicCode?: string | null;
+    role?: string | null;
+  } | null;
+  userAgent?: string | null;
+  userId?: string | null;
+};
 
 export type AuditLogsQueryData = {
-  logs: AuditLog[]
-  meta: PaginationMeta
-}
+  logs: AuditLog[];
+  meta: PaginationMeta;
+};
 
 export async function fetchAuditLogs(
   fetchWithAuth: FetchWithAuth,
   params: {
-    page?: number
-    limit?: number
-    module?: string
-    action?: string
-    userId?: string
+    page?: number;
+    limit?: number;
+    module?: string;
+    action?: string;
+    userId?: string;
   },
   init?: RequestInit,
 ): Promise<AuditLogsQueryData> {
@@ -51,10 +51,10 @@ export async function fetchAuditLogs(
       userId: params.userId,
     }),
     init,
-  )
+  );
 
-  const logs = payload.data ?? []
-  const meta = payload.meta?.pagination ?? payload.meta
+  const logs = payload.data ?? [];
+  const meta = payload.meta?.pagination ?? payload.meta;
 
   return {
     logs,
@@ -64,5 +64,5 @@ export async function fetchAuditLogs(
       total: meta?.total ?? logs.length,
       totalPages: Math.max(1, meta?.totalPages ?? 1),
     },
-  }
+  };
 }

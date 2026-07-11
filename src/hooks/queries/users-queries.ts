@@ -1,35 +1,35 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { useAuth } from "@/contexts/auth-context"
-import { getAuthQueryScope } from "@/features/loans/loan-queries"
+import { useAuth } from "@/contexts/auth-context";
+import { getAuthQueryScope } from "@/features/loans/loan-queries";
+import { queryKeys } from "@/lib/query-keys";
 import {
   fetchAccessRequests,
   fetchUsers,
   USERS_PAGE_SIZE,
   type AccessRequestsQueryData,
   type UsersQueryData,
-} from "@/lib/users-api"
-import { queryKeys } from "@/lib/query-keys"
+} from "@/lib/users-api";
 
 export type UsersQueryParams = {
-  page?: number
-  limit?: number
-  search?: string
-  role?: string
-  active?: string
-}
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: string;
+  active?: string;
+};
 
 export type AccessRequestsQueryParams = {
-  page?: number
-  limit?: number
-  search?: string
-  roleRequested?: string
-  status?: string
-}
+  page?: number;
+  limit?: number;
+  search?: string;
+  roleRequested?: string;
+  status?: string;
+};
 
 export function useUsersQuery(params: UsersQueryParams = {}) {
-  const { fetchWithAuth, session, user } = useAuth()
-  const scope = getAuthQueryScope(user)
+  const { fetchWithAuth, session, user } = useAuth();
+  const scope = getAuthQueryScope(user);
 
   return useQuery<UsersQueryData>({
     enabled: Boolean(session?.access_token),
@@ -48,12 +48,12 @@ export function useUsersQuery(params: UsersQueryParams = {}) {
         { signal },
       ),
     queryKey: queryKeys.users.list(scope, params as Record<string, unknown>),
-  })
+  });
 }
 
 export function useAccessRequestsQuery(params: AccessRequestsQueryParams = {}) {
-  const { fetchWithAuth, session, user } = useAuth()
-  const scope = getAuthQueryScope(user)
+  const { fetchWithAuth, session, user } = useAuth();
+  const scope = getAuthQueryScope(user);
 
   return useQuery<AccessRequestsQueryData>({
     enabled: Boolean(session?.access_token),
@@ -71,6 +71,9 @@ export function useAccessRequestsQuery(params: AccessRequestsQueryParams = {}) {
         },
         { signal },
       ),
-    queryKey: queryKeys.users.accessRequests(scope, params as Record<string, unknown>),
-  })
+    queryKey: queryKeys.users.accessRequests(
+      scope,
+      params as Record<string, unknown>,
+    ),
+  });
 }
