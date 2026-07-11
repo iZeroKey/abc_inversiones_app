@@ -53,8 +53,8 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { UserDetailSheet } from "@/components/UserDetailSheet"
 import { useAuth } from "@/contexts/auth-context"
 import { useAuditLogsQuery } from "@/hooks/queries/audit-queries"
-import { getErrorMessage } from "@/lib/api-client"
 import { useIsMobile } from "@/hooks/use-media-query"
+import { getErrorMessage } from "@/lib/api-client"
 
 import { AUDIT_PAGE_SIZE, type AuditLog } from "@/lib/audit-api"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"

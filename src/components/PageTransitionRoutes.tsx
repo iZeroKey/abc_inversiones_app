@@ -1,10 +1,10 @@
+import { AnimatePresence, motion } from "framer-motion"
 import {
   Routes,
   useLocation,
   useNavigationType,
   type RoutesProps,
 } from "react-router-dom"
-import { AnimatePresence, motion } from "framer-motion"
 
 import { pageVariants } from "@/lib/motion-variants"
 

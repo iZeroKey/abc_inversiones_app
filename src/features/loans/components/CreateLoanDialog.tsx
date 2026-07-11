@@ -39,19 +39,19 @@ import {
   NumberFieldInput,
 } from "@/components/ui/number-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, selectTriggerVariants } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { SectionBlock } from "@/features/loans/components/SectionBlock"
 import type { LoanFormState } from "@/features/loans/loan-form"
 import { formatPreciseCurrencyWithSymbol, personName, publicUserCode, toNumber } from "@/features/loans/loan-utils"
 import { useIsMobile } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
 import type { RelatedUser } from "@/types/loans"
-import { SectionBlock } from "@/features/loans/components/SectionBlock"
 
 const frequencyItems = [
   { value: "monthly", label: "Mensual" },

@@ -14,10 +14,10 @@ import { Spinner } from "@/components/ui/spinner"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
 import {
-    ACCEPTED_AVATAR_FILE_EXTENSIONS,
-    ACCEPTED_AVATAR_FORMATS_LABEL,
-    optimizeAvatarImage,
-    validateAvatarFile,
+  ACCEPTED_AVATAR_FILE_EXTENSIONS,
+  ACCEPTED_AVATAR_FORMATS_LABEL,
+  optimizeAvatarImage,
+  validateAvatarFile,
 } from "@/lib/avatar-image"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import { cn } from "@/lib/utils"

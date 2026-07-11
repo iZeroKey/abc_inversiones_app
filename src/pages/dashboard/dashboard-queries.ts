@@ -12,7 +12,7 @@ import {
   type FetchWithAuth,
 } from "@/lib/api-client";
 import type { Installment } from "@/types/loans";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { queryKeys } from "@/lib/query-keys";
 import { getAuthQueryScope } from "@/features/loans/loan-queries";
 

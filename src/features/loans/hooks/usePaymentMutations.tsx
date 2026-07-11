@@ -3,26 +3,26 @@ import { useCallback, useEffect, useRef, useState, type ReactElement } from "rea
 
 import { toastManager } from "@/components/ui/toast"
 import {
-    compactPayload,
-    DeleteWorkflowDialog,
-    PaymentDialog,
-    ProcessVoucherDialog,
-    toIsoOrUndefined,
-    VoucherDialog,
+  compactPayload,
+  DeleteWorkflowDialog,
+  PaymentDialog,
+  ProcessVoucherDialog,
+  toIsoOrUndefined,
+  VoucherDialog,
 } from "@/features/loans/components/PaymentWorkflowDialogs"
 import type { FetchWithAuth } from "@/lib/api-client"
 import {
-    analyzeVoucherEvidence,
-    checkOperationIdExists,
-    createPayment,
-    deletePayment,
-    deleteVoucher,
-    processVoucher,
-    submitVoucher,
-    updatePayment,
-    updateVoucher,
-    type PaymentMutationPayload,
-    type VoucherSubmitPayload,
+  analyzeVoucherEvidence,
+  checkOperationIdExists,
+  createPayment,
+  deletePayment,
+  deleteVoucher,
+  processVoucher,
+  submitVoucher,
+  updatePayment,
+  updateVoucher,
+  type PaymentMutationPayload,
+  type VoucherSubmitPayload,
 } from "@/lib/loans-api"
 import type { Loan, Payment, PaymentMethod, PaymentVoucher } from "@/types/loans"
 
