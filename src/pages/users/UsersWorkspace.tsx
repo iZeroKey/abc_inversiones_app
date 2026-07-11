@@ -120,12 +120,7 @@ export function UsersWorkspace({
         id: "contact",
         accessorFn: (item) => `${item.email ?? ""} ${item.phone ?? ""} ${item.dni ?? ""}`,
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Contacto"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Contacto" />
         ),
         cell: ({ row }) => (
           <ContactStack email={row.original.email} phone={row.original.phone} />
@@ -139,12 +134,7 @@ export function UsersWorkspace({
         id: "dni",
         accessorFn: (item) => item.dni ?? "",
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="DNI"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="DNI" />
         ),
         cell: ({ row }) =>
           row.original.dni ? (
@@ -161,12 +151,7 @@ export function UsersWorkspace({
         id: "bank",
         accessorFn: (item) => item.bank ?? "",
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Banco"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Banco" />
         ),
         cell: ({ row }) => (
           <span className={cn("block truncate", !row.original.bank && "text-muted-foreground")}>
@@ -182,12 +167,7 @@ export function UsersWorkspace({
         id: "bankAccounts",
         accessorFn: (item) => (item.bankAccounts ?? []).join(" "),
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Cuentas"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Cuentas" />
         ),
         cell: ({ row }) => <BankAccountsStack accounts={row.original.bankAccounts} />,
         meta: {
@@ -199,12 +179,7 @@ export function UsersWorkspace({
         id: "maritalStatus",
         accessorFn: (item) => item.maritalStatus ? getMaritalStatusLabel(item.maritalStatus) : "",
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Estado civil"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Estado civil" />
         ),
         cell: ({ row }) => (
           <span className={cn("text-sm", !row.original.maritalStatus && "text-muted-foreground")}>
@@ -220,12 +195,7 @@ export function UsersWorkspace({
         id: "role",
         accessorFn: (item) => getRoleLabel(normalizeRole(item.role)),
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Rol"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Rol" />
         ),
         cell: ({ row }) => (
           <RoleBadge role={row.original.role} isOwner={row.original.isOwner} />
@@ -238,12 +208,7 @@ export function UsersWorkspace({
         id: "status",
         accessorFn: (item) => `${item.active === false ? "Inactivo" : "Activo"} ${item.authUserId ? "Con acceso" : "Operativo"}`,
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Estado"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Estado" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-wrap gap-1">
@@ -259,12 +224,7 @@ export function UsersWorkspace({
         id: "createdAt",
         accessorFn: (item) => item.createdAt ?? "",
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Registro"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Registro" />
         ),
         cell: ({ row }) => (
           <span className="text-muted-foreground">
@@ -395,7 +355,6 @@ export function UsersWorkspace({
           getRowClassName={(item) => cn(highlightedUserIds?.has(item.id) && "realtime-row-enter")}
           tableClassName="min-w-[1080px] table-fixed"
           bodyClassName={cn(refreshing && "opacity-70")}
-          initialSorting={[{ id: "createdAt", desc: true }]}
           pagination={{
             page: pagination.page ?? page,
             pageSize: pagination.limit ?? USERS_PAGE_SIZE,

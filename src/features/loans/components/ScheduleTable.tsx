@@ -14,8 +14,6 @@ import { installmentStatusLabels } from "@/features/loans/loan-constants"
 import { formatDate, getInstallmentDisplayStatus } from "@/features/loans/loan-utils"
 import type { Installment } from "@/types/loans"
 
-type SortDirection = false | "asc" | "desc"
-
 const scheduleColumns: ColumnDef<Installment>[] = [
   {
     id: "number",
@@ -55,19 +53,13 @@ const scheduleColumns: ColumnDef<Installment>[] = [
 function sortableHeader<TData, TValue>(title: string, align: "left" | "right" = "left") {
   return ({
     column,
-    sortDirection,
-    toggleSorting,
   }: {
     column: Column<TData, TValue>
-    sortDirection?: SortDirection
-    toggleSorting?: () => void
   }) => (
     <DataTableColumnHeader
       column={column}
       title={title}
       align={align}
-      sortDirection={sortDirection}
-      onSort={toggleSorting}
     />
   )
 }

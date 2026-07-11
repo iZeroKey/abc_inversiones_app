@@ -34,24 +34,16 @@ import { formatDate } from "@/features/loans/loan-utils"
 import { cn } from "@/lib/utils"
 import type { Payment, PaymentVoucher } from "@/types/loans"
 
-type SortDirection = false | "asc" | "desc"
-
 function sortableHeader<TData, TValue>(title: string, align: "left" | "right" = "left") {
   return ({
     column,
-    sortDirection,
-    toggleSorting,
   }: {
     column: Column<TData, TValue>
-    sortDirection?: SortDirection
-    toggleSorting?: () => void
   }) => (
     <DataTableColumnHeader
       column={column}
       title={title}
       align={align}
-      sortDirection={sortDirection}
-      onSort={toggleSorting}
     />
   )
 }

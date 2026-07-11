@@ -84,12 +84,7 @@ export function RequestsWorkspace({
         id: "applicant",
         accessorFn: (request) => `${displayPersonName(request)} ${request.id}`,
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Solicitante"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Solicitante" />
         ),
         cell: ({ row }) => (
           <div className="min-w-0">
@@ -106,12 +101,7 @@ export function RequestsWorkspace({
         id: "contact",
         accessorFn: (request) => `${request.email ?? ""} ${request.phone ?? ""}`,
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Contacto"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Contacto" />
         ),
         cell: ({ row }) => (
           <ContactStack email={row.original.email} phone={row.original.phone} />
@@ -125,12 +115,7 @@ export function RequestsWorkspace({
         id: "roleRequested",
         accessorFn: (request) => getRoleLabel(request.roleRequested),
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Rol solicitado"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Rol solicitado" />
         ),
         cell: ({ row }) => getRoleLabel(row.original.roleRequested),
         meta: {
@@ -141,12 +126,7 @@ export function RequestsWorkspace({
         id: "status",
         accessorFn: (request) => getRequestStatusLabel(request.status),
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Estado"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Estado" />
         ),
         cell: ({ row }) => <RequestStatusBadge status={row.original.status} />,
         meta: {
@@ -157,12 +137,7 @@ export function RequestsWorkspace({
         id: "createdAt",
         accessorFn: (request) => request.createdAt ?? "",
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Creada"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Creada" />
         ),
         cell: ({ row }) => (
           <span className="text-muted-foreground">
@@ -177,12 +152,7 @@ export function RequestsWorkspace({
         id: "observation",
         accessorFn: (request) => request.observation ?? "",
         header: (context) => (
-          <DataTableColumnHeader
-            column={context.column}
-            title="Observación"
-            sortDirection={(context as { sortDirection?: false | "asc" | "desc" }).sortDirection}
-            onSort={(context as { toggleSorting?: () => void }).toggleSorting}
-          />
+          <DataTableColumnHeader column={context.column} title="Observación" />
         ),
         cell: ({ row }) => (
           <span className="block truncate text-muted-foreground">
@@ -322,7 +292,6 @@ export function RequestsWorkspace({
           getRowClassName={(request) => cn(highlightedRequestIds?.has(request.id) && "realtime-row-enter")}
           tableClassName="min-w-[900px] table-fixed"
           bodyClassName={cn(refreshing && "opacity-70")}
-          initialSorting={[{ id: "createdAt", desc: true }]}
           pagination={{
             page: pagination.page ?? page,
             pageSize: pagination.limit ?? USERS_PAGE_SIZE,
