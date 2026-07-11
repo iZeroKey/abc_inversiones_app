@@ -210,7 +210,9 @@ async function fetchInvestorDashboard(fetchWithAuth: FetchWithAuth) {
 export function useAdminDashboardQuery() {
   const { fetchWithAuth, session, user } = useAuth();
   const fetchWithAuthRef = useRef(fetchWithAuth);
-  fetchWithAuthRef.current = fetchWithAuth;
+  useEffect(() => {
+    fetchWithAuthRef.current = fetchWithAuth;
+  }, [fetchWithAuth]);
   const scope = getAuthQueryScope(user);
 
   return useQuery({
@@ -224,7 +226,9 @@ export function useAdminDashboardQuery() {
 export function useClientDashboardQuery() {
   const { fetchWithAuth, session, user } = useAuth();
   const fetchWithAuthRef = useRef(fetchWithAuth);
-  fetchWithAuthRef.current = fetchWithAuth;
+  useEffect(() => {
+    fetchWithAuthRef.current = fetchWithAuth;
+  }, [fetchWithAuth]);
   const scope = getAuthQueryScope(user);
 
   return useQuery<ClientDashboardData>({
@@ -238,7 +242,9 @@ export function useClientDashboardQuery() {
 export function useInvestorDashboardQuery() {
   const { fetchWithAuth, session, user } = useAuth();
   const fetchWithAuthRef = useRef(fetchWithAuth);
-  fetchWithAuthRef.current = fetchWithAuth;
+  useEffect(() => {
+    fetchWithAuthRef.current = fetchWithAuth;
+  }, [fetchWithAuth]);
   const scope = getAuthQueryScope(user);
 
   return useQuery<InvestorDashboardData>({
