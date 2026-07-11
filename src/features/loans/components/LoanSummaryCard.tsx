@@ -61,7 +61,6 @@ export function LoanSummaryCard({
     return undefined
   }
 
-  const totalPaid = toNumber(extractValue(["totalPaid", "paidAmount", "totalReturn"]) as string | number | null | undefined)
   const activeLoans = Number(extractValue(["activeLoans", "active", "totalActiveLoans"])) || 0
   const paidLoans = Number(extractValue(["paidLoans", "paid"])) || 0
 
@@ -73,12 +72,6 @@ export function LoanSummaryCard({
             <p className="text-xs font-medium text-muted-foreground">Total a cobrar</p>
             <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight">
               <AnimatedNumber value={totalDebt} isCurrency />
-            </p>
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">Total cobrado</p>
-            <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-500">
-              <AnimatedNumber value={totalPaid} isCurrency />
             </p>
           </div>
         </div>
@@ -149,15 +142,9 @@ function LoanSummarySkeleton({ perspective }: { perspective?: "admin" | "investo
   if (perspective === "admin" || perspective === "investor") {
     return (
       <div className="rounded-2xl bg-card shadow-xs/5">
-        <div className="grid grid-cols-2 gap-4 p-4">
-          <div>
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="mt-1.5 h-7 w-32" />
-          </div>
-          <div>
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="mt-1.5 h-7 w-32" />
-          </div>
+        <div className="gap-4 p-4">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="mt-1.5 h-7 w-48" />
         </div>
         <div className="px-4">
           <div className="h-px bg-border" />

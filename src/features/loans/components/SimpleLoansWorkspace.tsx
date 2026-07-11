@@ -95,7 +95,7 @@ export function SimpleLoansWorkspace({
 
           <Field>
             <FieldLabel>Estado</FieldLabel>
-            <ScrollArea className="h-10 min-w-0" scrollFade>
+            <ScrollArea className="h-10 min-w-0 **:data-[slot=scroll-area-scrollbar]:hidden" scrollFade>
               <div className="flex w-max items-center gap-2 px-0.5 py-0.5 pr-2">
                 {statusFilters.map((status) => (
                   <Button

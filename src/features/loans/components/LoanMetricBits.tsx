@@ -117,12 +117,14 @@ export function NextPaymentHero({
   canSubmitVoucher,
   onSubmitVoucher,
   intent = "default",
+  actionButton,
 }: {
   amount?: string | number | null
   dueDate?: string | null
   canSubmitVoucher: boolean
   onSubmitVoucher: () => void
   intent?: "hero" | "default"
+  actionButton?: ReactNode
 }) {
   if (intent === "hero") {
     return (
@@ -156,6 +158,7 @@ export function NextPaymentHero({
               Subir voucher
             </Button>
           )}
+          {actionButton}
         </div>
       </div>
     )

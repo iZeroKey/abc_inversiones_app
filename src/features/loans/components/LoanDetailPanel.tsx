@@ -6,7 +6,7 @@ import {
   UserIcon,
   UserRoundIcon,
 } from "lucide-react"
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 
 const fadeIn = {
   initial: { opacity: 0 },
@@ -20,7 +20,6 @@ import { UserDetailSheet, type UserDetailProfile } from "@/components/UserDetail
 import { useAuth } from "@/contexts/auth-context"
 import {
   InfoRow,
-  LoanConditions,
   LoanSummaryBar,
   NextPaymentHero,
 } from "@/features/loans/components/LoanMetricBits"
@@ -99,7 +98,6 @@ export function LoanDetailPanel({
   relatedData,
   loading,
   error,
-  canReview,
   onRetry,
   perspective = "admin",
   sticky = true,
@@ -114,17 +112,11 @@ export function LoanDetailPanel({
   relatedData: RelatedData
   loading: boolean
   error: string | null
-  canReview: boolean
-  basePath: string
-  onApprove: () => void
-  onReject: () => void
   onRetry: () => void
   perspective?: "admin" | "client" | "investor"
   sticky?: boolean
-  hideBackButton?: boolean
   drawerWidth?: number
   onDataChanged?: () => Promise<void> | void
-  onBack?: () => void
   transactions?: LoanTransaction[]
   transactionsMeta?: PaginationMeta
   loadingTransactions?: boolean
@@ -180,6 +172,18 @@ export function LoanDetailPanel({
   const investorUser = resolveInvestorUser(loan)
   const isCompanyFunded = loan.isCompanyFunded || (!loan.investorId && !loan.investorName && !loan.investor)
 
+  const registerPaymentButton: ReactNode | null =
+    perspective === "admin" && canRegisterPayment ? (
+      <Button
+        size="sm"
+        className="bg-white text-primary hover:bg-white/90 rounded-xl px-6"
+        onClick={() => mutations.setPaymentDialogPayment(null)}
+      >
+        <CreditCardIcon className="size-4" />
+        Registrar pago
+      </Button>
+    ) : null
+
   return (
     <section
       className={cn(
@@ -187,19 +191,6 @@ export function LoanDetailPanel({
         sticky && "lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-auto",
       )}
     >
-      {/* ── Admin action buttons ── */}
-      {perspective === "admin" && (canRegisterPayment || canReview) && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 pb-5">
-          {canRegisterPayment && (
-            <Button size="sm" className="w-full sm:w-auto" onClick={() => mutations.setPaymentDialogPayment(null)}>
-              <CreditCardIcon data-icon="inline-start" />
-              Registrar pago
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* ── Body ── */}
       <motion.div
         className="flex flex-col gap-6"
         variants={{ animate: { transition: { staggerChildren: 0.06 } } }}
@@ -237,98 +228,48 @@ export function LoanDetailPanel({
           </motion.div>
         )}
 
-        {/* ── Client: remaining + progress ── */}
-        {perspective === "client" && (
-          <SectionBlock animate>
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Saldo total pendiente</p>
-              <p className="text-3xl font-black tabular-nums tracking-tight text-foreground">
-                <AnimatedNumber value={remaining} isCurrency />
-              </p>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span>Capital <AnimatedNumber value={loan.principal} isCurrency /></span>
-                {loan.interestRate != null && (
-                  <>
-                    <span>·</span>
-                    <span>
-                      <AnimatedNumber value={loan.interestRate} decimals={1} suffix="%" />
-                      {" "}{interestPeriodLabels[String(loan.interestPeriod)] ?? ""}
-                    </span>
-                  </>
-                )}
-              </div>
+        {/* ── Remaining balance + progress (all roles) ── */}
+        <SectionBlock animate>
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">Saldo total pendiente</p>
+            <p className="text-3xl font-black tabular-nums tracking-tight text-foreground">
+              <AnimatedNumber value={remaining} isCurrency />
+            </p>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span>Capital <AnimatedNumber value={loan.principal} isCurrency /></span>
+              {loan.interestRate != null && (
+                <>
+                  <span>·</span>
+                  <span>
+                    <AnimatedNumber value={loan.interestRate} decimals={1} suffix="%" />
+                    {" "}{interestPeriodLabels[String(loan.interestPeriod)] ?? ""}
+                  </span>
+                </>
+              )}
             </div>
-            <div className="my-4 px-0">
-              <Separator className="w-full" />
-            </div>
-            <LoanSummaryBar
-              totalDebt={loan.totalDebt ?? 0}
-              paidAmount={paidAmount}
-              progress={progress}
-              accent={accent}
-            />
-          </SectionBlock>
-        )}
+          </div>
+          <div className="my-4 px-0">
+            <Separator className="w-full" />
+          </div>
+          <LoanSummaryBar
+            totalDebt={loan.totalDebt ?? 0}
+            paidAmount={paidAmount}
+            progress={progress}
+            accent={accent}
+          />
+        </SectionBlock>
 
+        {/* ── Next payment hero (all roles) ── */}
         <motion.div variants={fadeIn}>
-          {/* ── Client: hero card ── */}
-          {perspective === "client" && (
-            <NextPaymentHero
-              amount={nextInstallment?.amount}
-              dueDate={nextInstallment?.dueDate}
-              canSubmitVoucher={canSubmitVoucher}
-              onSubmitVoucher={() => mutations.setVoucherDialogVoucher(null)}
-              intent="hero"
-            />
-          )}
+          <NextPaymentHero
+            amount={nextInstallment?.amount}
+            dueDate={nextInstallment?.dueDate}
+            canSubmitVoucher={canSubmitVoucher}
+            onSubmitVoucher={() => mutations.setVoucherDialogVoucher(null)}
+            intent="hero"
+            actionButton={registerPaymentButton}
+          />
         </motion.div>
-
-        {/* ── Admin: top grid ── */}
-        {perspective === "admin" && (
-          <SectionBlock animate>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <NextPaymentHero
-                amount={nextInstallment?.amount}
-                dueDate={nextInstallment?.dueDate}
-                canSubmitVoucher={false}
-                onSubmitVoucher={() => {}}
-              />
-              <LoanSummaryBar
-                totalDebt={loan.totalDebt ?? 0}
-                paidAmount={paidAmount}
-                progress={progress}
-                accent={accent}
-              />
-            </div>
-          </SectionBlock>
-        )}
-
-
-        {/* ── Admin / Investor: conditions ── */}
-        {(perspective === "admin" || perspective === "investor") && (
-          <SectionBlock animate>
-            <LoanConditions
-              principal={loan.principal}
-              installmentsCount={loan.installmentsCount}
-              frequency={loan.frequency}
-              interestRate={loan.interestRate}
-              interestPeriod={loan.interestPeriod}
-              startDate={loan.startDate}
-            />
-          </SectionBlock>
-        )}
-
-        {/* ── Investor: summary ── */}
-        {perspective === "investor" && (
-          <SectionBlock animate>
-            <LoanSummaryBar
-              totalDebt={loan.totalDebt ?? 0}
-              paidAmount={paidAmount}
-              progress={progress}
-              accent={accent}
-            />
-          </SectionBlock>
-        )}
 
         {/* ── Admin: parties section ── */}
         {perspective === "admin" && (
@@ -351,7 +292,6 @@ export function LoanDetailPanel({
             </div>
           </SectionBlock>
         )}
-
 
         {/* ── Cronograma ── */}
         <SectionBlock animate>
