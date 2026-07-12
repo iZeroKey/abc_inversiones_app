@@ -136,7 +136,7 @@ function AppLayoutContent({
     <div
       className={cn(
         "flex h-svh w-full overflow-hidden pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]",
-        isMobile ? "bg-muted/10" : "bg-background",
+        isMobile ? "flex-col bg-[#F8F8FE]" : "bg-background",
       )}
     >
       <AppSidebar 
@@ -146,7 +146,7 @@ function AppLayoutContent({
         notificationsCount={notificationsCount}
         headerTitle={headerTitle}
       />
-      <SidebarInset className="bg-transparent h-full overflow-hidden flex flex-col">
+      <SidebarInset className="bg-transparent flex-1 h-full overflow-hidden flex flex-col">
         <AppHeader
           onLogout={onLogout}
           onBack={onBack}
@@ -155,7 +155,7 @@ function AppLayoutContent({
         />
         <main className="flex-1 min-w-0 relative flex flex-col min-h-0 bg-[#F8F8FE]">
           <ScrollArea className="flex-1 min-h-0">
-            <div className={cn(isMobile ? "pb-28 px-4 pt-4" : "p-4 sm:p-6")}>
+            <div className={cn(isMobile ? "pb-4 px-4 pt-4" : "p-4 sm:p-6")}>
               {children}
             </div>
           </ScrollArea>
@@ -481,9 +481,9 @@ function AppBottomNav({ navigationItems }: Pick<AppLayoutProps, "navigationItems
       initial={{ y: 100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
-      className="fixed left-[calc(env(safe-area-inset-left,0)+1rem)] right-[calc(env(safe-area-inset-right,0)+1rem)] bottom-[calc(env(safe-area-inset-bottom,0)+1rem)] z-50"
+      className="shrink-0 w-full z-50 rounded-t-3xl bg-background/95 backdrop-blur-md border-t border-x pb-[env(safe-area-inset-bottom,0)] shadow-[0_-4px_20px_rgba(0,0,0,0.04)]"
     >
-      <div className="flex items-center justify-between rounded-4xl bg-background/95 px-2 py-2 shadow-lg backdrop-blur-md">
+      <div className="flex items-center justify-between px-2 py-2 sm:px-4">
         {bottomItems.map((item) => {
           const isActive = location.pathname === item.href || (item.href !== homePath && location.pathname.startsWith(item.href + "/"))
           const activeTextColor = item.activeColorClass || "text-primary"
