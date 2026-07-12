@@ -503,7 +503,7 @@ export function LoansListPanel({
   )
 }
 
-function LoanCardRow({
+export function LoanCardRow({
   loan,
   isNew,
   selected,

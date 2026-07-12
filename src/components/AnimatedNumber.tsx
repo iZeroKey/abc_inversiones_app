@@ -11,6 +11,7 @@ interface AnimatedNumberProps {
   isCurrency?: boolean
   isPreciseCurrency?: boolean
   isPercent?: boolean
+  isCompact?: boolean
   className?: string
   animateOnMount?: boolean
   duration?: number
@@ -24,6 +25,7 @@ export function AnimatedNumber({
   isCurrency = false,
   isPreciseCurrency = false,
   isPercent = false,
+  isCompact = false,
   className,
   animateOnMount = false,
   duration = 1.0,
@@ -59,8 +61,18 @@ export function AnimatedNumber({
     finalDecimals = 1
   }
 
+  const formattingFn = isCompact ? (n: number) => {
+    const formatted = new Intl.NumberFormat("en-US", {
+      notation: "compact",
+      maximumFractionDigits: finalDecimals,
+      minimumFractionDigits: finalDecimals,
+    }).format(n)
+    return `${finalPrefix}${formatted}${finalSuffix}`
+  } : undefined
+
   return (
     <CountUp
+      formattingFn={formattingFn}
       key={`${prevValue}-${currValue}`}
       start={prevValue}
       end={currValue}

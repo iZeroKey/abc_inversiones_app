@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from "framer-motion"
 import { BanknoteIcon, CameraIcon, IdCardIcon, MapPinIcon, PhoneIcon, PlusIcon, SaveIcon, Trash2Icon, UserIcon, XIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
@@ -168,6 +169,7 @@ export function ProfileEditDrawer({ isOpen, onClose, profileData, onSuccess }: P
   const [address, setAddress] = useState("")
   const [bank, setBank] = useState("")
   const [bankAccounts, setBankAccounts] = useState<string[]>([""])
+  const [bankAccountIds, setBankAccountIds] = useState<string[]>([crypto.randomUUID()])
   const [maritalStatus, setMaritalStatus] = useState("none")
   const canAddBankAccount = bankAccounts.every((account) => account.trim().length > 0)
   const displayName = [profileData?.firstName, profileData?.lastName].filter(Boolean).join(" ").trim() || "Mi perfil"
@@ -203,7 +205,9 @@ export function ProfileEditDrawer({ isOpen, onClose, profileData, onSuccess }: P
       setDni(profileData.dni || "")
       setAddress(profileData.address || "")
       setBank(profileData.bank || "")
-      setBankAccounts(profileData.bankAccounts?.length ? profileData.bankAccounts : [""])
+      const initialAccounts = profileData.bankAccounts?.length ? profileData.bankAccounts : [""]
+      setBankAccounts(initialAccounts)
+      setBankAccountIds(initialAccounts.map(() => crypto.randomUUID()))
       setMaritalStatus(profileData.maritalStatus || "none")
       
       setPendingAvatarAction(null)
@@ -337,10 +341,15 @@ export function ProfileEditDrawer({ isOpen, onClose, profileData, onSuccess }: P
   }
 
   const addBankAccount = () => {
+    setBankAccountIds((current) => [...current, crypto.randomUUID()])
     setBankAccounts((current) => [...current, ""])
   }
 
   const removeBankAccount = (index: number) => {
+    setBankAccountIds((current) => {
+      const next = current.filter((_, i) => i !== index)
+      return next.length ? next : [crypto.randomUUID()]
+    })
     setBankAccounts((current) => {
       const nextAccounts = current.filter((_, accountIndex) => accountIndex !== index)
       return nextAccounts.length ? nextAccounts : [""]
@@ -444,8 +453,7 @@ export function ProfileEditDrawer({ isOpen, onClose, profileData, onSuccess }: P
                 </div>
 
                 <div className="flex flex-wrap items-center justify-center gap-2">
-                  <Badge variant="secondary">{roleLabel}</Badge>
-                  {profileData?.isOwner && <Badge variant="outline">Propietario</Badge>}
+                  <Badge>{roleLabel}</Badge>
                 </div>
               </div>
 
@@ -600,48 +608,69 @@ export function ProfileEditDrawer({ isOpen, onClose, profileData, onSuccess }: P
 
                   <Field>
                     <FieldLabel>Cuentas bancarias</FieldLabel>
-                    <div className="flex w-full flex-col gap-2">
-                      {bankAccounts.map((account, index) => (
-                        <InputGroup key={index}>
-                          <InputGroupAddon align="inline-start">
-                            <BanknoteIcon />
-                          </InputGroupAddon>
-                          <InputGroupInput
-                            aria-label={`Cuenta bancaria ${index + 1}`}
-                            value={account}
-                            className="font-mono tabular-nums"
-                            onChange={(event) => updateBankAccount(index, event.target.value)}
-                            placeholder="CCI o número de cuenta"
-                            disabled={saving}
-                          />
-                          {bankAccounts.length > 1 && (
-                            <InputGroupAddon align="inline-end">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label="Eliminar cuenta bancaria"
-                                onClick={() => removeBankAccount(index)}
+                    <div className="flex w-full flex-col">
+                      <AnimatePresence initial={false}>
+                        {bankAccounts.map((account, index) => (
+                          <motion.div
+                            key={bankAccountIds[index] || index}
+                            initial={{ opacity: 0, height: 0, scale: 0.95, overflow: "hidden" }}
+                            animate={{ opacity: 1, height: "auto", scale: 1, overflow: "visible" }}
+                            exit={{ opacity: 0, height: 0, scale: 0.95, overflow: "hidden" }}
+                            transition={{ type: "spring", bounce: 0, duration: 0.35 }}
+                          >
+                            <div className="pb-2">
+                              <InputGroup>
+                              <InputGroupAddon align="inline-start">
+                                <BanknoteIcon />
+                              </InputGroupAddon>
+                              <InputGroupInput
+                                aria-label={`Cuenta bancaria ${index + 1}`}
+                                value={account}
+                                className="font-mono tabular-nums"
+                                onChange={(event) => updateBankAccount(index, event.target.value)}
+                                placeholder="CCI o número de cuenta"
                                 disabled={saving}
-                              >
-                                <XIcon />
-                              </Button>
-                            </InputGroupAddon>
-                          )}
-                        </InputGroup>
-                      ))}
-                      {canAddBankAccount && (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="h-8.5 w-full justify-center border-dashed text-muted-foreground sm:h-7.5"
-                          onClick={addBankAccount}
-                          disabled={saving}
-                        >
-                          <PlusIcon data-icon="inline-start" />
-                          Agregar cuenta
-                        </Button>
-                      )}
+                              />
+                              {bankAccounts.length > 1 && (
+                                <InputGroupAddon align="inline-end">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label="Eliminar cuenta bancaria"
+                                    onClick={() => removeBankAccount(index)}
+                                    disabled={saving}
+                                  >
+                                    <XIcon />
+                                  </Button>
+                                </InputGroupAddon>
+                              )}
+                            </InputGroup>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                      <AnimatePresence initial={false}>
+                        {canAddBankAccount && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0, scale: 0.95, overflow: "hidden" }}
+                            animate={{ opacity: 1, height: "auto", scale: 1, overflow: "visible" }}
+                            exit={{ opacity: 0, height: 0, scale: 0.95, overflow: "hidden" }}
+                            transition={{ type: "spring", bounce: 0, duration: 0.35 }}
+                          >
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="h-10.5 w-full justify-center border-dashed text-muted-foreground md:h-9.5"
+                              onClick={addBankAccount}
+                              disabled={saving}
+                            >
+                              <PlusIcon data-icon="inline-start" />
+                              Agregar cuenta
+                            </Button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </Field>
                 </div>

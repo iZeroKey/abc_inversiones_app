@@ -6,7 +6,6 @@ import { PageTransitionRoutes } from "./components/PageTransitionRoutes"
 import ProtectedRoute from "./components/ProtectedRoute"
 import { AppLayout } from "./components/layout/AppLayout"
 import { Skeleton } from "./components/ui/skeleton"
-import { Spinner } from "./components/ui/spinner"
 import {
   AnchoredToastProvider,
   ToastProvider,
@@ -84,7 +83,6 @@ function RouteFallback() {
             <Skeleton className="h-8 w-56 max-w-[70vw]" />
             <Skeleton className="h-4 w-80 max-w-[82vw]" />
           </div>
-          <Spinner className="mt-1 size-5 shrink-0 text-muted-foreground" />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -117,7 +115,6 @@ function AppFallback() {
           aria-hidden="true"
           className="size-12 rounded-md"
         />
-        <Spinner className="size-6 text-muted-foreground" />
         <div className="w-full space-y-3">
           <Skeleton className="mx-auto h-4 w-44" />
           <Skeleton className="mx-auto h-4 w-64 max-w-full" />

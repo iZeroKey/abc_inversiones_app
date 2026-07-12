@@ -1,15 +1,15 @@
-import { motion } from "framer-motion"
-import { FileTextIcon, PieChartIcon, ReceiptIcon, TrendingUpIcon, UsersIcon, WalletIcon } from "lucide-react"
-import { useNavigate } from "react-router-dom"
-
 import { AnimatedNumber } from "@/components/AnimatedNumber"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/contexts/auth-context"
 import { useAdminDashboardQuery } from "@/pages/dashboard/dashboard-queries"
+import { motion } from "framer-motion"
+import { PieChartIcon, ReceiptIcon, TrendingUpIcon, WalletIcon } from "lucide-react"
+import { useNavigate } from "react-router-dom"
+import { Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
 
 export default function AdminDashboard() {
   const { user } = useAuth()
@@ -22,7 +22,7 @@ export default function AdminDashboard() {
 
   if (isError) {
     return (
-      <div className="p-0 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+      <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="size-14 rounded-full bg-destructive/10 flex items-center justify-center mb-5">
             <PieChartIcon className="size-7 text-destructive" />
@@ -39,8 +39,6 @@ export default function AdminDashboard() {
     )
   }
 
-  const usersCount = data?.users?.totalUsers || 0
-  const loansCount = data?.loans?.totalLoans || 0
   const capital = data?.loans?.totalPortfolio || 0
   const totalDebt = data?.loans?.totalDebt || 0
   const totalDebtAmount = parseFloat(String(totalDebt))
@@ -52,17 +50,31 @@ export default function AdminDashboard() {
   const loansActive = data?.loans?.activeLoans || 0
   const loansMora = data?.overdue?.overdueCount || 0
   const pendingLoans = data?.loans?.pendingLoans || 0
+  
+  const nplRate = loansActive > 0 ? (loansMora / loansActive) * 100 : 0
+  const collectedThisMonth = parseFloat(data?.payments?.collectedThisMonth || "0")
+
+  const chartData = [
+    { name: "Activos", value: loansActive, fill: "#10b981" },
+    { name: "Mora", value: loansMora, fill: "#ef4444" },
+    { name: "Pendientes", value: pendingLoans, fill: "#f59e0b" },
+  ].filter(d => d.value > 0)
+  
+  if (chartData.length === 0) {
+    chartData.push({ name: "Sin datos", value: 1, fill: "rgba(255,255,255,0.2)" })
+  }
 
   return (
-    <div className="p-0 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border">
-        <div className="flex items-center gap-5">
+    <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border">
+        <div className="flex flex-row md:items-center gap-4 md:gap-5">
           <Avatar className="size-16 md:size-20 border-2 border-background shadow-md">
+            <AvatarImage src={user?.avatarUrl || ""} alt={user?.firstName || "Usuario"} />
             <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
               {user?.firstName?.[0] || "A"}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1">
+          <div className="flex-1 flex flex-col items-start">
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{user?.firstName} {user?.lastName}</h2>
             <div className="flex flex-wrap gap-2 mt-2">
               <Badge variant="default" className="font-semibold">Administrador</Badge>
@@ -75,7 +87,7 @@ export default function AdminDashboard() {
           <Button
             size="lg"
             variant="default"
-            className="w-full md:w-auto shadow-md"
+            className="w-full md:w-auto shadow-md min-h-11"
             onClick={() => navigate("/loans", { state: { appBackTarget: "/home" } })}
           >
             <ReceiptIcon data-icon="inline-start" />
@@ -90,12 +102,12 @@ export default function AdminDashboard() {
           <PieChartIcon className="size-5 text-primary" />
           Visión General del Capital
         </h3>
-        <Card className="bg-primary text-primary-foreground border-none shadow-sm rounded-3xl overflow-hidden">
-          <CardContent className="p-8 space-y-8">
+        <Card className="bg-primary text-primary-foreground border-none shadow-md rounded-3xl overflow-hidden relative">
+          <CardContent className="p-6 md:p-8 space-y-8 relative z-10">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Capital activo prestado</p>
               <div className="text-4xl md:text-5xl font-black tracking-tight">
-                <AnimatedNumber value={capital} isCurrency />
+                <AnimatedNumber value={capital} isCurrency isCompact={Number(capital) >= 1000000} />
               </div>
             </div>
 
@@ -116,18 +128,60 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
-              <div className="bg-white/10 p-3 max-[480px]:p-3 sm:p-4 rounded-2xl">
-                <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Activos</div>
-                <div className="text-2xl font-bold"><AnimatedNumber value={loansActive} /></div>
+            <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 pt-6 border-t border-white/10 items-center">
+              <div className="size-32 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      innerRadius={40}
+                      outerRadius={60}
+                      paddingAngle={5}
+                      dataKey="value"
+                      stroke="none"
+                    />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-background/95 backdrop-blur-sm border border-border px-3 py-2 rounded-xl shadow-lg">
+                              <div className="flex items-center gap-2">
+                                <div className="size-2 rounded-full" style={{ backgroundColor: payload[0].payload.fill }} />
+                                <p className="font-bold text-foreground text-xs">
+                                  {payload[0].name}: <span className="font-black tracking-tight ml-1">{payload[0].value}</span>
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-              <div className="bg-white/10 p-3 max-[480px]:p-3 sm:p-4 rounded-2xl">
-                <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Mora</div>
-                <div className="text-2xl font-bold"><AnimatedNumber value={loansMora} /></div>
-              </div>
-              <div className="bg-white/10 p-3 max-[480px]:p-3 sm:p-4 rounded-2xl">
-                <div className="text-[10px] font-bold uppercase opacity-60 mb-1">Pendientes</div>
-                <div className="text-2xl font-bold"><AnimatedNumber value={pendingLoans} /></div>
+              <div className="flex flex-col sm:grid sm:grid-cols-3 gap-3 sm:gap-4 w-full">
+                <div className="bg-white/10 p-3 sm:p-4 rounded-2xl flex sm:flex-col items-center sm:items-start justify-between sm:justify-center transition-transform hover:scale-[1.02]">
+                  <div className="text-[10px] sm:text-xs font-bold uppercase opacity-90 sm:mb-1 flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-success" />
+                    Activos
+                  </div>
+                  <div className="text-xl sm:text-2xl font-bold"><AnimatedNumber value={loansActive} /></div>
+                </div>
+                <div className="bg-white/10 p-3 sm:p-4 rounded-2xl flex sm:flex-col items-center sm:items-start justify-between sm:justify-center transition-transform hover:scale-[1.02]">
+                  <div className="text-[10px] sm:text-xs font-bold uppercase opacity-90 sm:mb-1 flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-destructive" />
+                    Mora
+                  </div>
+                  <div className="text-xl sm:text-2xl font-bold"><AnimatedNumber value={loansMora} /></div>
+                </div>
+                <div className="bg-white/10 p-3 sm:p-4 rounded-2xl flex sm:flex-col items-center sm:items-start justify-between sm:justify-center transition-transform hover:scale-[1.02]">
+                  <div className="text-[10px] sm:text-xs font-bold uppercase opacity-90 sm:mb-1 flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-warning" />
+                    Pendientes
+                  </div>
+                  <div className="text-xl sm:text-2xl font-bold"><AnimatedNumber value={pendingLoans} /></div>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -136,41 +190,96 @@ export default function AdminDashboard() {
 
       <div className="space-y-4">
         <h3 className="font-bold text-xl tracking-tight">Métricas Operativas</h3>
-        <motion.div
-          initial="initial"
-          animate="animate"
-          variants={{ initial: {}, animate: { transition: { staggerChildren: 0.08 } } }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4"
-        >
-          <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
-            <MetricCard
-              icon={<UsersIcon className="size-5 md:size-6 text-primary" />}
-              value={<AnimatedNumber value={usersCount} />}
-              label="Usuarios"
-            />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 12 }} 
+            animate={{ opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } }}
+            className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4"
+          >
+            <Card className="border-border overflow-hidden transition-all hover:shadow-md">
+              <CardContent className="p-4 sm:p-5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 shrink-0 rounded-xl bg-destructive/10 flex items-center justify-center">
+                    <TrendingUpIcon className="size-5 text-destructive" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-0.5 line-clamp-2 leading-tight">Tasa de Morosidad (NPL)</div>
+                    <div className="font-black text-xl sm:text-2xl tracking-tight text-destructive"><AnimatedNumber value={nplRate} decimals={1} suffix="%" /></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border overflow-hidden transition-all hover:shadow-md">
+              <CardContent className="p-4 sm:p-5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 shrink-0 rounded-xl bg-success/10 flex items-center justify-center">
+                    <WalletIcon className="size-5 text-success" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-0.5 line-clamp-2 leading-tight">Recaudado (Mes Actual)</div>
+                    <div className="font-black text-xl sm:text-2xl tracking-tight text-success"><AnimatedNumber value={collectedThisMonth} isCurrency isCompact={collectedThisMonth >= 1000000} /></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border overflow-hidden transition-all hover:shadow-md sm:col-span-2">
+              <CardContent className="p-4 sm:p-5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <TrendingUpIcon className="size-5 text-primary" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-0.5 line-clamp-2 leading-tight">Deuda Activa Circulante</div>
+                    <div className="font-black text-xl sm:text-2xl tracking-tight"><AnimatedNumber value={totalDebt} isCurrency isCompact={totalDebtAmount >= 1000000} /></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </motion.div>
-          <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
-            <MetricCard
-              icon={<FileTextIcon className="size-5 md:size-6 text-primary" />}
-              value={<AnimatedNumber value={loansCount} />}
-              label="Préstamos"
-            />
+
+          <motion.div 
+            initial={{ opacity: 0, y: 12 }} 
+            animate={{ opacity: 1, y: 0, transition: { duration: 0.3, delay: 0.1, ease: [0.22, 1, 0.36, 1] } }}
+          >
+            <Card className="border-border overflow-hidden transition-all hover:shadow-md h-full flex flex-col justify-center relative">
+              <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Eficiencia de Cobro</h4>
+                <div className="w-full relative my-2 flex justify-center">
+                  <div className="w-50 h-25 overflow-hidden relative">
+                    <div className="w-50 h-50">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { value: avance, fill: "var(--primary)" },
+                              { value: 100 - avance, fill: "var(--muted)" }
+                            ]}
+                            cx="50%"
+                            cy="50%"
+                            startAngle={180}
+                            endAngle={0}
+                            innerRadius="70%"
+                            outerRadius="95%"
+                            paddingAngle={0}
+                            dataKey="value"
+                            stroke="none"
+                            cornerRadius={5}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end">
+                      <span className="text-4xl font-black leading-none text-primary"><AnimatedNumber value={avance} decimals={0} suffix="%" /></span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground max-w-50 leading-relaxed mt-auto">
+                  Porcentaje del capital invertido respecto a la deuda generada activa.
+                </p>
+              </CardContent>
+            </Card>
           </motion.div>
-          <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
-            <MetricCard
-              icon={<TrendingUpIcon className="size-5 md:size-6 text-primary" />}
-              value={<AnimatedNumber value={totalDebt} isCurrency />}
-              label="Deuda activa"
-            />
-          </motion.div>
-          <motion.div variants={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } }}>
-            <MetricCard
-              icon={<WalletIcon className="size-5 md:size-6 text-primary" />}
-              value={<AnimatedNumber value={avance} decimals={0} suffix="%" />}
-              label="Eficiencia"
-            />
-          </motion.div>
-        </motion.div>
+        </div>
       </div>
     </div>
   )
@@ -178,7 +287,7 @@ export default function AdminDashboard() {
 
 function AdminDashboardSkeleton() {
   return (
-    <div className="p-0 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+    <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
       <div className="flex flex-col gap-6 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
         <div className="flex items-center gap-5">
           <Skeleton className="size-16 rounded-full md:size-20" />
@@ -243,18 +352,3 @@ function MetricCardSkeleton() {
   )
 }
 
-function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: React.ReactNode, label: string }) {
-  return (
-    <Card className="border-border overflow-hidden">
-      <CardContent className="p-3.5 sm:p-5 flex flex-col space-y-4">
-        <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1 truncate">{label}</div>
-          <div className="font-bold text-base sm:text-xl md:text-2xl leading-none tracking-tight whitespace-nowrap truncate">{value}</div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
