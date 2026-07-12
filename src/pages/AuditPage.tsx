@@ -1,16 +1,15 @@
+import { useQuery } from "@tanstack/react-query"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
   ActivityIcon,
   AlertCircleIcon,
   CalendarClockIcon,
   DatabaseIcon,
-  EyeIcon,
   FingerprintIcon,
   InfoIcon,
   RefreshCwIcon,
-  SearchIcon,
   ShieldAlertIcon,
-  UserIcon,
+  UserIcon
 } from "lucide-react"
 import type { ElementType } from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -34,7 +33,9 @@ import {
 } from "@/components/ui/combobox"
 import {
   Drawer,
+  DrawerClose,
   DrawerDescription,
+  DrawerFooter,
   DrawerHeader,
   DrawerPanel,
   DrawerPopup,
@@ -49,14 +50,18 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
+import { InfoRow } from "@/components/ui/info-row"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
-import { UserDetailSheet } from "@/components/UserDetailSheet"
+import { UserDetailDrawer } from "@/components/UserDetailDrawer"
 import { useAuth } from "@/contexts/auth-context"
+import { useIsRecentStructuralChange } from "@/contexts/realtime-context"
 import { useAuditLogsQuery } from "@/hooks/queries/audit-queries"
 import { useIsMobile } from "@/hooks/use-media-query"
 import { getErrorMessage } from "@/lib/api-client"
 
 import { AUDIT_PAGE_SIZE, type AuditLog } from "@/lib/audit-api"
+import { resolveAvatarUrl } from "@/lib/avatar-image"
+import { fetchUserById } from "@/lib/loans-api"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import { cn } from "@/lib/utils"
 
@@ -302,8 +307,61 @@ function getDetailSummary(log: AuditLog) {
   return pieces.join(" · ")
 }
 
+function AuditUserCell({ log, onClick }: { log: AuditLog; onClick: () => void }) {
+  const auditUser = log.user as AuditUser | undefined
+  const { fetchWithAuth } = useAuth()
+  
+  const isStorage = Boolean(auditUser?.avatarUrl?.startsWith("storage://") || auditUser?.avatar?.startsWith("storage://"))
+  
+  const { data } = useQuery({
+    queryKey: ["users", "avatar", auditUser?.id],
+    queryFn: () => fetchUserById(fetchWithAuth, auditUser!.id),
+    enabled: Boolean(isStorage && auditUser?.id),
+    staleTime: 1000 * 60 * 60,
+  })
+
+  if (!auditUser) {
+    return (
+      <div className="max-w-56 text-sm">
+        <span className="font-medium">Sistema</span>
+        {log.userId ? (
+          <span className="block truncate text-xs text-muted-foreground">
+            {shortId(log.userId)}
+          </span>
+        ) : null}
+      </div>
+    )
+  }
+
+  const avatarUrl = isStorage ? resolveAvatarUrl(data?.avatarUrl ?? data?.avatar) : resolveAvatarUrl(auditUser.avatarUrl ?? auditUser.avatar)
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="-ml-2 h-auto sm:h-auto max-w-64 justify-start px-2 py-1 text-left transition-all hover:bg-muted active:scale-[0.98]"
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+    >
+      <Avatar className="size-7">
+        {avatarUrl ? <AvatarImage src={avatarUrl} alt="" /> : null}
+        <AvatarFallback>{getUserInitials(auditUser)}</AvatarFallback>
+      </Avatar>
+      <span className="min-w-0">
+        <span className="block truncate font-medium">{getUserName(auditUser)}</span>
+        <span className="block truncate text-xs text-muted-foreground">
+          {auditUser.publicCode || auditUser.email || shortId(auditUser.id)}
+        </span>
+      </span>
+    </Button>
+  )
+}
+
 export default function AuditPage() {
-  const { user } = useAuth()
+  const { user, fetchWithAuth } = useAuth()
   const [filters, setFilters] = useState<AuditFilters>(emptyFilters)
   const [appliedFilters, setAppliedFilters] = useState<AuditFilters>(emptyFilters)
   const [page, setPage] = useState(1)
@@ -316,8 +374,39 @@ export default function AuditPage() {
   const [newLogIds, setNewLogIds] = useState<Set<string>>(() => new Set())
   const visibleLogIdsRef = useRef<Set<string>>(new Set())
   const newLogTimeoutRef = useRef<number | undefined>(undefined)
-  const previousPageRef = useRef(page)
-  const previousFiltersRef = useRef(appliedFilters)
+  const previousDataParamsRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      let finalModule = filters.module
+      if (!finalModule && moduleQuery.trim()) {
+        const match = Object.keys(moduleLabels).find(
+          (key) =>
+            key.toLowerCase() === moduleQuery.trim().toLowerCase() ||
+            moduleLabels[key].toLowerCase() === moduleQuery.trim().toLowerCase()
+        )
+        finalModule = match || moduleQuery.trim().toUpperCase()
+      }
+
+      let finalAction = filters.action
+      if (!finalAction && actionQuery.trim()) {
+        const match = Object.keys(actionLabels).find(
+          (key) =>
+            key.toLowerCase() === actionQuery.trim().toLowerCase() ||
+            actionLabels[key].toLowerCase() === actionQuery.trim().toLowerCase()
+        )
+        finalAction = match || actionQuery.trim().toUpperCase()
+      }
+      
+      setAppliedFilters({
+        module: finalModule,
+        action: finalAction,
+        userId: filters.userId,
+      })
+      setPage(1)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [filters, moduleQuery, actionQuery])
 
   const auditQuery = useAuditLogsQuery({
     page,
@@ -352,16 +441,15 @@ export default function AuditPage() {
   }, [actionQuery])
 
   const isAdmin = user?.role === "admin" || Boolean(user?.isOwner)
-
   useEffect(() => {
     if (!auditQuery.data?.logs) return
     const nextLogs = auditQuery.data.logs
     const previousIds = visibleLogIdsRef.current
     const nextIds = new Set(nextLogs.map((log) => log.id))
     
-    const isSameQuery = previousPageRef.current === page && previousFiltersRef.current === appliedFilters
-    previousPageRef.current = page
-    previousFiltersRef.current = appliedFilters
+    const currentParams = JSON.stringify({ page, appliedFilters })
+    const isSameQuery = previousDataParamsRef.current === currentParams
+    previousDataParamsRef.current = currentParams
 
     const addedIds =
       (previousIds.size > 0 && isSameQuery)
@@ -379,7 +467,8 @@ export default function AuditPage() {
         newLogTimeoutRef.current = undefined
       }, 2200)
     }
-  }, [auditQuery.data?.logs, page, appliedFilters])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auditQuery.data?.logs])
 
   useEffect(() => {
     const refreshFromRealtime = (event: Event) => {
@@ -401,6 +490,9 @@ export default function AuditPage() {
     }
   }, [])
 
+  const isRecentAuditChange = useIsRecentStructuralChange("audit")
+  const isStructuralFetching = auditQuery.isFetching && !auditQuery.isLoading && isRecentAuditChange
+
   const columns = useMemo<ColumnDef<AuditLog>[]>(
     () => [
       {
@@ -412,7 +504,7 @@ export default function AuditPage() {
             {formatAuditDate(row.original.createdAt)}
           </span>
         ),
-        meta: { cellClassName: "align-top" },
+        meta: { cellClassName: "align-middle" },
       },
       {
         id: "module",
@@ -423,7 +515,7 @@ export default function AuditPage() {
             {formatModuleName(row.original.module)}
           </Badge>
         ),
-        meta: { cellClassName: "align-top" },
+        meta: { cellClassName: "align-middle" },
       },
       {
         id: "action",
@@ -434,72 +526,32 @@ export default function AuditPage() {
             {formatActionName(row.original.action)}
           </span>
         ),
-        meta: { cellClassName: "align-top" },
+        meta: { cellClassName: "align-middle" },
       },
       {
         id: "user",
         accessorFn: (log) => getUserName(log.user),
         header: () => <DataTableStaticHeader title="Usuario" />,
-        cell: ({ row }) => {
-          const auditUser = row.original.user
-          if (!auditUser) {
-            return (
-              <div className="max-w-56 text-sm">
-                <span className="font-medium">Sistema</span>
-                {row.original.userId ? (
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {shortId(row.original.userId)}
-                  </span>
-                ) : null}
-              </div>
-            )
-          }
-
-          return (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-               className="-ml-2 h-auto sm:h-auto max-w-64 justify-start px-2 py-1 text-left transition-colors"
-              onClick={() => setSelectedUser(auditUser)}
-            >
-              <Avatar className="size-7">
-                {auditUser.avatarUrl ? <AvatarImage src={auditUser.avatarUrl} alt="" /> : null}
-                <AvatarFallback>{getUserInitials(auditUser)}</AvatarFallback>
-              </Avatar>
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{getUserName(auditUser)}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {auditUser.publicCode || auditUser.email || shortId(auditUser.id)}
-                </span>
-              </span>
-            </Button>
-          )
-        },
-        meta: { cellClassName: "align-top" },
+        cell: ({ row }) => (
+          <AuditUserCell 
+            log={row.original} 
+            onClick={() => {
+              if (row.original.user) setSelectedUser(row.original.user)
+            }} 
+          />
+        ),
+        meta: { cellClassName: "align-middle" },
       },
       {
         id: "details",
         accessorFn: (log) => getDetailSummary(log),
         header: () => <DataTableStaticHeader title="Detalles" />,
         cell: ({ row }) => (
-          <div className="flex min-w-0 max-w-80 items-center justify-between gap-3">
-            <span className="min-w-0 truncate text-sm text-muted-foreground">
-              {getDetailSummary(row.original)}
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="shrink-0"
-              onClick={() => setSelectedLog(row.original)}
-            >
-              <EyeIcon data-icon="inline-start" />
-              Ver
-            </Button>
-          </div>
+          <span className="min-w-0 truncate text-sm text-muted-foreground">
+            {getDetailSummary(row.original)}
+          </span>
         ),
-        meta: { cellClassName: "align-top" },
+        meta: { cellClassName: "align-middle" },
       },
     ],
     [],
@@ -511,60 +563,7 @@ export default function AuditPage() {
     return { modules, users, total: pagination.total || logs.length }
   }, [logs, pagination.total])
 
-  const applyFilters = () => {
-    let finalModule = filters.module
-    if (!finalModule && moduleQuery.trim()) {
-      const match = Object.keys(moduleLabels).find(
-        (key) =>
-          key.toLowerCase() === moduleQuery.trim().toLowerCase() ||
-          moduleLabels[key].toLowerCase() === moduleQuery.trim().toLowerCase()
-      )
-      if (match) {
-        finalModule = match
-      } else {
-        finalModule = moduleQuery.trim().toUpperCase()
-      }
-    }
-
-    let finalAction = filters.action
-    if (!finalAction && actionQuery.trim()) {
-      const match = Object.keys(actionLabels).find(
-        (key) =>
-          key.toLowerCase() === actionQuery.trim().toLowerCase() ||
-          actionLabels[key].toLowerCase() === actionQuery.trim().toLowerCase()
-      )
-      if (match) {
-        finalAction = match
-      } else {
-        finalAction = actionQuery.trim().toUpperCase()
-      }
-    }
-
-    const updatedFilters = {
-      ...filters,
-      module: finalModule,
-      action: finalAction,
-    }
-
-    if (finalModule) {
-      setModuleQuery(moduleLabels[finalModule] ?? finalModule)
-    }
-    if (finalAction) {
-      setActionQuery(actionLabels[finalAction] ?? finalAction)
-    }
-
-    setFilters(updatedFilters)
-    setAppliedFilters(updatedFilters)
-    setPage(1)
-  }
-
-  const clearFilters = () => {
-    setFilters(emptyFilters)
-    setAppliedFilters(emptyFilters)
-    setModuleQuery("")
-    setActionQuery("")
-    setPage(1)
-  }
+  // applyFilters and clearFilters removed because filters are now applied automatically via useEffect
 
   if (!isAdmin) {
     return (
@@ -585,14 +584,13 @@ export default function AuditPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-5 px-0 py-2 md:px-8 md:py-8">
+    <div className="mx-auto flex max-w-7xl flex-col gap-5">
       <header className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-normal md:text-3xl">
               Auditoría
             </h1>
-            <Badge variant="secondary">{stats.total} registros</Badge>
           </div>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Trazabilidad de acciones críticas en usuarios, préstamos, pagos y comprobantes.
@@ -600,7 +598,6 @@ export default function AuditPage() {
         </div>
 
         <Button
-          variant="secondary"
           onClick={() => void auditQuery.refetch()}
           disabled={auditQuery.isLoading || auditQuery.isFetching}
         >
@@ -609,20 +606,26 @@ export default function AuditPage() {
         </Button>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        <MetricCard icon={ActivityIcon} label="Registros" value={stats.total} />
-        <MetricCard icon={DatabaseIcon} label="Módulos" value={stats.modules} />
-        <MetricCard icon={UserIcon} label="Usuarios" value={stats.users} />
-      </section>
+      <Card>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-3 p-0">
+          <div className="relative">
+            <MetricCard icon={ActivityIcon} label="Registros" value={stats.total} />
+            <div className="absolute bottom-0 left-6 right-6 h-px bg-border sm:hidden" />
+            <div className="absolute right-0 top-6 bottom-6 w-px bg-border hidden sm:block" />
+          </div>
+          <div className="relative">
+            <MetricCard icon={DatabaseIcon} label="Módulos" value={stats.modules} />
+            <div className="absolute bottom-0 left-6 right-6 h-px bg-border sm:hidden" />
+            <div className="absolute right-0 top-6 bottom-6 w-px bg-border hidden sm:block" />
+          </div>
+          <div className="relative">
+            <MetricCard icon={UserIcon} label="Usuarios" value={stats.users} />
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="rounded-2xl bg-card p-3 max-[480px]:p-3 sm:p-4 shadow-xs/5">
-      <form
-        className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr_auto]"
-        onSubmit={(event) => {
-          event.preventDefault()
-          applyFilters()
-        }}
-      >
+      <div className="grid gap-3 md:grid-cols-3">
         <Field>
           <FieldLabel htmlFor="audit-module">Módulo</FieldLabel>
           <Combobox open={moduleOpen} onOpenChange={setModuleOpen}>
@@ -731,20 +734,7 @@ export default function AuditPage() {
             />
           </InputGroup>
         </Field>
-        <div className="flex items-end gap-2">
-          <Button type="submit" className="flex-1 md:flex-none">
-            <SearchIcon data-icon="inline-start" />
-            Buscar
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={clearFilters}
-          >
-            Limpiar
-          </Button>
-        </div>
-      </form>
+      </div>
       </div>
 
       {auditQuery.isLoading ? (
@@ -782,6 +772,8 @@ export default function AuditPage() {
           emptyMessage="No hay logs para los filtros aplicados."
           getRowId={(log) => log.id}
           getRowClassName={(log) => cn(newLogIds.has(log.id) && "realtime-row-enter")}
+          onRowClick={(log) => setSelectedLog(log)}
+          bodyClassName={cn((auditQuery.isPlaceholderData || isStructuralFetching) && "opacity-50 pointer-events-none transition-opacity duration-200")}
           pagination={{
             page: pagination.page ?? 1,
             pageSize: pagination.limit ?? AUDIT_PAGE_SIZE,
@@ -794,11 +786,12 @@ export default function AuditPage() {
         />
       )}
 
-      <UserDetailSheet
+      <UserDetailDrawer
         user={selectedUser}
         onOpenChange={(open) => {
           if (!open) setSelectedUser(null)
         }}
+        fetchUserById={(id) => fetchUserById(fetchWithAuth, id)}
       />
       <AuditDetailsSheet
         log={selectedLog}
@@ -820,17 +813,15 @@ function MetricCard({
   value: number
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Icon />
-        </div>
-        <div>
-          <p className="text-2xl font-semibold tracking-normal">{value}</p>
-          <p className="text-sm text-muted-foreground">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-4 p-4 sm:p-6">
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <Icon className="size-6" />
+      </div>
+      <div>
+        <p className="text-2xl font-semibold tracking-normal">{value}</p>
+        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      </div>
+    </div>
   )
 }
 
@@ -860,77 +851,60 @@ function AuditDetailsSheet({
             {log ? `${formatModuleName(log.module)} · ${formatAuditDate(log.createdAt)}` : ""}
           </DrawerDescription>
         </DrawerHeader>
-        <DrawerPanel className="space-y-5">
+        <DrawerPanel className="space-y-6 pb-8">
           {log ? (
-            <>
-              <section className="rounded-lg border bg-card p-4 shadow-xs/5">
-                <div className="mb-3 flex items-center gap-2">
-                  <InfoIcon className="size-4 text-muted-foreground" />
-                  <h2 className="font-medium">Resumen</h2>
+            <div className="fade-in animate-in slide-in-from-bottom-2 duration-300 flex flex-col gap-6">
+              <div className="rounded-xl bg-muted/30 p-5">
+                <h3 className="text-sm font-semibold text-foreground mb-4">Resumen</h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <InfoRow icon={<DatabaseIcon className="size-4" />} label="Módulo" value={formatModuleName(log.module)} />
+                  <InfoRow icon={<ActivityIcon className="size-4" />} label="Acción" value={formatActionName(log.action)} />
+                  <InfoRow icon={<CalendarClockIcon className="size-4" />} label="Fecha" value={formatAuditDate(log.createdAt)} />
+                  <InfoRow icon={<UserIcon className="size-4" />} label="Usuario" value={getUserName(log.user)} />
                 </div>
-                <InfoList
-                  items={[
-                    { icon: DatabaseIcon, label: "Módulo", value: formatModuleName(log.module) },
-                    { icon: ActivityIcon, label: "Acción", value: formatActionName(log.action) },
-                    { icon: CalendarClockIcon, label: "Fecha", value: formatAuditDate(log.createdAt) },
-                    { icon: FingerprintIcon, label: "Entidad", value: shortId(log.entityId) },
-                    { icon: UserIcon, label: "Usuario", value: getUserName(log.user) },
-                  ]}
-                />
-              </section>
+                <div className="mt-4 grid gap-4">
+                  <InfoRow icon={<FingerprintIcon className="size-4" />} label="Entidad" value={shortId(log.entityId)} />
+                </div>
+              </div>
 
-              <section className="space-y-3">
-                <h2 className="font-medium">Datos nuevos</h2>
+              <div className="rounded-xl bg-muted/30 p-5">
+                <h3 className="text-sm font-semibold text-foreground mb-4">Datos nuevos</h3>
                 {hasMeaningfulData(newData) ? (
                   <AuditValue value={newData} />
                 ) : (
-                  <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                    No se registraron datos nuevos.
-                  </p>
+                  <p className="text-sm text-muted-foreground">No se registraron datos nuevos.</p>
                 )}
-              </section>
+              </div>
 
               {hasMeaningfulData(oldData) ? (
-                <section className="space-y-3">
-                  <h2 className="font-medium">Datos anteriores</h2>
+                <div className="rounded-xl bg-muted/30 p-5">
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Datos anteriores</h3>
                   <AuditValue value={oldData} />
-                </section>
+                </div>
               ) : null}
 
-              <section className="space-y-3">
-                <h2 className="font-medium">Contexto técnico</h2>
-                <InfoList
-                  items={[
-                    { icon: FingerprintIcon, label: "IP", value: log.ipAddress || "-" },
-                    { icon: InfoIcon, label: "Dispositivo", value: log.userAgent || "-" },
-                  ]}
-                />
-              </section>
-            </>
+              <div className="rounded-xl bg-muted/30 p-5">
+                <h3 className="text-sm font-semibold text-foreground mb-4">Contexto técnico</h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <InfoRow icon={<FingerprintIcon className="size-4" />} label="Dirección IP" value={log.ipAddress || "-"} />
+                  <InfoRow icon={<InfoIcon className="size-4" />} label="Dispositivo" value={log.userAgent || "-"} truncate />
+                </div>
+              </div>
+            </div>
           ) : null}
         </DrawerPanel>
+        
+        {log && (
+          <DrawerFooter variant="bare">
+            <div className="flex w-full items-center justify-end">
+              <DrawerClose render={<Button variant="secondary" />}>
+                Cerrar
+              </DrawerClose>
+            </div>
+          </DrawerFooter>
+        )}
       </DrawerPopup>
     </Drawer>
-  )
-}
-
-function InfoList({
-  items,
-}: {
-  items: Array<{ icon: ElementType; label: string; value: string }>
-}) {
-  return (
-    <div className="divide-y rounded-lg border">
-      {items.map(({ icon: Icon, label, value }) => (
-        <div key={label} className="grid gap-2 p-3 sm:grid-cols-[150px_1fr]">
-          <dt className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Icon className="size-4" />
-            {label}
-          </dt>
-          <dd className="min-w-0 wrap-break-word text-sm font-medium">{value}</dd>
-        </div>
-      ))}
-    </div>
   )
 }
 
@@ -946,18 +920,32 @@ function AuditValue({
   const parsed = parseMaybeJson(value)
 
   if (parsed === null || parsed === undefined || typeof parsed !== "object") {
-    return <span className="wrap-break-word text-sm">{formatScalarValue(parsed, fieldKey)}</span>
+    return <span className="wrap-break-word text-sm font-medium text-foreground">{formatScalarValue(parsed, fieldKey)}</span>
   }
 
   if (Array.isArray(parsed)) {
     if (parsed.length === 0) {
-      return <span className="text-sm text-muted-foreground">Sin elementos</span>
+      return <span className="text-sm font-medium text-muted-foreground">Sin elementos</span>
+    }
+
+    const isScalarArray = parsed.every((item) => typeof item !== "object" || item === null)
+    
+    if (isScalarArray) {
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          {parsed.map((item, index) => (
+            <span key={index} className="rounded-lg bg-muted/50 px-2 py-1 text-xs font-medium">
+              {formatScalarValue(item)}
+            </span>
+          ))}
+        </div>
+      )
     }
 
     return (
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         {parsed.slice(0, 8).map((item, index) => (
-          <div key={index} className="rounded-md border bg-muted/20 p-3">
+          <div key={index} className="rounded-xl bg-background/50 p-3 shadow-xs/5">
             <AuditValue value={item} depth={depth + 1} />
           </div>
         ))}
@@ -968,30 +956,29 @@ function AuditValue({
     )
   }
 
-  const entries = Object.entries(parsed).filter(([, entryValue]) => entryValue !== undefined)
+  const entries = Object.entries(parsed).filter(([, entryValue]) => entryValue !== undefined && entryValue !== null)
   if (entries.length === 0) {
-    return <span className="text-sm text-muted-foreground">Sin datos</span>
+    return <span className="text-sm font-medium text-muted-foreground">Sin datos</span>
   }
 
   if (depth >= 3) {
     return (
-      <span className="text-sm text-muted-foreground">
+      <span className="text-sm font-medium text-muted-foreground">
         {entries.length} campos relacionados
       </span>
     )
   }
 
   return (
-    <div className="divide-y rounded-lg border bg-background">
+    <div className={depth === 0 ? "grid gap-2 sm:grid-cols-2" : "flex flex-col gap-2"}>
       {entries.map(([key, entryValue]) => (
-        <div
-          key={key}
-          className="grid gap-2 p-3 sm:grid-cols-[170px_1fr]"
-        >
-          <dt className="text-sm text-muted-foreground">{formatFieldLabel(key)}</dt>
-          <dd className="min-w-0">
+        <div key={key} className="flex flex-col gap-1 rounded-lg bg-background/50 px-3 py-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            {formatFieldLabel(key)}
+          </p>
+          <div className="min-w-0">
             <AuditValue value={entryValue} fieldKey={key} depth={depth + 1} />
-          </dd>
+          </div>
         </div>
       ))}
     </div>
