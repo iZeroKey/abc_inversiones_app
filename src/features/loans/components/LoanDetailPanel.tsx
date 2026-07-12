@@ -25,6 +25,7 @@ import {
 } from "@/features/loans/components/LoanMetricBits"
 import { interestPeriodLabels } from "@/features/loans/loan-constants"
 import { DetailSkeleton, EmptyDetail } from "@/features/loans/components/LoanPageStates"
+import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import { PaymentsGallery } from "@/features/loans/components/PaymentsGallery"
 import { ScheduleDrawer } from "@/features/loans/components/ScheduleDrawer"
 import { ScheduleTimeline } from "@/features/loans/components/ScheduleTimeline"
@@ -231,7 +232,10 @@ export function LoanDetailPanel({
         {/* ── Remaining balance + progress (all roles) ── */}
         <SectionBlock animate>
           <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Saldo total pendiente</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">Saldo total pendiente</p>
+              <LoanStatusBadge status={loanStatus} size="sm" />
+            </div>
             <p className="text-3xl font-black tabular-nums tracking-tight text-foreground">
               <AnimatedNumber value={remaining} isCurrency />
             </p>

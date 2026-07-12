@@ -20,7 +20,6 @@ import { UserDetailSheet, type UserDetailProfile } from "@/components/UserDetail
 import { useAuth } from "@/contexts/auth-context"
 
 import { CreateLoanDialog } from "@/features/loans/components/CreateLoanDialog"
-import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
 import { SimpleLoansWorkspace } from "@/features/loans/components/SimpleLoansWorkspace"
 import { LoanSummaryCard } from "@/features/loans/components/LoanSummaryCard"
@@ -43,7 +42,7 @@ import {
 } from "@/features/loans/loan-queries"
 import {
   getErrorMessage,
-  getLoanPaidAmount, normalizeStatus
+  getLoanPaidAmount,
 } from "@/features/loans/loan-utils"
 import { useDrawerHistory } from "@/hooks/use-drawer-history"
 import { useIsMobile } from "@/hooks/use-media-query"
@@ -558,16 +557,9 @@ export default function LoansPage() {
           style={!isMobile ? { width: 760, maxWidth: "min(1080px, calc(100vw - 2rem))", minWidth: 560 } : undefined}
         >
           <DrawerHeader>
-            <div className="flex items-center justify-between gap-2">
-              <DrawerTitle className="text-lg font-semibold truncate">
-                {visibleSelectedLoan?.name || "Detalle del préstamo"}
-              </DrawerTitle>
-              {visibleSelectedLoan && (
-                <LoanStatusBadge
-                  status={normalizeStatus(visibleSelectedLoan, visibleRelatedData?.installments)}
-                />
-              )}
-            </div>
+            <DrawerTitle className="text-lg font-semibold truncate">
+              {visibleSelectedLoan?.name || "Detalle del préstamo"}
+            </DrawerTitle>
           </DrawerHeader>
           <DrawerPanel>
             <LoanDetailPanel
