@@ -2,7 +2,7 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { CheckIcon, PlusIcon, XIcon } from "lucide-react"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
-import { useLocation } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -83,6 +83,7 @@ export default function LoansPage() {
   const [drawerLoanId, setDrawerLoanId] = useState<string | null>(null)
   const loanId = drawerLoanId
   const location = useLocation()
+  const navigate = useNavigate()
   const role = getLoanRole(user)
   const roleCopy = getRoleCopy(role)
   const basePath = location.pathname.startsWith("/investments") ? "/investments" : "/loans"
@@ -120,6 +121,15 @@ export default function LoansPage() {
   useDrawerHistory(isDetailOpen, (open) => {
     if (!open) setDrawerLoanId(null)
   })
+
+  useEffect(() => {
+    const state = location.state as { selectedLoanId?: string } | null
+    if (state?.selectedLoanId) {
+      setDrawerLoanId(state.selectedLoanId)
+      // Clear the state so it doesn't reopen on refresh
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.state, location.pathname, navigate])
 
   const [submittingAction, setSubmittingAction] = useState(false)
   const [loanForm, setLoanForm] = useState<LoanFormState>(createDefaultLoanForm)

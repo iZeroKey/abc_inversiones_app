@@ -117,7 +117,7 @@ export default function ClientDashboard() {
         <p className="text-sm text-muted-foreground font-medium">Aquí tienes el resumen de tus finanzas hoy.</p>
       </div>
 
-      {/* Préstamo activo (Movido arriba del todo) */}
+      {/* Préstamo activo */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-xl tracking-tight">Tu Préstamo Principal</h3>
@@ -189,7 +189,7 @@ export default function ClientDashboard() {
                   loan={loan as Parameters<typeof LoanCardRow>[0]["loan"]}
                   isNew={false}
                 selected={false}
-                onSelect={(l) => navigate(l.publicCode ? `/loans/${l.publicCode}` : "/loans")}
+                onSelect={(l) => navigate("/loans", { state: { selectedLoanId: l.publicCode || l.id } })}
               />
             ))}
           </div>
@@ -255,7 +255,7 @@ function MainLoanCard({ loan }: { loan: Loan }) {
   const publicCode = loan.publicCode
 
   return (
-    <Link to={publicCode ? `/loans/${publicCode}` : "/loans"} aria-label={`Ver préstamo ${publicCode ?? ""}`} className="block group focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-3xl">
+    <Link to="/loans" state={{ selectedLoanId: publicCode || loan.id }} aria-label={`Ver préstamo ${publicCode ?? ""}`} className="block group focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-3xl">
       <Card className="bg-primary text-primary-foreground shadow-md border-none rounded-3xl overflow-hidden hover:shadow-lg transition-all relative">
         <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
         <CardContent className="p-6 md:p-8 space-y-8 relative z-10">
