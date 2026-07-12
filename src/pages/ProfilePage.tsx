@@ -11,7 +11,6 @@ import { useAuth } from "@/contexts/auth-context"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 import {
   AtSignIcon,
-  BadgeCheckIcon,
   BanknoteIcon,
   CalendarIcon,
   Edit2Icon,
@@ -19,8 +18,7 @@ import {
   MapPinIcon,
   PhoneIcon,
   ShieldIcon,
-  UserCogIcon,
-  UserIcon,
+  UserIcon
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { PhotoProvider, PhotoView } from "react-photo-view"
