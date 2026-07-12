@@ -403,7 +403,7 @@ function AppHeader({
   }
 
   return (
-    <header className="flex h-[calc(3.5rem+env(safe-area-inset-top,0))] pt-[env(safe-area-inset-top,0px)] shrink-0 items-center justify-between border-b bg-[#1A233A] px-4 text-white sticky top-0 z-40 shadow-sm transition-colors">
+    <header className="flex h-[calc(3.5rem+env(safe-area-inset-top,0))] pt-[env(safe-area-inset-top,0px)] shrink-0 items-center justify-between bg-[#1A233A] px-4 text-white sticky top-0 z-40 shadow-sm transition-colors">
       <div className="flex items-center gap-3">
         {(onBack || getRouteDepth(location.pathname) > 1) && (
           <button onClick={handleBack} className="text-white/80 hover:text-white transition-colors cursor-pointer mr-1">

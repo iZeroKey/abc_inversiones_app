@@ -299,11 +299,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="flex flex-wrap items-center justify-center gap-2">
-                    <Badge variant="secondary">{summary.roleLabel}</Badge>
-                    {profileData?.isOwner && <Badge variant="outline">Propietario</Badge>}
-                    <Badge variant={profileData?.authUserId ? "default" : "outline"}>
-                      {profileData?.authUserId ? "Con acceso" : "Sin acceso"}
-                    </Badge>
+                    <Badge>{summary.roleLabel}</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -401,30 +397,6 @@ export default function ProfilePage() {
                         <p className="text-sm text-muted-foreground">Sin cuentas registradas</p>
                       )}
                     </div>
-                  </div>
-                </section>
-
-                <section className="rounded-xl bg-muted/30 p-5">
-                  <h3 className="mb-4 text-sm font-semibold text-foreground">Cuenta de acceso</h3>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <InfoRow
-                      icon={profileData?.authUserId ? <BadgeCheckIcon className="size-4" /> : <UserCogIcon className="size-4" />}
-                      label="Estado"
-                      value={profileData?.authUserId ? "Con acceso" : "Sin acceso"}
-                    />
-                    <InfoRow icon={<CalendarIcon className="size-4" />} label="Registro" value={formatDate(profileData?.createdAt)} />
-                  </div>
-                </section>
-
-                <section className="rounded-xl bg-muted/30 p-5">
-                  <h3 className="mb-4 text-sm font-semibold text-foreground">Rol y estado</h3>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <InfoRow icon={<ShieldIcon className="size-4" />} label="Rol" value={getRoleLabel(profileData?.role, profileData?.isOwner)} />
-                    <InfoRow
-                      icon={profileData?.isOwner ? <BadgeCheckIcon className="size-4" /> : <UserCogIcon className="size-4" />}
-                      label="Estado"
-                      value={profileData?.authUserId ? "Vinculado" : "Sin vincular"}
-                    />
                   </div>
                 </section>
               </CardContent>

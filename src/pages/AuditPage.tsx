@@ -19,6 +19,7 @@ import {
   DataTableSkeleton,
   DataTableStaticHeader,
 } from "@/components/data-table-card"
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -606,8 +607,9 @@ export default function AuditPage() {
         </Button>
       </header>
 
-      <Card>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-3 p-0">
+
+          <Card>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 p-0">
           <div className="relative">
             <MetricCard icon={ActivityIcon} label="Registros" value={stats.total} />
             <div className="absolute bottom-0 left-6 right-6 h-px bg-border sm:hidden" />
@@ -785,6 +787,7 @@ export default function AuditPage() {
           tableClassName="min-w-[1040px]"
         />
       )}
+
 
       <UserDetailDrawer
         user={selectedUser}
