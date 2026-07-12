@@ -61,6 +61,7 @@ type DataTableSkeletonProps = {
   tableClassName?: string
 }
 
+
 export function DataTableCard<TData, TValue>({
   columns,
   data,

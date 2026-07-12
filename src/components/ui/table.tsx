@@ -1,6 +1,6 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type * as React from "react";
+import * as React from "react";
 
 export function Table({
   className,
@@ -67,12 +67,10 @@ export function TableFooter({
   );
 }
 
-export function TableRow({
-  className,
-  ...props
-}: React.ComponentProps<"tr">): React.ReactElement {
-  return (
+export const TableRow = React.forwardRef<HTMLTableRowElement, React.ComponentProps<"tr">>(
+  ({ className, ...props }, ref) => (
     <tr
+      ref={ref}
       className={cn(
         "relative border-b border-black/8 transition-colors duration-150 even:bg-muted/20 hover:bg-black/2.5 dark:hover:bg-white/3 data-[state=selected]:bg-muted/30",
         className,
@@ -80,8 +78,9 @@ export function TableRow({
       data-slot="table-row"
       {...props}
     />
-  );
-}
+  )
+)
+TableRow.displayName = "TableRow"
 
 export function TableHead({
   className,
