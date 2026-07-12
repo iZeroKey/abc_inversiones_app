@@ -108,7 +108,7 @@ export default function ClientDashboard() {
   const otherLoans = activeLoans.length > 1 ? activeLoans.slice(1) : []
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500 pb-8">
+    <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
       {/* Header Hero */}
       <div className="flex flex-col gap-1">
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
@@ -267,7 +267,7 @@ function MainLoanCard({ loan }: { loan: Loan }) {
               </div>
             </div>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row items-center gap-6 pt-4">
             <div className="flex flex-col justify-center text-center">
               <span className="text-2xl font-bold leading-none"><AnimatedNumber value={progressPercent} decimals={0} suffix="%" /></span>
