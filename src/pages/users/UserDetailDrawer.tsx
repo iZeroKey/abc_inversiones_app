@@ -84,7 +84,7 @@ export function UserDetailDrawer({
               </div>
             </DrawerHeader>
 
-            <DrawerPanel className="p-4 sm:p-6">
+            <DrawerPanel>
               <motion.div
                 className="flex flex-col gap-6"
                 variants={{ animate: { transition: { staggerChildren: 0.06 } } }}

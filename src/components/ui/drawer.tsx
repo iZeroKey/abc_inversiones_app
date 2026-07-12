@@ -325,7 +325,7 @@ export function DrawerPanel({
 }): React.ReactElement {
   const defaultProps = {
     className: cn(
-      "p-4 sm:p-6 in-[[data-slot=drawer-popup]:has([data-slot=drawer-header])]:pt-1 in-[[data-slot=drawer-popup]:has([data-slot=drawer-footer]:not(.border-t))]:pb-1",
+      "px-4 sm:px-6 in-[[data-slot=drawer-popup]:has([data-slot=drawer-header])]:pt-1 in-[[data-slot=drawer-popup]:has([data-slot=drawer-footer]:not(.border-t))]:pb-1",
       !allowSelection && "cursor-default",
       className,
     ),

@@ -55,7 +55,7 @@ export function RequestDetailSheet({
               : "Selecciona una solicitud para revisar su información."}
           </DrawerDescription>
         </DrawerHeader>
-        <DrawerPanel className="p-4 sm:p-6">
+        <DrawerPanel>
           {request && (
             <div className="flex flex-col gap-5">
               <div className="flex items-start justify-between gap-3 border-b pb-4">
@@ -169,7 +169,7 @@ export function ReviewRequestDialog({
           </DrawerDescription>
         </DrawerHeader>
 
-        <DrawerPanel className="pt-4 max-sm:pt-4">
+        <DrawerPanel>
           <div className="flex flex-col gap-4">
             {approving && (
               <Field>

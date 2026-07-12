@@ -170,7 +170,7 @@ export function UserDialog({
           </DrawerDescription>
         </DrawerHeader>
 
-        <DrawerPanel className="p-4 sm:p-6">
+        <DrawerPanel>
           <form
             id="user-form"
             className="flex flex-col gap-4"
@@ -573,7 +573,7 @@ export function LinkAuthDialog({
           </DrawerDescription>
         </DrawerHeader>
 
-        <DrawerPanel className="pt-4 max-sm:pt-4">
+        <DrawerPanel>
           <form id="link-auth-form" className="flex flex-col gap-4" onSubmit={onSubmit}>
             <Field>
               <FieldLabel htmlFor="link-email">Correo electrónico</FieldLabel>
