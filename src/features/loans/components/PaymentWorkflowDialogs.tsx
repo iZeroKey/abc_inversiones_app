@@ -94,7 +94,6 @@ export function PaymentDialog({
   open,
   payment,
   submitting,
-  presentation = "dialog",
   drawerWidth,
   onOpenChange,
   onAnalyze,
@@ -104,7 +103,6 @@ export function PaymentDialog({
   payment?: Payment | null
   submitting: boolean
   analyzing: boolean
-  presentation?: "dialog" | "panel"
   drawerWidth?: number
   onOpenChange: (open: boolean) => void
   onAnalyze: (
@@ -142,19 +140,16 @@ export function PaymentDialog({
     setUploadState(idleScanState)
   }
 
-  const isPanel = presentation === "panel"
   const content = (
     <>
-        {!isPanel && (
-          <DrawerHeader className={cn(isPanel && "p-0 pb-4")}>
-            <DrawerTitle>{editing ? "Editar pago" : "Registrar pago"}</DrawerTitle>
-            <DrawerDescription>
-              El sistema aplicará el monto al cronograma y recalculará el préstamo.
-            </DrawerDescription>
-          </DrawerHeader>
-        )}
+        <DrawerHeader>
+          <DrawerTitle>{editing ? "Editar pago" : "Registrar pago"}</DrawerTitle>
+          <DrawerDescription>
+            El sistema aplicará el monto al cronograma y recalculará el préstamo.
+          </DrawerDescription>
+        </DrawerHeader>
         <form className="contents" onSubmit={handleSubmit}>
-            <DrawerPanel className={cn("flex flex-col gap-4", isPanel && "p-0")}>
+            <DrawerPanel className="flex flex-col gap-4">
               {!editing && (
                 <EvidenceSection
                   file={form.evidence}
@@ -269,7 +264,7 @@ export function PaymentDialog({
             </DrawerPanel>
           <DrawerFooter
             variant="bare"
-            className={cn("shrink-0", isPanel && "mt-4 border-t bg-transparent px-0 pb-0 pt-4")}
+            className="shrink-0"
           >
             <DrawerClose render={<Button variant="secondary" />}>
               Cancelar
@@ -282,10 +277,6 @@ export function PaymentDialog({
         </form>
     </>
   )
-
-  if (presentation === "panel") {
-    return <div className="flex min-h-0 flex-1 flex-col">{content}</div>
-  }
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"} nested>
