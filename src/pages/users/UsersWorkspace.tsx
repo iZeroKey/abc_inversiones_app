@@ -1,14 +1,11 @@
-import { useMemo } from "react"
-import { LinkIcon, SearchIcon, UserCogIcon, UsersIcon } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
+import { SearchIcon, UsersIcon } from "lucide-react"
+import { useMemo } from "react"
 
 import {
   DataTableCard,
   DataTableColumnHeader,
-  DataTableStaticHeader,
 } from "@/components/data-table-card"
-import { Button } from "@/components/ui/button"
-import { Field, FieldLabel } from "@/components/ui/field"
 import {
   Empty,
   EmptyDescription,
@@ -16,6 +13,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { Field, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import {
   Select,
@@ -25,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 import {
@@ -38,7 +37,6 @@ import {
   UsersSkeleton,
 } from "./components"
 import type {
-  CurrentUser,
   ManagedUser,
   PaginationMeta,
   RoleFilter,
@@ -46,8 +44,6 @@ import type {
 } from "./utils"
 import {
   USERS_PAGE_SIZE,
-  canLinkAuthAccount,
-  canManageUser,
   displayPersonName,
   formatDate,
   getMaritalStatusLabel,
@@ -68,9 +64,8 @@ export function UsersWorkspace({
   loading,
   refreshing,
   error,
-  currentUser,
-  onEditUser,
-  onLinkAuth,
+  isFetching,
+  onRowClick,
   onPageChange,
   onRetry,
   onRoleFilterChange,
@@ -87,9 +82,8 @@ export function UsersWorkspace({
   loading: boolean
   refreshing: boolean
   error: string | null
-  currentUser: CurrentUser
-  onEditUser: (user: ManagedUser) => void
-  onLinkAuth: (user: ManagedUser) => void
+  isFetching?: boolean
+  onRowClick: (user: ManagedUser) => void
   onPageChange: (page: number) => void
   onRetry: () => void
   onRoleFilterChange: (value: RoleFilter | null) => void
@@ -230,52 +224,14 @@ export function UsersWorkspace({
           headerClassName: "w-[120px]",
         },
       },
-      {
-        id: "action",
-        enableSorting: false,
-        header: () => <DataTableStaticHeader title="Acción" align="right" />,
-        cell: ({ row }) => {
-          const editable = canManageUser(currentUser, row.original)
-          const linkable = canLinkAuthAccount(currentUser, row.original)
-
-          return (
-            <div className="flex justify-end gap-2">
-              {linkable && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => onLinkAuth(row.original)}
-                >
-                  <LinkIcon data-icon="inline-start" />
-                  Acceso
-                </Button>
-              )}
-              {editable && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => onEditUser(row.original)}
-                >
-                  <UserCogIcon data-icon="inline-start" />
-                  Editar
-                </Button>
-              )}
-            </div>
-          )
-        },
-        meta: {
-          headerClassName: "w-[220px] text-right",
-          cellClassName: "text-right",
-        },
-      },
     ],
-    [currentUser, onEditUser, onLinkAuth],
+    [],
   )
 
   return (
     <section className="flex min-w-0 flex-col gap-4">
       <div className="rounded-2xl bg-card p-4 shadow-xs/5">
-        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+        <div className="grid gap-3 md:grid-cols-3">
           <Field>
             <FieldLabel>Buscar</FieldLabel>
             <InputGroup>
@@ -326,6 +282,16 @@ export function UsersWorkspace({
         </div>
       </div>
 
+      <div className="flex items-center justify-between gap-3 px-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-base font-semibold whitespace-nowrap">Usuarios</h2>
+          {isFetching && <Spinner className="size-4 shrink-0" />}
+          <p className="text-sm text-muted-foreground truncate">
+            {pagination.total ?? users.length} encontrados
+          </p>
+        </div>
+      </div>
+
       {error ? (
         <ErrorState message={error} onRetry={onRetry} />
       ) : loading ? (
@@ -348,6 +314,7 @@ export function UsersWorkspace({
           data={users}
           getRowId={(item) => item.id}
           getRowClassName={(item) => cn(highlightedUserIds?.has(item.id) && "realtime-row-enter")}
+          onRowClick={onRowClick}
           tableClassName="min-w-[1080px] table-fixed"
           bodyClassName={cn(refreshing && "opacity-70")}
           pagination={{

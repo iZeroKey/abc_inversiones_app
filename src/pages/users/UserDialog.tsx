@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react"
 import {
   BadgeCheckIcon,
   BanknoteIcon,
@@ -18,6 +17,7 @@ import {
   UserIcon,
   XIcon,
 } from "lucide-react"
+import { useEffect, useRef } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -33,7 +33,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import {
   Select,
   SelectContent,
@@ -78,6 +78,7 @@ export function UserDialog({
   onFormChange,
   onOpenChange,
   onSubmit,
+  nested = false,
 }: {
   open: boolean
   editingUser: ManagedUser | null
@@ -88,6 +89,7 @@ export function UserDialog({
   onFormChange: React.Dispatch<React.SetStateAction<UserFormState>>
   onOpenChange: (open: boolean) => void
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
+  nested?: boolean
 }) {
   const isEditing = Boolean(editingUser)
   const roleItemsForUser = currentUser?.isOwner
@@ -151,12 +153,11 @@ export function UserDialog({
   const isMobile = useIsMobile()
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"} nested={nested}>
       <DrawerPopup
         showCloseButton={!isMobile}
         className={cn(
           isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : "",
-          "overflow-hidden",
         )}
         style={!isMobile ? { width: 860, minWidth: 620 } : undefined}
       >
@@ -169,7 +170,7 @@ export function UserDialog({
           </DrawerDescription>
         </DrawerHeader>
 
-        <DrawerPanel className="pt-4 max-sm:pt-4">
+        <DrawerPanel className="p-4 sm:p-6">
           <form
             id="user-form"
             className="flex flex-col gap-4"
@@ -181,332 +182,341 @@ export function UserDialog({
               onSubmit(event)
             }}
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            <FormSection title="Información personal">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="firstName">Nombres</FieldLabel>
+                  <InputGroup>
+                    <InputGroupAddon align="inline-start">
+                      <UserIcon />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      id="firstName"
+                      value={form.firstName}
+                      required
+                      onChange={(event) =>
+                        onFormChange((current) => ({ ...current, firstName: event.target.value }))
+                      }
+                    />
+                  </InputGroup>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="lastName">Apellidos</FieldLabel>
+                  <InputGroup>
+                    <InputGroupAddon align="inline-start">
+                      <UserIcon />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      id="lastName"
+                      value={form.lastName}
+                      required
+                      onChange={(event) =>
+                        onFormChange((current) => ({ ...current, lastName: event.target.value }))
+                      }
+                    />
+                  </InputGroup>
+                </Field>
+              </div>
+
               <Field>
-                <FieldLabel htmlFor="firstName">Nombres</FieldLabel>
+                <FieldLabel htmlFor="email">Correo electrónico</FieldLabel>
                 <InputGroup>
                   <InputGroupAddon align="inline-start">
-                    <UserIcon />
+                    <MailIcon />
                   </InputGroupAddon>
                   <InputGroupInput
-                    id="firstName"
-                    value={form.firstName}
-                    required
+                    id="email"
+                    type="email"
+                    value={form.email}
+                    required={authRequired}
+                    disabled={isEditing && !permissions.canUpdateAdministrativeFields}
+                    placeholder="correo@ejemplo.com"
                     onChange={(event) =>
-                      onFormChange((current) => ({ ...current, firstName: event.target.value }))
+                      onFormChange((current) => ({ ...current, email: event.target.value }))
                     }
                   />
                 </InputGroup>
+                {isEditing && !permissions.canUpdateAdministrativeFields && (
+                  <FieldDescription>Tu correo no se cambia desde esta pantalla.</FieldDescription>
+                )}
+                {!isEditing && (
+                  <FieldDescription>
+                    Clientes e inversionistas pueden quedar sin correo si no tendrán cuenta de acceso.
+                  </FieldDescription>
+                )}
+                {missingAuthEmail && (
+                  <FieldDescription className="text-destructive">
+                    Agrega un correo para crear la cuenta de acceso.
+                  </FieldDescription>
+                )}
               </Field>
+
               <Field>
-                <FieldLabel htmlFor="lastName">Apellidos</FieldLabel>
+                <FieldLabel htmlFor="phone">Teléfono</FieldLabel>
                 <InputGroup>
                   <InputGroupAddon align="inline-start">
-                    <UserIcon />
+                    <PhoneIcon />
+                    <InputGroupText>+51</InputGroupText>
                   </InputGroupAddon>
                   <InputGroupInput
-                    id="lastName"
-                    value={form.lastName}
-                    required
+                    id="phone"
+                    value={form.phone}
+                    placeholder="999 999 999"
+                    inputMode="numeric"
                     onChange={(event) =>
-                      onFormChange((current) => ({ ...current, lastName: event.target.value }))
-                    }
-                  />
-                </InputGroup>
-              </Field>
-            </div>
-
-            <Field>
-              <FieldLabel htmlFor="email">Correo electrónico</FieldLabel>
-              <InputGroup>
-                <InputGroupAddon align="inline-start">
-                  <MailIcon />
-                </InputGroupAddon>
-                <InputGroupInput
-                  id="email"
-                  type="email"
-                  value={form.email}
-                  required={authRequired}
-                  disabled={isEditing && !permissions.canUpdateAdministrativeFields}
-                  placeholder="correo@ejemplo.com"
-                  onChange={(event) =>
-                    onFormChange((current) => ({ ...current, email: event.target.value }))
-                  }
-                />
-              </InputGroup>
-              {isEditing && !permissions.canUpdateAdministrativeFields && (
-                <FieldDescription>Tu correo no se cambia desde esta pantalla.</FieldDescription>
-              )}
-              {!isEditing && (
-                <FieldDescription>
-                  Clientes e inversionistas pueden quedar sin correo si no tendrán cuenta de acceso.
-                </FieldDescription>
-              )}
-              {missingAuthEmail && (
-                <FieldDescription className="text-destructive">
-                  Agrega un correo para crear la cuenta de acceso.
-                </FieldDescription>
-              )}
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="phone">Teléfono</FieldLabel>
-              <InputGroup>
-                <InputGroupAddon align="inline-start">
-                  <PhoneIcon />
-                </InputGroupAddon>
-                <InputGroupInput
-                  id="phone"
-                  value={form.phone}
-                  placeholder="+51 999 999 999"
-                  onChange={(event) =>
-                    onFormChange((current) => ({ ...current, phone: event.target.value }))
-                  }
-                  onBlur={() =>
-                    onFormChange((current) => ({ ...current, phone: formatPhoneNumber(current.phone) }))
-                  }
-                />
-              </InputGroup>
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="dni">DNI</FieldLabel>
-                <InputGroup>
-                  <InputGroupAddon align="inline-start">
-                    <IdCardIcon />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    id="dni"
-                    value={form.dni}
-                    placeholder="12345678"
-                    onChange={(event) =>
-                      onFormChange((current) => ({ ...current, dni: event.target.value }))
+                      onFormChange((current) => ({ ...current, phone: formatPhoneNumber(event.target.value) }))
                     }
                   />
                 </InputGroup>
               </Field>
 
-              <Field>
-                <FieldLabel htmlFor="maritalStatus">Estado civil</FieldLabel>
-                <Select
-                  items={maritalStatusItems}
-                  value={form.maritalStatus}
-                  onValueChange={(value) =>
-                    onFormChange((current) => ({
-                      ...current,
-                      maritalStatus: value ?? "none",
-                    }))
-                  }
-                >
-                  <SelectTrigger id="maritalStatus">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {maritalStatusItems.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="dni">DNI</FieldLabel>
+                  <InputGroup>
+                    <InputGroupAddon align="inline-start">
+                      <IdCardIcon />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      id="dni"
+                      value={form.dni}
+                      placeholder="12345678"
+                      inputMode="numeric"
+                      onChange={(event) =>
+                        onFormChange((current) => ({ ...current, dni: event.target.value }))
+                      }
+                    />
+                  </InputGroup>
+                </Field>
 
-            <Field>
-              <FieldLabel htmlFor="address">Dirección</FieldLabel>
-              <InputGroup>
-                <InputGroupAddon align="inline-start">
-                  <MapPinIcon />
-                </InputGroupAddon>
-                <InputGroupInput
-                  id="address"
-                  value={form.address}
-                  placeholder="Av. Principal 123"
-                  onChange={(event) =>
-                    onFormChange((current) => ({ ...current, address: event.target.value }))
-                  }
-                />
-              </InputGroup>
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="bank">Banco</FieldLabel>
-                <InputGroup>
-                  <InputGroupAddon align="inline-start">
-                    <BanknoteIcon />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    id="bank"
-                    value={form.bank}
-                    placeholder="BCP, Interbank..."
-                    onChange={(event) =>
-                      onFormChange((current) => ({ ...current, bank: event.target.value }))
-                    }
-                  />
-                </InputGroup>
-              </Field>
-
-              <Field>
-                <FieldLabel>Cuentas bancarias</FieldLabel>
-                <div className="flex w-full flex-col gap-2">
-                  {form.bankAccounts.map((account, index) => (
-                    <InputGroup key={index}>
-                      <InputGroupAddon align="inline-start">
-                        <BanknoteIcon />
-                      </InputGroupAddon>
-                      <InputGroupInput
-                        aria-label={`Cuenta bancaria ${index + 1}`}
-                        value={account}
-                        placeholder="CCI o número de cuenta"
-                        ref={(node) => {
-                          bankAccountRefs.current[index] = node
-                        }}
-                        onChange={(event) => handleBankAccountChange(index, event.target.value)}
-                      />
-                      <InputGroupAddon align="inline-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={`Eliminar cuenta bancaria ${index + 1}`}
-                          disabled={form.bankAccounts.length === 1 && !account}
-                          onClick={() => removeBankAccount(index)}
-                        >
-                          <XIcon />
-                        </Button>
-                      </InputGroupAddon>
-                    </InputGroup>
-                  ))}
-                  {canAddBankAccount && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="h-8.5 w-full justify-center border-dashed text-muted-foreground animate-in fade-in-0 slide-in-from-top-1 sm:h-7.5"
-                      onClick={addBankAccount}
-                    >
-                      <PlusIcon data-icon="inline-start" />
-                      Agregar cuenta bancaria
-                    </Button>
-                  )}
-                </div>
-              </Field>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <RoleAccessPanel
-                editingUser={editingUser}
-                form={form}
-                isEditing={isEditing}
-                roleItemsForUser={roleItemsForUser}
-                onFormChange={onFormChange}
-              />
-
-              <AccessStatusField
-                authRequired={authRequired}
-                editingUser={editingUser}
-                form={form}
-                isEditing={isEditing}
-                permissions={permissions}
-                onFormChange={onFormChange}
-              />
-            </div>
-
-            {!isEditing && (
-              <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4">
-                <label className="flex items-start gap-3">
-                  <Checkbox
-                    checked={form.role === "admin" || form.createAuthAccount}
-                    disabled={form.role === "admin"}
-                    onCheckedChange={(checked) =>
+                <Field>
+                  <FieldLabel htmlFor="maritalStatus">Estado civil</FieldLabel>
+                  <Select
+                    items={maritalStatusItems}
+                    value={form.maritalStatus}
+                    onValueChange={(value) =>
                       onFormChange((current) => ({
                         ...current,
-                        createAuthAccount: current.role === "admin" ? true : Boolean(checked),
+                        maritalStatus: value ?? "none",
                       }))
                     }
+                  >
+                    <SelectTrigger id="maritalStatus">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {maritalStatusItems.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+
+              <Field>
+                <FieldLabel htmlFor="address">Dirección</FieldLabel>
+                <InputGroup>
+                  <InputGroupAddon align="inline-start">
+                    <MapPinIcon />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id="address"
+                    value={form.address}
+                    placeholder="Av. Principal 123"
+                    onChange={(event) =>
+                      onFormChange((current) => ({ ...current, address: event.target.value }))
+                    }
                   />
-                  <span className="min-w-0 text-sm">
-                    <span className="block font-medium">Crear cuenta de acceso</span>
-                    <span className="block text-muted-foreground">
-                      Requiere correo y contraseña temporal. Para usuarios operativos puedes dejarlo desactivado.
+                </InputGroup>
+              </Field>
+            </FormSection>
+
+            <FormSection title="Información bancaria">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="bank">Banco</FieldLabel>
+                  <InputGroup>
+                    <InputGroupAddon align="inline-start">
+                      <BanknoteIcon />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      id="bank"
+                      value={form.bank}
+                      placeholder="BCP, Interbank..."
+                      onChange={(event) =>
+                        onFormChange((current) => ({ ...current, bank: event.target.value }))
+                      }
+                    />
+                  </InputGroup>
+                </Field>
+
+                <Field>
+                  <FieldLabel>Cuentas bancarias</FieldLabel>
+                  <div className="flex w-full flex-col gap-2">
+                    {form.bankAccounts.map((account, index) => (
+                      <InputGroup key={index}>
+                        <InputGroupAddon align="inline-start">
+                          <BanknoteIcon />
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          aria-label={`Cuenta bancaria ${index + 1}`}
+                          value={account}
+                          placeholder="CCI o número de cuenta"
+                          className="font-mono tabular-nums"
+                          ref={(node) => {
+                            bankAccountRefs.current[index] = node
+                          }}
+                          onChange={(event) => handleBankAccountChange(index, event.target.value)}
+                        />
+                        <InputGroupAddon align="inline-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Eliminar cuenta bancaria ${index + 1}`}
+                            disabled={form.bankAccounts.length === 1 && !account}
+                            onClick={() => removeBankAccount(index)}
+                          >
+                            <XIcon />
+                          </Button>
+                        </InputGroupAddon>
+                      </InputGroup>
+                    ))}
+                    {canAddBankAccount && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-8.5 w-full justify-center border-dashed text-muted-foreground animate-in fade-in-0 slide-in-from-top-1 sm:h-7.5"
+                        onClick={addBankAccount}
+                      >
+                        <PlusIcon data-icon="inline-start" />
+                        Agregar cuenta bancaria
+                      </Button>
+                    )}
+                  </div>
+                </Field>
+              </div>
+            </FormSection>
+
+            <FormSection title="Acceso y rol">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <RoleAccessPanel
+                  editingUser={editingUser}
+                  form={form}
+                  isEditing={isEditing}
+                  roleItemsForUser={roleItemsForUser}
+                  onFormChange={onFormChange}
+                />
+
+                <AccessStatusField
+                  authRequired={authRequired}
+                  editingUser={editingUser}
+                  form={form}
+                  isEditing={isEditing}
+                  permissions={permissions}
+                  onFormChange={onFormChange}
+                />
+              </div>
+
+              {!isEditing && (
+                <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4">
+                  <label className="flex items-start gap-3">
+                    <Checkbox
+                      checked={form.role === "admin" || form.createAuthAccount}
+                      disabled={form.role === "admin"}
+                      onCheckedChange={(checked) =>
+                        onFormChange((current) => ({
+                          ...current,
+                          createAuthAccount: current.role === "admin" ? true : Boolean(checked),
+                        }))
+                      }
+                    />
+                    <span className="min-w-0 text-sm">
+                      <span className="block font-medium">Crear cuenta de acceso</span>
+                      <span className="block text-muted-foreground">
+                        Requiere correo y contraseña temporal. Para usuarios operativos puedes dejarlo desactivado.
+                      </span>
                     </span>
-                  </span>
-                </label>
+                  </label>
 
-                {authRequired && (
-                  <Field>
-                    <FieldLabel htmlFor="password">Contraseña temporal</FieldLabel>
-                    <InputGroup>
-                      <InputGroupAddon align="inline-start">
-                        <KeyRoundIcon />
-                      </InputGroupAddon>
-                      <InputGroupInput
-                        id="password"
-                        type="password"
-                        value={form.password}
-                        required
-                        minLength={6}
-                        placeholder="Mínimo 6 caracteres"
-                        onChange={(event) =>
-                          onFormChange((current) => ({ ...current, password: event.target.value }))
-                        }
-                      />
-                      <InputGroupAddon align="inline-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={setGeneratedPassword}
-                        >
-                          <Dice5Icon data-icon="inline-start" />
-                          Generar
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled={!form.password}
-                          onClick={() => void copyPassword()}
-                        >
-                          <CopyIcon data-icon="inline-start" />
-                          Copiar
-                        </Button>
-                      </InputGroupAddon>
-                    </InputGroup>
-                  </Field>
-                )}
-              </div>
-            )}
+                  {authRequired && (
+                    <Field>
+                      <FieldLabel htmlFor="password">Contraseña temporal</FieldLabel>
+                      <InputGroup>
+                        <InputGroupAddon align="inline-start">
+                          <KeyRoundIcon />
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          id="password"
+                          type="password"
+                          value={form.password}
+                          required
+                          minLength={6}
+                          placeholder="Mínimo 6 caracteres"
+                          onChange={(event) =>
+                            onFormChange((current) => ({ ...current, password: event.target.value }))
+                          }
+                        />
+                        <InputGroupAddon align="inline-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={setGeneratedPassword}
+                          >
+                            <Dice5Icon data-icon="inline-start" />
+                            Generar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={!form.password}
+                            onClick={() => void copyPassword()}
+                          >
+                            <CopyIcon data-icon="inline-start" />
+                            Copiar
+                          </Button>
+                        </InputGroupAddon>
+                      </InputGroup>
+                    </Field>
+                  )}
+                </div>
+              )}
 
-            {showInactiveWarning && (
-              <div className="flex flex-col gap-3">
-                <Alert variant="warning">
-                  <CircleAlertIcon />
-                  <AlertTitle>
-                    {editingUser?.authUserId ? "El usuario quedará sin acceso" : "El usuario quedará inactivo"}
-                  </AlertTitle>
-                  <AlertDescription>
-                    {editingUser?.authUserId
-                      ? "Al desactivarlo no podrá iniciar sesión hasta que vuelva a estar activo."
-                      : "Al desactivarlo no estará disponible para operaciones en el sistema hasta que vuelva a estar activo."}
-                  </AlertDescription>
-                </Alert>
-              </div>
-            )}
+              {showInactiveWarning && (
+                <div className="flex flex-col gap-3">
+                  <Alert variant="warning">
+                    <CircleAlertIcon />
+                    <AlertTitle>
+                      {editingUser?.authUserId ? "El usuario quedará sin acceso" : "El usuario quedará inactivo"}
+                    </AlertTitle>
+                    <AlertDescription>
+                      {editingUser?.authUserId
+                        ? "Al desactivarlo no podrá iniciar sesión hasta que vuelva a estar activo."
+                        : "Al desactivarlo no estará disponible para operaciones en el sistema hasta que vuelva a estar activo."}
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
+            </FormSection>
           </form>
         </DrawerPanel>
 
-        <DrawerFooter>
-          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button type="submit" form="user-form" disabled={!canSubmit}>
-            {saving ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
-            {saving ? "Guardando..." : "Guardar"}
-          </Button>
+        <DrawerFooter variant="bare">
+          <div className="flex w-full items-center justify-between">
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button type="submit" form="user-form" disabled={!canSubmit}>
+              {saving ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
+              {saving ? "Guardando..." : "Guardar"}
+            </Button>
+          </div>
         </DrawerFooter>
       </DrawerPopup>
     </Drawer>
@@ -521,6 +531,7 @@ export function LinkAuthDialog({
   onFormChange,
   onOpenChange,
   onSubmit,
+  nested = false,
 }: {
   open: boolean
   user: ManagedUser | null
@@ -529,6 +540,7 @@ export function LinkAuthDialog({
   onFormChange: React.Dispatch<React.SetStateAction<LinkAuthFormState>>
   onOpenChange: (open: boolean) => void
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
+  nested?: boolean
 }) {
   const isMobile = useIsMobile()
   if (!user) return null
@@ -548,7 +560,7 @@ export function LinkAuthDialog({
 
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+    <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"} nested={nested}>
       <DrawerPopup
         showCloseButton={!isMobile}
         className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
@@ -629,6 +641,17 @@ export function LinkAuthDialog({
         </DrawerFooter>
       </DrawerPopup>
     </Drawer>
+  )
+}
+
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl bg-muted/30 p-4">
+      <h3 className="text-sm font-semibold text-foreground mb-3">{title}</h3>
+      <div className="flex flex-col gap-3">
+        {children}
+      </div>
+    </div>
   )
 }
 

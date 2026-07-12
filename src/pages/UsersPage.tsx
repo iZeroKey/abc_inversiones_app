@@ -1,8 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query"
-import { PlusIcon, RefreshCwIcon, ShieldIcon } from "lucide-react"
+import { PlusIcon, ShieldIcon } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Empty,
@@ -11,20 +10,19 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
-import { useUsersQuery, useAccessRequestsQuery } from "@/hooks/queries/users-queries"
+import { useAccessRequestsQuery, useUsersQuery } from "@/hooks/queries/users-queries"
 import { getErrorMessage } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 
-import { MetricTile } from "./users/components"
-import { ReviewRequestDialog, RequestDetailSheet } from "./users/ReviewRequestDialog"
-import { UserDialog, LinkAuthDialog } from "./users/UserDialog"
+import { UserSummaryCard } from "./users/components"
 import { RequestsWorkspace } from "./users/RequestsWorkspace"
+import { RequestDetailSheet, ReviewRequestDialog } from "./users/ReviewRequestDialog"
+import { UserDetailDrawer } from "./users/UserDetailDrawer"
+import { LinkAuthDialog, UserDialog } from "./users/UserDialog"
 import { UsersWorkspace } from "./users/UsersWorkspace"
 import type {
   AccessRequest,
@@ -44,12 +42,14 @@ import {
   createUser,
   defaultLinkAuthForm,
   defaultUserForm,
+  formatPhoneNumber,
   generateTemporaryPassword,
   getUserEditPermissions,
   isPendingRequest,
   linkAuthAccount,
   normalizeEditableRole,
   normalizeRole,
+  parsePhoneDisplay,
   readUsersPreferences,
   reviewAccessRequest,
   serializeBankAccounts,
@@ -91,6 +91,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   const [requestObservation, setRequestObservation] = useState("")
   const [requestInitialPassword, setRequestInitialPassword] = useState("")
   const [submittingRequest, setSubmittingRequest] = useState(false)
+  const [selectedUserForDetail, setSelectedUserForDetail] = useState<ManagedUser | null>(null)
 
   // ── New-item highlighting ─────────────────────────────────────────────
   const [newUserIds, setNewUserIds] = useState<Set<string>>(() => new Set())
@@ -228,7 +229,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
       firstName: selectedUser.firstName ?? "",
       lastName: selectedUser.lastName ?? "",
       email: selectedUser.email ?? "",
-      phone: selectedUser.phone ?? "",
+      phone: formatPhoneNumber(parsePhoneDisplay(selectedUser.phone)),
       role: normalizeEditableRole(selectedUser.role),
       dni: selectedUser.dni ?? "",
       address: selectedUser.address ?? "",
@@ -271,6 +272,10 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         setEditingUser(savedUser ?? editingUser)
       }
 
+      if (savedUser && selectedUserForDetail && editingUser) {
+        setSelectedUserForDetail(savedUser)
+      }
+
       toastManager.add({
         type: "success",
         title: editingUser ? "Usuario actualizado" : "Usuario creado",
@@ -300,7 +305,12 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
 
     setSavingLinkAuth(true)
     try {
-      await linkAuthAccount(fetchWithAuth, linkingUser.id, linkAuthForm)
+      const response = await linkAuthAccount(fetchWithAuth, linkingUser.id, linkAuthForm)
+      const savedUser = response.data
+
+      if (savedUser && selectedUserForDetail && linkingUser.id === selectedUserForDetail.id) {
+        setSelectedUserForDetail(savedUser)
+      }
 
       toastManager.add({
         type: "success",
@@ -392,9 +402,13 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
     setPage(1)
   }
 
+  const handleSelectUserForDetail = (selectedUser: ManagedUser) => {
+    setSelectedUserForDetail(selectedUser)
+  }
+
   if (!isAdmin) {
     return (
-      <main className="mx-auto flex max-w-5xl flex-col gap-6 px-0 py-2 md:px-8 md:py-8">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6">
         <Empty className="min-h-105 rounded-lg border bg-card shadow-xs/5">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -406,43 +420,23 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-5 px-0 py-2 md:px-8 md:py-8">
+    <div className="mx-auto flex max-w-7xl flex-col gap-5">
       <header className="flex items-start justify-between gap-3 border-b border-border pb-5">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-normal md:text-3xl">
-              Usuarios
-            </h1>
-            {usersQuery.isLoading ? (
-              <Skeleton className="h-5 w-24 rounded-full" />
-            ) : (
-              <Badge variant="secondary">{stats.total} registros</Badge>
-            )}
-          </div>
+          <h1 className="text-2xl font-semibold tracking-normal md:text-3xl">
+            Usuarios
+          </h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Administra perfiles, estado de acceso y solicitudes pendientes.
           </p>
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-2">
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={() => {
-              void Promise.all([usersQuery.refetch(), requestsQuery.refetch()])
-            }}
-            disabled={usersQuery.isLoading || usersQuery.isFetching || requestsQuery.isLoading || requestsQuery.isFetching}
-            aria-label="Actualizar usuarios"
-          >
-            {(usersQuery.isFetching && !usersQuery.isLoading) || (requestsQuery.isFetching && !requestsQuery.isLoading)
-              ? <Spinner />
-              : <RefreshCwIcon />}
-          </Button>
           <Button className="max-sm:px-2" onClick={openCreateDialog}>
             <PlusIcon data-icon="inline-start" />
             <span className="max-sm:hidden">Nuevo usuario</span>
@@ -450,13 +444,15 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         </div>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricTile label="Total" value={stats.total} loading={usersQuery.isLoading} />
-        <MetricTile label="Clientes" value={stats.clients} loading={usersQuery.isLoading} />
-        <MetricTile label="Inversionistas" value={stats.investors} loading={usersQuery.isLoading} />
-        <MetricTile label="Administradores" value={stats.admins} loading={usersQuery.isLoading} />
-        <MetricTile label="Solicitudes pendientes" value={stats.pendingRequests} loading={requestsQuery.isLoading} emphasis />
-      </section>
+      <UserSummaryCard
+        totalUsers={stats.total}
+        pendingRequests={stats.pendingRequests}
+        clients={stats.clients}
+        investors={stats.investors}
+        admins={stats.admins}
+        loadingUsers={usersQuery.isLoading}
+        loadingRequests={requestsQuery.isLoading}
+      />
 
       <Tabs
         value={activeTab}
@@ -488,9 +484,8 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             loading={usersQuery.isLoading}
             refreshing={usersQuery.isFetching && !usersQuery.isLoading}
             error={usersQuery.error ? getErrorMessage(usersQuery.error, "No se pudieron cargar los usuarios.") : null}
-            currentUser={user}
-            onEditUser={openEditDialog}
-            onLinkAuth={openLinkAuthDialog}
+            isFetching={usersQuery.isFetching && !usersQuery.isLoading}
+            onRowClick={handleSelectUserForDetail}
             onPageChange={setPage}
             onRetry={() => void usersQuery.refetch()}
             onRoleFilterChange={handleRoleFilterChange}
@@ -534,6 +529,48 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         </TabsContent>
       </Tabs>
 
+      <UserDetailDrawer
+        user={selectedUserForDetail}
+        currentUser={user}
+        onOpenChange={(open) => {
+          if (!open) setSelectedUserForDetail(null)
+        }}
+        onEdit={() => {
+          if (selectedUserForDetail) openEditDialog(selectedUserForDetail)
+        }}
+        onLinkAuth={() => {
+          if (selectedUserForDetail) openLinkAuthDialog(selectedUserForDetail)
+        }}
+      >
+        <UserDialog
+          open={editOpen}
+          editingUser={editingUser}
+          currentUser={user}
+          permissions={getUserEditPermissions(user, editingUser)}
+          form={userForm}
+          saving={savingUser}
+          onFormChange={setUserForm}
+          onOpenChange={(open) => {
+            setEditOpen(open)
+          }}
+          onSubmit={handleSubmitUser}
+          nested
+        />
+
+        <LinkAuthDialog
+          open={Boolean(linkingUser)}
+          user={linkingUser}
+          form={linkAuthForm}
+          saving={savingLinkAuth}
+          onFormChange={setLinkAuthForm}
+          onOpenChange={(open) => {
+            if (!open) setLinkingUser(null)
+          }}
+          onSubmit={handleSubmitLinkAuth}
+          nested
+        />
+      </UserDetailDrawer>
+
       <UserDialog
         open={createOpen}
         editingUser={null}
@@ -547,32 +584,6 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
           if (!open) setEditingUser(null)
         }}
         onSubmit={handleSubmitUser}
-      />
-
-      <UserDialog
-        open={editOpen}
-        editingUser={editingUser}
-        currentUser={user}
-        permissions={getUserEditPermissions(user, editingUser)}
-        form={userForm}
-        saving={savingUser}
-        onFormChange={setUserForm}
-        onOpenChange={(open) => {
-          setEditOpen(open)
-        }}
-        onSubmit={handleSubmitUser}
-      />
-
-      <LinkAuthDialog
-        open={Boolean(linkingUser)}
-        user={linkingUser}
-        form={linkAuthForm}
-        saving={savingLinkAuth}
-        onFormChange={setLinkAuthForm}
-        onOpenChange={(open) => {
-          if (!open) setLinkingUser(null)
-        }}
-        onSubmit={handleSubmitLinkAuth}
       />
 
       <ReviewRequestDialog
@@ -611,6 +622,6 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         }}
         onReview={openReviewRequestDialog}
       />
-    </main>
+    </div>
   )
 }

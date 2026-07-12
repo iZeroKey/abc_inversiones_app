@@ -1,10 +1,10 @@
-import { BadgeCheckIcon, CircleAlertIcon, MailIcon, PhoneIcon, RefreshCwIcon, ShieldIcon, UserIcon } from "lucide-react"
+import { BadgeCheckIcon, CircleAlertIcon, MailIcon, PhoneIcon, ShieldIcon, UserIcon } from "lucide-react"
 
+import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { DataTableSkeleton } from "@/components/data-table-card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
   Empty,
   EmptyContent,
@@ -13,6 +13,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
@@ -155,7 +156,6 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry: () 
       </EmptyHeader>
       <EmptyContent>
         <Button variant="secondary" onClick={onRetry}>
-          <RefreshCwIcon data-icon="inline-start" />
           Reintentar
         </Button>
       </EmptyContent>
@@ -163,27 +163,106 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry: () 
   )
 }
 
-export function MetricTile({
-  label,
-  value,
-  emphasis = false,
-  loading = false,
+export function UserSummaryCard({
+  totalUsers,
+  pendingRequests,
+  clients,
+  investors,
+  admins,
+  loadingUsers,
+  loadingRequests,
 }: {
-  label: string
-  value: number
-  emphasis?: boolean
-  loading?: boolean
+  totalUsers: number
+  pendingRequests: number
+  clients: number
+  investors: number
+  admins: number
+  loadingUsers: boolean
+  loadingRequests: boolean
 }) {
+  if (loadingUsers) return <UserSummarySkeleton />
+
   return (
-    <Card className={cn(emphasis && "border-primary/30 bg-primary/3")}>
-      <CardContent className="p-4">
-        {loading ? (
-          <Skeleton className="h-8 w-16" />
-        ) : (
-          <p className="text-2xl font-semibold tracking-normal">{value}</p>
-        )}
-        <p className="mt-1 text-sm text-muted-foreground">{label}</p>
-      </CardContent>
-    </Card>
+    <div className="rounded-2xl bg-card shadow-xs/5">
+      <div className="grid grid-cols-2 gap-4 p-4">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">Usuarios</p>
+          <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight">
+            <AnimatedNumber value={totalUsers} />
+          </p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">Solicitudes</p>
+          <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight">
+            {loadingRequests ? (
+              <Skeleton className="inline-block h-6 w-12" />
+            ) : (
+              <span className={cn(pendingRequests > 0 && "text-primary")}>
+                <AnimatedNumber value={pendingRequests} />
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
+
+      <div className="px-4">
+        <Separator className="w-full" />
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 p-4">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">Clientes</p>
+          <p className="mt-0.5 text-sm font-semibold">
+            <AnimatedNumber value={clients} />
+          </p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">Inversionistas</p>
+          <p className="mt-0.5 text-sm font-semibold">
+            <AnimatedNumber value={investors} />
+          </p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">Administradores</p>
+          <p className="mt-0.5 text-sm font-semibold">
+            <AnimatedNumber value={admins} />
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function UserSummarySkeleton() {
+  return (
+    <div className="rounded-2xl bg-card shadow-xs/5">
+      <div className="grid grid-cols-2 gap-4 p-4">
+        <div>
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="mt-1.5 h-7 w-24" />
+        </div>
+        <div>
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="mt-1.5 h-7 w-24" />
+        </div>
+      </div>
+      <div className="px-4">
+        <div className="h-px bg-border" />
+      </div>
+      <div className="grid grid-cols-3 gap-4 p-4">
+        <div>
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="mt-1.5 h-4 w-12" />
+        </div>
+        <div>
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="mt-1.5 h-4 w-12" />
+        </div>
+        <div>
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="mt-1.5 h-4 w-12" />
+        </div>
+      </div>
+    </div>
   )
 }
