@@ -2,6 +2,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import { SearchIcon, UsersIcon } from "lucide-react"
 import { useMemo } from "react"
 
+import { AnimatedText } from "@/components/AnimatedText"
 import {
   DataTableCard,
   DataTableColumnHeader,
@@ -24,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
+import { useIsRecentStructuralChange } from "@/contexts/realtime-context"
 import { cn } from "@/lib/utils"
 
 import {
@@ -65,6 +67,7 @@ export function UsersWorkspace({
   refreshing,
   error,
   isFetching,
+  tabsList,
   onRowClick,
   onPageChange,
   onRetry,
@@ -83,6 +86,7 @@ export function UsersWorkspace({
   refreshing: boolean
   error: string | null
   isFetching?: boolean
+  tabsList?: React.ReactNode
   onRowClick: (user: ManagedUser) => void
   onPageChange: (page: number) => void
   onRetry: () => void
@@ -90,6 +94,8 @@ export function UsersWorkspace({
   onSearchQueryChange: (query: string) => void
   onStatusFilterChange: (value: StatusFilter | null) => void
 }) {
+  const isRecentUserChange = useIsRecentStructuralChange("users")
+  const isStructuralFetching = isFetching && isRecentUserChange
 
   const userColumns = useMemo<ColumnDef<ManagedUser>[]>(
     () => [
@@ -99,7 +105,11 @@ export function UsersWorkspace({
         header: (context) => (
           <DataTableColumnHeader column={context.column} title="Usuario" />
         ),
-        cell: ({ row }) => <UserIdentity user={row.original} />,
+        cell: ({ row }) => (
+          <AnimatedText value={`${displayPersonName(row.original)} ${row.original.publicCode ?? row.original.id} ${row.original.avatarUrl ?? ""}`} className="w-full min-w-0">
+            <UserIdentity user={row.original} />
+          </AnimatedText>
+        ),
         meta: {
           headerClassName: "w-[260px]",
           cellClassName: "min-w-0",
@@ -112,7 +122,9 @@ export function UsersWorkspace({
           <DataTableColumnHeader column={context.column} title="Contacto" />
         ),
         cell: ({ row }) => (
-          <ContactStack email={row.original.email} phone={row.original.phone} />
+          <AnimatedText value={`${row.original.email ?? ""} ${row.original.phone ?? ""}`} className="w-full min-w-0">
+            <ContactStack email={row.original.email} phone={row.original.phone} disableExpand />
+          </AnimatedText>
         ),
         meta: {
           headerClassName: "w-[250px]",
@@ -125,12 +137,15 @@ export function UsersWorkspace({
         header: (context) => (
           <DataTableColumnHeader column={context.column} title="DNI" />
         ),
-        cell: ({ row }) =>
-          row.original.dni ? (
-            <span className="font-mono text-sm">{row.original.dni}</span>
-          ) : (
-            <span className="text-sm text-muted-foreground">Sin documento</span>
-          ),
+        cell: ({ row }) => (
+          <AnimatedText value={row.original.dni ?? ""} className="w-full min-w-0">
+            {row.original.dni ? (
+              <span className="font-mono text-sm block truncate">{row.original.dni}</span>
+            ) : (
+              <span className="text-sm text-muted-foreground block truncate">Sin documento</span>
+            )}
+          </AnimatedText>
+        ),
         meta: {
           headerClassName: "w-[120px]",
           cellClassName: "min-w-0",
@@ -143,9 +158,11 @@ export function UsersWorkspace({
           <DataTableColumnHeader column={context.column} title="Banco" />
         ),
         cell: ({ row }) => (
-          <span className={cn("block truncate", !row.original.bank && "text-muted-foreground")}>
-            {row.original.bank || "Sin banco"}
-          </span>
+          <AnimatedText value={row.original.bank ?? ""} className="w-full min-w-0">
+            <span className={cn("block truncate", !row.original.bank && "text-muted-foreground")}>
+              {row.original.bank || "Sin banco"}
+            </span>
+          </AnimatedText>
         ),
         meta: {
           headerClassName: "w-[150px]",
@@ -158,7 +175,11 @@ export function UsersWorkspace({
         header: (context) => (
           <DataTableColumnHeader column={context.column} title="Cuentas" />
         ),
-        cell: ({ row }) => <BankAccountsStack accounts={row.original.bankAccounts} />,
+        cell: ({ row }) => (
+          <AnimatedText value={(row.original.bankAccounts ?? []).join(" ")} className="w-full min-w-0">
+            <BankAccountsStack accounts={row.original.bankAccounts} />
+          </AnimatedText>
+        ),
         meta: {
           headerClassName: "w-[220px]",
           cellClassName: "min-w-0",
@@ -171,9 +192,11 @@ export function UsersWorkspace({
           <DataTableColumnHeader column={context.column} title="Estado civil" />
         ),
         cell: ({ row }) => (
-          <span className={cn("text-sm", !row.original.maritalStatus && "text-muted-foreground")}>
-            {getMaritalStatusLabel(row.original.maritalStatus)}
-          </span>
+          <AnimatedText value={row.original.maritalStatus ?? ""}>
+            <span className={cn("text-sm", !row.original.maritalStatus && "text-muted-foreground")}>
+              {getMaritalStatusLabel(row.original.maritalStatus)}
+            </span>
+          </AnimatedText>
         ),
         meta: {
           headerClassName: "w-[150px]",
@@ -187,7 +210,7 @@ export function UsersWorkspace({
           <DataTableColumnHeader column={context.column} title="Rol" />
         ),
         cell: ({ row }) => (
-          <RoleBadge role={row.original.role} isOwner={row.original.isOwner} />
+          <AnimatedText value={row.original.role}><RoleBadge role={row.original.role} isOwner={row.original.isOwner} /></AnimatedText>
         ),
         meta: {
           headerClassName: "w-[150px]",
@@ -200,10 +223,12 @@ export function UsersWorkspace({
           <DataTableColumnHeader column={context.column} title="Estado" />
         ),
         cell: ({ row }) => (
-          <div className="flex flex-wrap gap-1">
-            <StatusBadge active={row.original.active !== false} />
-            <AccessBadge user={row.original} />
-          </div>
+          <AnimatedText value={`${row.original.active}-${row.original.authUserId ? "auth" : "none"}`}>
+            <div className="flex flex-wrap gap-1">
+              <StatusBadge active={row.original.active !== false} />
+              <AccessBadge user={row.original} />
+            </div>
+          </AnimatedText>
         ),
         meta: {
           headerClassName: "w-[160px]",
@@ -290,6 +315,12 @@ export function UsersWorkspace({
             {pagination.total ?? users.length} encontrados
           </p>
         </div>
+
+        {tabsList && (
+          <div className="flex items-center gap-1.5 shrink-0" role="group" aria-label="Vista">
+            {tabsList}
+          </div>
+        )}
       </div>
 
       {error ? (
@@ -316,7 +347,7 @@ export function UsersWorkspace({
           getRowClassName={(item) => cn(highlightedUserIds?.has(item.id) && "realtime-row-enter")}
           onRowClick={onRowClick}
           tableClassName="min-w-[1080px] table-fixed"
-          bodyClassName={cn(refreshing && "opacity-70")}
+          bodyClassName={cn((refreshing || isStructuralFetching) && "opacity-50 pointer-events-none transition-opacity duration-200")}
           pagination={{
             page: pagination.page ?? page,
             pageSize: pagination.limit ?? USERS_PAGE_SIZE,

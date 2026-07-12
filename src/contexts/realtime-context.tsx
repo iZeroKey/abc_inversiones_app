@@ -18,6 +18,7 @@ type RealtimeMessage = {
 type RealtimeContextValue = {
   status: RealtimeStatus
   lastMessage: RealtimeMessage | null
+  lastStructuralChanges: Record<string, number>
 }
 
 const RealtimeContext = createContext<RealtimeContextValue | undefined>(undefined)
@@ -43,6 +44,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const reconnectAttemptRef = useRef(0)
   const invalidationQueueRef = useRef<RealtimeMessage[]>([])
   const invalidationTimeoutRef = useRef<number | undefined>(undefined)
+  const [lastStructuralChanges, setLastStructuralChanges] = useState<Record<string, number>>({})
 
   const flushRealtimeInvalidations = useMemo(
     () => () => {
@@ -98,8 +100,21 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
       invalidationTimeoutRef.current = window.setTimeout(
         flushRealtimeInvalidations,
-        300,
+        500,
       )
+
+      const type = message.type
+      if (!type) return
+
+      if (type.startsWith("loan.") && (type.endsWith(".created") || type.endsWith(".deleted"))) {
+        setLastStructuralChanges((p) => ({ ...p, loans: Date.now() }))
+      } else if (type.startsWith("user.") && (type.endsWith(".created") || type.endsWith(".deleted"))) {
+        setLastStructuralChanges((p) => ({ ...p, users: Date.now() }))
+      } else if (type.startsWith("access-request.") && (type.endsWith(".created") || type.endsWith(".deleted") || type.endsWith(".approved") || type.endsWith(".rejected"))) {
+        setLastStructuralChanges((p) => ({ ...p, requests: Date.now() }))
+      } else if (type === "audit.created") {
+        setLastStructuralChanges((p) => ({ ...p, audit: Date.now() }))
+      }
     },
     [flushRealtimeInvalidations],
   )
@@ -239,12 +254,13 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [scheduleRealtimeInvalidation, session?.access_token])
 
-  const value = useMemo(
+  const value = useMemo<RealtimeContextValue>(
     () => ({
       status: session?.access_token && API_BASE_URL ? status : "idle",
       lastMessage: session?.access_token && API_BASE_URL ? lastMessage : null,
+      lastStructuralChanges,
     }),
-    [lastMessage, session?.access_token, status],
+    [lastMessage, session?.access_token, status, lastStructuralChanges],
   )
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>
@@ -256,4 +272,31 @@ export function useRealtime() {
     throw new Error("useRealtime must be used within RealtimeProvider")
   }
   return context
+}
+
+export function useIsRecentStructuralChange(key: "loans" | "users" | "requests" | "audit", maxAge = 3000) {
+  const { lastStructuralChanges } = useRealtime()
+  const timestamp = lastStructuralChanges[key]
+  
+  const [isRecent, setIsRecent] = useState(false)
+  
+  useEffect(() => {
+    if (!timestamp) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsRecent(false)
+      return
+    }
+    const diff = Date.now() - timestamp
+    if (diff < maxAge) {
+       
+      setIsRecent(true)
+      const timer = setTimeout(() => setIsRecent(false), maxAge - diff)
+      return () => clearTimeout(timer)
+    } else {
+       
+      setIsRecent(false)
+    }
+  }, [timestamp, maxAge])
+  
+  return isRecent
 }

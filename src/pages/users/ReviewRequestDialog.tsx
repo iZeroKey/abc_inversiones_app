@@ -1,8 +1,10 @@
-import { CheckIcon, CopyIcon, Dice5Icon, KeyRoundIcon, XIcon } from "lucide-react"
+import { ActivityIcon, CalendarIcon, CheckIcon, CopyIcon, Dice5Icon, KeyRoundIcon, ShieldIcon, XIcon } from "lucide-react"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
   Drawer,
+  DrawerClose,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
@@ -11,6 +13,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { Field, FieldLabel } from "@/components/ui/field"
+import { InfoRow } from "@/components/ui/info-row"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
@@ -30,15 +33,21 @@ export function RequestDetailSheet({
   request,
   onOpenChange,
   onReview,
+  children,
 }: {
   request: AccessRequest | null
   onOpenChange: (open: boolean) => void
   onReview: (request: AccessRequest, action: "approved" | "rejected") => void
+  children?: React.ReactNode
 }) {
   const isMobile = useIsMobile()
-  if (!request) return null
+  const [prevRequest, setPrevRequest] = useState<AccessRequest | null>(null)
+  if (request !== prevRequest && request !== null) {
+    setPrevRequest(request)
+  }
+  const displayRequest = request || prevRequest
 
-  const pending = Boolean(request && isPendingRequest(request.status))
+  const pending = Boolean(displayRequest && isPendingRequest(displayRequest.status))
 
   return (
     <Drawer open={Boolean(request)} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
@@ -50,76 +59,83 @@ export function RequestDetailSheet({
         <DrawerHeader>
           <DrawerTitle>Detalle de solicitud</DrawerTitle>
           <DrawerDescription>
-            {request
-              ? `${displayPersonName(request)} solicitó acceso como ${getRoleLabel(request.roleRequested).toLowerCase()}.`
+            {displayRequest
+              ? `${displayPersonName(displayRequest)} solicitó acceso como ${getRoleLabel(displayRequest.roleRequested).toLowerCase()}.`
               : "Selecciona una solicitud para revisar su información."}
           </DrawerDescription>
         </DrawerHeader>
         <DrawerPanel>
-          {request && (
-            <div className="flex flex-col gap-5">
-              <div className="flex items-start justify-between gap-3 border-b pb-4">
+          {displayRequest && (
+            <div className="flex flex-col gap-6 fade-in animate-in slide-in-from-bottom-2 duration-300 pb-8">
+              <div className="flex items-start justify-between gap-3 pb-2">
                 <div className="min-w-0">
-                  <p className="truncate text-lg font-semibold tracking-normal">
-                    {displayPersonName(request)}
+                  <p className="truncate text-xl font-bold tracking-tight">
+                    {displayPersonName(displayRequest)}
                   </p>
                   <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                    {request.id}
+                    {displayRequest.id}
                   </p>
                 </div>
-                <RequestStatusBadge status={request.status} />
+                <RequestStatusBadge status={displayRequest.status} />
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <RequestDetailItem label="Rol solicitado" value={getRoleLabel(request.roleRequested)} />
-                <RequestDetailItem label="Estado" value={getRequestStatusLabel(request.status)} />
-                <RequestDetailItem label="Creada" value={formatDate(request.createdAt)} />
-                <RequestDetailItem label="Actualizada" value={formatDate(request.updatedAt)} />
-              </div>
-
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <p className="text-xs font-medium uppercase text-muted-foreground">Contacto</p>
-                <div className="mt-3">
-                  <ContactStack email={request.email} phone={request.phone} />
+              <div className="rounded-xl bg-muted/30 p-5">
+                <h3 className="text-sm font-semibold text-foreground mb-4">Detalles de la solicitud</h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <InfoRow icon={<ShieldIcon className="size-4" />} label="Rol solicitado" value={getRoleLabel(displayRequest.roleRequested)} />
+                  <InfoRow icon={<ActivityIcon className="size-4" />} label="Estado" value={getRequestStatusLabel(displayRequest.status)} />
+                  <InfoRow icon={<CalendarIcon className="size-4" />} label="Creada" value={formatDate(displayRequest.createdAt)} />
+                  <InfoRow icon={<CalendarIcon className="size-4" />} label="Actualizada" value={formatDate(displayRequest.updatedAt)} />
                 </div>
               </div>
 
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <p className="text-xs font-medium uppercase text-muted-foreground">Observación</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
-                  {request.observation || "Sin observación registrada."}
+              <div className="rounded-xl bg-muted/30 p-5">
+                <h3 className="text-sm font-semibold text-foreground mb-4">Contacto</h3>
+                <div className="mt-2">
+                  <ContactStack email={displayRequest.email} phone={displayRequest.phone} />
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-muted/30 p-5">
+                <h3 className="text-sm font-semibold text-foreground mb-4">Observación</h3>
+                <p className="whitespace-pre-wrap text-sm text-foreground">
+                  {displayRequest.observation || "Sin observación registrada."}
                 </p>
               </div>
-
-              {pending && (
-                <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:justify-end">
-                  <Button
-                    variant="secondary"
-                    onClick={() => onReview(request, "rejected")}
-                  >
-                    <XIcon data-icon="inline-start" />
-                    Rechazar
-                  </Button>
-                  <Button onClick={() => onReview(request, "approved")}>
-                    <CheckIcon data-icon="inline-start" />
-                    Aprobar
-                  </Button>
-                </div>
-              )}
             </div>
           )}
         </DrawerPanel>
+        
+        {displayRequest && (
+          <DrawerFooter variant="bare">
+            <DrawerClose render={<Button variant="secondary" className="w-full sm:flex-1" />}>
+              Cerrar
+            </DrawerClose>
+            {pending && (
+              <>
+                <Button
+                  variant="destructive"
+                  className="w-full sm:flex-1"
+                  onClick={() => onReview(displayRequest, "rejected")}
+                >
+                  <XIcon data-icon="inline-start" />
+                  Rechazar
+                </Button>
+                <Button 
+                  className="w-full sm:flex-1"
+                  onClick={() => onReview(displayRequest, "approved")}
+                >
+                  <CheckIcon data-icon="inline-start" />
+                  Aprobar
+                </Button>
+              </>
+            )}
+          </DrawerFooter>
+        )}
       </DrawerPopup>
-    </Drawer>
-  )
-}
 
-function RequestDetailItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border bg-muted/20 p-4">
-      <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
-      <p className="mt-2 wrap-break-word text-sm font-medium">{value}</p>
-    </div>
+      {children}
+    </Drawer>
   )
 }
 
@@ -129,6 +145,7 @@ export function ReviewRequestDialog({
   observation,
   initialPassword,
   submitting,
+  nested,
   onObservationChange,
   onInitialPasswordChange,
   onRegeneratePassword,
@@ -141,6 +158,7 @@ export function ReviewRequestDialog({
   observation: string
   initialPassword: string
   submitting: boolean
+  nested?: boolean
   onObservationChange: (value: string) => void
   onInitialPasswordChange: (value: string) => void
   onRegeneratePassword: () => void
@@ -149,12 +167,23 @@ export function ReviewRequestDialog({
   onConfirm: () => void
 }) {
   const isMobile = useIsMobile()
-  if (!request || !action) return null
+  const [prevRequest, setPrevRequest] = useState<AccessRequest | null>(null)
+  const [prevAction, setPrevAction] = useState<"approved" | "rejected" | null>(null)
+  
+  if (request !== prevRequest && request !== null) {
+    setPrevRequest(request)
+  }
+  if (action !== prevAction && action !== null) {
+    setPrevAction(action)
+  }
+  
+  const displayRequest = request || prevRequest
+  const displayAction = action || prevAction
 
-  const approving = action === "approved"
+  const approving = displayAction === "approved"
 
   return (
-    <Drawer open={Boolean(request && action)} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
+    <Drawer nested={nested} open={Boolean(request && action)} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"}>
       <DrawerPopup
         showCloseButton={!isMobile}
         className={isMobile ? "max-h-[92dvh] rounded-t-2xl border-t" : ""}
@@ -163,62 +192,64 @@ export function ReviewRequestDialog({
         <DrawerHeader>
           <DrawerTitle>{approving ? "Aprobar solicitud" : "Rechazar solicitud"}</DrawerTitle>
           <DrawerDescription>
-            {request
-              ? `${displayPersonName(request)} solicitó acceso como ${getRoleLabel(request.roleRequested).toLowerCase()}.`
+            {displayRequest
+              ? `${displayPersonName(displayRequest)} solicitó acceso como ${getRoleLabel(displayRequest.roleRequested).toLowerCase()}.`
               : "Revisa la solicitud seleccionada."}
           </DrawerDescription>
         </DrawerHeader>
 
         <DrawerPanel>
-          <div className="flex flex-col gap-4">
-            {approving && (
+          {displayRequest && (
+            <div className="flex flex-col gap-4 fade-in animate-in pb-4">
+              {approving && (
+                <Field>
+                  <FieldLabel htmlFor="request-initial-password">Contraseña temporal</FieldLabel>
+                  <InputGroup>
+                    <InputGroupAddon align="inline-start">
+                      <KeyRoundIcon />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      id="request-initial-password"
+                      type="text"
+                      value={initialPassword}
+                      required
+                      minLength={6}
+                      onChange={(event) => onInitialPasswordChange(event.target.value)}
+                    />
+                    <InputGroupAddon align="inline-end">
+                      <Button type="button" variant="ghost" size="sm" onClick={onRegeneratePassword}>
+                        <Dice5Icon data-icon="inline-start" />
+                        Generar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={!initialPassword}
+                        onClick={() => void onCopyPassword()}
+                      >
+                        <CopyIcon data-icon="inline-start" />
+                        Copiar
+                      </Button>
+                    </InputGroupAddon>
+                  </InputGroup>
+                </Field>
+              )}
               <Field>
-                <FieldLabel htmlFor="request-initial-password">Contraseña temporal</FieldLabel>
-                <InputGroup>
-                  <InputGroupAddon align="inline-start">
-                    <KeyRoundIcon />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    id="request-initial-password"
-                    type="text"
-                    value={initialPassword}
-                    required
-                    minLength={6}
-                    onChange={(event) => onInitialPasswordChange(event.target.value)}
-                  />
-                  <InputGroupAddon align="inline-end">
-                    <Button type="button" variant="ghost" size="sm" onClick={onRegeneratePassword}>
-                      <Dice5Icon data-icon="inline-start" />
-                      Generar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={!initialPassword}
-                      onClick={() => void onCopyPassword()}
-                    >
-                      <CopyIcon data-icon="inline-start" />
-                      Copiar
-                    </Button>
-                  </InputGroupAddon>
-                </InputGroup>
+                <FieldLabel htmlFor="request-observation">Observación</FieldLabel>
+                <Textarea
+                  id="request-observation"
+                  value={observation}
+                  placeholder={approving ? "Usuario validado para acceso." : "Motivo del rechazo."}
+                  onChange={(event) => onObservationChange(event.target.value)}
+                />
               </Field>
-            )}
-            <Field>
-              <FieldLabel htmlFor="request-observation">Observación</FieldLabel>
-              <Textarea
-                id="request-observation"
-                value={observation}
-                placeholder={approving ? "Usuario validado para acceso." : "Motivo del rechazo."}
-                onChange={(event) => onObservationChange(event.target.value)}
-              />
-            </Field>
-          </div>
+            </div>
+          )}
         </DrawerPanel>
 
-        <DrawerFooter>
-          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={submitting}>
+        <DrawerFooter variant="bare">
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={submitting} className="w-full sm:flex-1">
             Cancelar
           </Button>
           <Button
@@ -226,6 +257,7 @@ export function ReviewRequestDialog({
             variant={approving ? "default" : "destructive"}
             onClick={onConfirm}
             disabled={submitting || (approving && initialPassword.trim().length < 6)}
+            className="w-full sm:flex-1"
           >
             {submitting ? (
               <Spinner data-icon="inline-start" />
@@ -241,3 +273,4 @@ export function ReviewRequestDialog({
     </Drawer>
   )
 }
+

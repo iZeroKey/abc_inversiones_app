@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query"
-import { PlusIcon, ShieldIcon } from "lucide-react"
+import { InboxIcon, PlusIcon, ShieldIcon, UsersIcon } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -18,10 +18,10 @@ import { getErrorMessage } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import { realtimeDomainEvent, type RealtimeDomainDetail } from "@/lib/realtime"
 
+import { UserDetailDrawer } from "@/components/UserDetailDrawer"
 import { UserSummaryCard } from "./users/components"
 import { RequestsWorkspace } from "./users/RequestsWorkspace"
 import { RequestDetailSheet, ReviewRequestDialog } from "./users/ReviewRequestDialog"
-import { UserDetailDrawer } from "./users/UserDetailDrawer"
 import { LinkAuthDialog, UserDialog } from "./users/UserDialog"
 import { UsersWorkspace } from "./users/UsersWorkspace"
 import type {
@@ -54,7 +54,7 @@ import {
   reviewAccessRequest,
   serializeBankAccounts,
   updateUser,
-  writeUsersPreferences,
+  writeUsersPreferences
 } from "./users/utils"
 
 export default function UsersPage({ initialTab = "users" }: { initialTab?: UsersTab }) {
@@ -137,13 +137,20 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
   }, [requests, users, usersPagination.total])
 
   // ── New-item highlight effect (users) ─────────────────────────────────
+  const previousUsersParamsRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!usersQuery.data?.users) return
     const nextUsers = usersQuery.data.users
     const previousIds = visibleUserIdsRef.current
     const nextIds = new Set(nextUsers.map((item) => item.id))
+    
+    const currentParams = JSON.stringify({ page, searchQuery, roleFilter, statusFilter })
+    const isSameQuery = previousUsersParamsRef.current === currentParams
+    previousUsersParamsRef.current = currentParams
+
     const addedIds =
-      previousIds.size > 0
+      (previousIds.size > 0 && isSameQuery)
         ? nextUsers.map((item) => item.id).filter((id) => !previousIds.has(id))
         : []
 
@@ -158,16 +165,24 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         newUserTimeoutRef.current = undefined
       }, 2200)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usersQuery.data?.users])
 
   // ── New-item highlight effect (requests) ──────────────────────────────
+  const previousRequestsParamsRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!requestsQuery.data?.requests) return
     const nextRequests = requestsQuery.data.requests
     const previousIds = visibleRequestIdsRef.current
     const nextIds = new Set(nextRequests.map((item) => item.id))
+    
+    const currentParams = JSON.stringify({ requestPage, requestSearchQuery, requestRoleFilter, requestStatusFilter })
+    const isSameQuery = previousRequestsParamsRef.current === currentParams
+    previousRequestsParamsRef.current = currentParams
+
     const addedIds =
-      previousIds.size > 0
+      (previousIds.size > 0 && isSameQuery)
         ? nextRequests.map((item) => item.id).filter((id) => !previousIds.has(id))
         : []
 
@@ -182,6 +197,7 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         newRequestTimeoutRef.current = undefined
       }, 2200)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestsQuery.data?.requests])
 
   // ── Realtime ──────────────────────────────────────────────────────────
@@ -424,9 +440,22 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
     )
   }
 
+  const sharedTabsList = (
+    <TabsList className="w-fit">
+      <TabsTrigger value="users" className="gap-1.5">
+        <UsersIcon className="size-3.5" />
+        <span className="hidden sm:inline">Usuarios</span>
+      </TabsTrigger>
+      <TabsTrigger value="requests" className="gap-1.5">
+        <InboxIcon className="size-3.5" />
+        <span className="hidden sm:inline">Solicitudes</span>
+      </TabsTrigger>
+    </TabsList>
+  )
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5">
-      <header className="flex items-start justify-between gap-3 border-b border-border pb-5">
+      <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-normal md:text-3xl">
             Usuarios
@@ -436,10 +465,10 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
           </p>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2">
-          <Button className="max-sm:px-2" onClick={openCreateDialog}>
+        <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
+          <Button className="w-full sm:w-auto" onClick={openCreateDialog}>
             <PlusIcon data-icon="inline-start" />
-            <span className="max-sm:hidden">Nuevo usuario</span>
+            Nuevo usuario
           </Button>
         </div>
       </header>
@@ -463,15 +492,6 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         }}
         className="gap-5"
       >
-        <TabsList className="w-full overflow-x-auto md:w-fit">
-          <TabsTrigger value="users" className="flex-1 md:flex-none">
-            Usuarios
-          </TabsTrigger>
-          <TabsTrigger value="requests" className="flex-1 md:flex-none">
-            Solicitudes
-          </TabsTrigger>
-        </TabsList>
-
         <TabsContent value="users">
           <UsersWorkspace
             users={users}
@@ -482,9 +502,10 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             statusFilter={statusFilter}
             searchQuery={searchQuery}
             loading={usersQuery.isLoading}
-            refreshing={usersQuery.isFetching && !usersQuery.isLoading}
+            refreshing={usersQuery.isPlaceholderData}
             error={usersQuery.error ? getErrorMessage(usersQuery.error, "No se pudieron cargar los usuarios.") : null}
             isFetching={usersQuery.isFetching && !usersQuery.isLoading}
+            tabsList={sharedTabsList}
             onRowClick={handleSelectUserForDetail}
             onPageChange={setPage}
             onRetry={() => void usersQuery.refetch()}
@@ -507,8 +528,10 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             roleFilter={requestRoleFilter}
             statusFilter={requestStatusFilter}
             loading={requestsQuery.isLoading}
-            refreshing={requestsQuery.isFetching && !requestsQuery.isLoading}
+            refreshing={requestsQuery.isPlaceholderData}
+            isFetching={requestsQuery.isFetching && !requestsQuery.isLoading}
             error={requestsQuery.error ? getErrorMessage(requestsQuery.error, "No se pudieron cargar las solicitudes.") : null}
+            tabsList={sharedTabsList}
             onRetry={() => void requestsQuery.refetch()}
             onSearchQueryChange={(query) => {
               setRequestSearchQuery(query)
@@ -524,14 +547,14 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
             }}
             onPageChange={setRequestPage}
             onInspect={setSelectedRequest}
-            onReview={openReviewRequestDialog}
           />
         </TabsContent>
       </Tabs>
 
       <UserDetailDrawer
         user={selectedUserForDetail}
-        currentUser={user}
+        editable={user && selectedUserForDetail ? canManageUser(user, selectedUserForDetail) : false}
+        linkable={user && selectedUserForDetail ? canLinkAuthAccount(user, selectedUserForDetail) : false}
         onOpenChange={(open) => {
           if (!open) setSelectedUserForDetail(null)
         }}
@@ -586,42 +609,43 @@ export default function UsersPage({ initialTab = "users" }: { initialTab?: Users
         onSubmit={handleSubmitUser}
       />
 
-      <ReviewRequestDialog
-        request={reviewingRequest}
-        action={requestAction}
-        observation={requestObservation}
-        initialPassword={requestInitialPassword}
-        submitting={submittingRequest}
-        onObservationChange={setRequestObservation}
-        onInitialPasswordChange={setRequestInitialPassword}
-        onRegeneratePassword={() => setRequestInitialPassword(generateTemporaryPassword())}
-        onCopyPassword={async () => {
-          if (!requestInitialPassword) return
-          await navigator.clipboard.writeText(requestInitialPassword)
-          toastManager.add({
-            type: "success",
-            title: "Contraseña copiada",
-            description: "La contraseña temporal quedó en el portapapeles.",
-          })
-        }}
-        onOpenChange={(open) => {
-          if (!open) {
-            setReviewingRequest(null)
-            setRequestAction(null)
-            setRequestObservation("")
-            setRequestInitialPassword("")
-          }
-        }}
-        onConfirm={() => void handleReviewRequest()}
-      />
-
       <RequestDetailSheet
         request={selectedRequest}
         onOpenChange={(open) => {
           if (!open) setSelectedRequest(null)
         }}
         onReview={openReviewRequestDialog}
-      />
+      >
+        <ReviewRequestDialog
+          request={reviewingRequest}
+          action={requestAction}
+          observation={requestObservation}
+          initialPassword={requestInitialPassword}
+          submitting={submittingRequest}
+          nested
+          onObservationChange={setRequestObservation}
+          onInitialPasswordChange={setRequestInitialPassword}
+          onRegeneratePassword={() => setRequestInitialPassword(generateTemporaryPassword())}
+          onCopyPassword={async () => {
+            if (!requestInitialPassword) return
+            await navigator.clipboard.writeText(requestInitialPassword)
+            toastManager.add({
+              type: "success",
+              title: "Contraseña copiada",
+              description: "La contraseña temporal quedó en el portapapeles.",
+            })
+          }}
+          onOpenChange={(open) => {
+            if (!open) {
+              setReviewingRequest(null)
+              setRequestAction(null)
+              setRequestObservation("")
+              setRequestInitialPassword("")
+            }
+          }}
+          onConfirm={() => void handleReviewRequest()}
+        />
+      </RequestDetailSheet>
     </div>
   )
 }

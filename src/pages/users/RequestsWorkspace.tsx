@@ -1,14 +1,13 @@
 import type { ColumnDef } from "@tanstack/react-table"
-import { CheckIcon, EyeIcon, SearchIcon, UserIcon } from "lucide-react"
+import { SearchIcon, UserIcon } from "lucide-react"
 import { useMemo } from "react"
 
+import { AnimatedText } from "@/components/AnimatedText"
 import {
   DataTableCard,
   DataTableColumnHeader,
-  DataTableSkeleton,
-  DataTableStaticHeader,
+  DataTableSkeleton
 } from "@/components/data-table-card"
-import { Button } from "@/components/ui/button"
 import {
   Empty,
   EmptyDescription,
@@ -26,6 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
+import { useIsRecentStructuralChange } from "@/contexts/realtime-context"
 import { cn } from "@/lib/utils"
 
 import { ContactStack, ErrorState, RequestStatusBadge } from "./components"
@@ -36,9 +37,8 @@ import {
   formatDate,
   getRequestStatusLabel,
   getRoleLabel,
-  isPendingRequest,
   requestRoleItems,
-  requestStatusItems,
+  requestStatusItems
 } from "./utils"
 
 export function RequestsWorkspace({
@@ -51,14 +51,15 @@ export function RequestsWorkspace({
   statusFilter,
   loading,
   refreshing,
+  isFetching,
   error,
+  tabsList,
   onRetry,
   onSearchQueryChange,
   onRoleFilterChange,
   onStatusFilterChange,
   onPageChange,
   onInspect,
-  onReview,
 }: {
   requests: AccessRequest[]
   highlightedRequestIds?: Set<string>
@@ -69,15 +70,19 @@ export function RequestsWorkspace({
   statusFilter: RequestStatusFilter
   loading: boolean
   refreshing: boolean
+  isFetching?: boolean
   error: string | null
+  tabsList?: React.ReactNode
   onRetry: () => void
   onSearchQueryChange: (query: string) => void
   onRoleFilterChange: (value: RequestRoleFilter | null) => void
   onStatusFilterChange: (value: RequestStatusFilter | null) => void
   onPageChange: (page: number) => void
   onInspect: (request: AccessRequest) => void
-  onReview: (request: AccessRequest, action: "approved" | "rejected") => void
 }) {
+  const isRecentRequestChange = useIsRecentStructuralChange("requests")
+  const isStructuralFetching = isFetching && isRecentRequestChange
+
   const requestColumns = useMemo<ColumnDef<AccessRequest>[]>(
     () => [
       {
@@ -87,10 +92,12 @@ export function RequestsWorkspace({
           <DataTableColumnHeader column={context.column} title="Solicitante" />
         ),
         cell: ({ row }) => (
-          <div className="min-w-0">
-            <p className="truncate font-medium">{displayPersonName(row.original)}</p>
-            <p className="truncate font-mono text-xs text-muted-foreground">{row.original.id}</p>
-          </div>
+          <AnimatedText value={`${displayPersonName(row.original)} ${row.original.id}`}>
+            <div className="min-w-0">
+              <p className="truncate font-medium">{displayPersonName(row.original)}</p>
+              <p className="truncate font-mono text-xs text-muted-foreground">{row.original.id}</p>
+            </div>
+          </AnimatedText>
         ),
         meta: {
           headerClassName: "w-[260px]",
@@ -104,7 +111,9 @@ export function RequestsWorkspace({
           <DataTableColumnHeader column={context.column} title="Contacto" />
         ),
         cell: ({ row }) => (
-          <ContactStack email={row.original.email} phone={row.original.phone} />
+          <AnimatedText value={`${row.original.email ?? ""} ${row.original.phone ?? ""}`}>
+            <ContactStack email={row.original.email} phone={row.original.phone} disableExpand />
+          </AnimatedText>
         ),
         meta: {
           headerClassName: "w-[260px]",
@@ -117,7 +126,7 @@ export function RequestsWorkspace({
         header: (context) => (
           <DataTableColumnHeader column={context.column} title="Rol solicitado" />
         ),
-        cell: ({ row }) => getRoleLabel(row.original.roleRequested),
+        cell: ({ row }) => <AnimatedText value={row.original.roleRequested}>{getRoleLabel(row.original.roleRequested)}</AnimatedText>,
         meta: {
           headerClassName: "w-[150px]",
         },
@@ -128,7 +137,7 @@ export function RequestsWorkspace({
         header: (context) => (
           <DataTableColumnHeader column={context.column} title="Estado" />
         ),
-        cell: ({ row }) => <RequestStatusBadge status={row.original.status} />,
+        cell: ({ row }) => <AnimatedText value={row.original.status}><RequestStatusBadge status={row.original.status} /></AnimatedText>,
         meta: {
           headerClassName: "w-[120px]",
         },
@@ -164,42 +173,8 @@ export function RequestsWorkspace({
           cellClassName: "min-w-0",
         },
       },
-      {
-        id: "actions",
-        enableSorting: false,
-        header: () => <DataTableStaticHeader title="Acción" align="right" />,
-        cell: ({ row }) => {
-          const pending = isPendingRequest(row.original.status)
-
-          return (
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => onInspect(row.original)}
-              >
-                <EyeIcon data-icon="inline-start" />
-                Ver
-              </Button>
-              {pending && (
-                <Button
-                  size="sm"
-                  onClick={() => onReview(row.original, "approved")}
-                >
-                  <CheckIcon data-icon="inline-start" />
-                  Aprobar
-                </Button>
-              )}
-            </div>
-          )
-        },
-        meta: {
-          headerClassName: "w-[170px] text-right",
-          cellClassName: "text-right",
-        },
-      },
     ],
-    [onInspect, onReview],
+    [],
   )
 
   return (
@@ -256,6 +231,22 @@ export function RequestsWorkspace({
         </div>
       </div>
 
+      <div className="flex items-center justify-between gap-3 px-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-base font-semibold whitespace-nowrap">Solicitudes</h2>
+          {isFetching && <Spinner className="size-4 shrink-0" />}
+          <p className="text-sm text-muted-foreground truncate">
+            {pagination.total ?? requests.length} encontradas
+          </p>
+        </div>
+
+        {tabsList && (
+          <div className="flex items-center gap-1.5 shrink-0" role="group" aria-label="Vista">
+            {tabsList}
+          </div>
+        )}
+      </div>
+
       {error ? (
         <ErrorState message={error} onRetry={onRetry} />
       ) : loading ? (
@@ -269,7 +260,6 @@ export function RequestsWorkspace({
             { className: "w-[120px]", headerWidth: "w-16", cellWidth: "w-20" },
             { className: "w-[120px]", headerWidth: "w-16", cellWidth: "w-24" },
             { className: "w-[210px]", headerWidth: "w-24", cellWidth: "w-36" },
-            { className: "w-[170px] text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-32" },
           ]}
         />
       ) : requests.length === 0 ? (
@@ -290,8 +280,9 @@ export function RequestsWorkspace({
           data={requests}
           getRowId={(request) => request.id}
           getRowClassName={(request) => cn(highlightedRequestIds?.has(request.id) && "realtime-row-enter")}
+          onRowClick={onInspect}
           tableClassName="min-w-[900px] table-fixed"
-          bodyClassName={cn(refreshing && "opacity-70")}
+          bodyClassName={cn((refreshing || isStructuralFetching) && "opacity-50 pointer-events-none transition-opacity duration-200")}
           pagination={{
             page: pagination.page ?? page,
             pageSize: pagination.limit ?? USERS_PAGE_SIZE,

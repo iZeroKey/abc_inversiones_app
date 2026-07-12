@@ -336,7 +336,7 @@ export function UserDialog({
             </FormSection>
 
             <FormSection title="Información bancaria">
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-4">
                 <Field>
                   <FieldLabel htmlFor="bank">Banco</FieldLabel>
                   <InputGroup>
@@ -357,35 +357,37 @@ export function UserDialog({
                 <Field>
                   <FieldLabel>Cuentas bancarias</FieldLabel>
                   <div className="flex w-full flex-col gap-2">
-                    {form.bankAccounts.map((account, index) => (
-                      <InputGroup key={index}>
-                        <InputGroupAddon align="inline-start">
-                          <BanknoteIcon />
-                        </InputGroupAddon>
-                        <InputGroupInput
-                          aria-label={`Cuenta bancaria ${index + 1}`}
-                          value={account}
-                          placeholder="CCI o número de cuenta"
-                          className="font-mono tabular-nums"
-                          ref={(node) => {
-                            bankAccountRefs.current[index] = node
-                          }}
-                          onChange={(event) => handleBankAccountChange(index, event.target.value)}
-                        />
-                        <InputGroupAddon align="inline-end">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Eliminar cuenta bancaria ${index + 1}`}
-                            disabled={form.bankAccounts.length === 1 && !account}
-                            onClick={() => removeBankAccount(index)}
-                          >
-                            <XIcon />
-                          </Button>
-                        </InputGroupAddon>
-                      </InputGroup>
-                    ))}
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {form.bankAccounts.map((account, index) => (
+                        <InputGroup key={index}>
+                          <InputGroupAddon align="inline-start">
+                            <BanknoteIcon />
+                          </InputGroupAddon>
+                          <InputGroupInput
+                            aria-label={`Cuenta bancaria ${index + 1}`}
+                            value={account}
+                            placeholder="CCI o número de cuenta"
+                            className="font-mono tabular-nums"
+                            ref={(node) => {
+                              bankAccountRefs.current[index] = node
+                            }}
+                            onChange={(event) => handleBankAccountChange(index, event.target.value)}
+                          />
+                          <InputGroupAddon align="inline-end">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Eliminar cuenta bancaria ${index + 1}`}
+                              disabled={form.bankAccounts.length === 1 && !account}
+                              onClick={() => removeBankAccount(index)}
+                            >
+                              <XIcon />
+                            </Button>
+                          </InputGroupAddon>
+                        </InputGroup>
+                      ))}
+                    </div>
                     {canAddBankAccount && (
                       <Button
                         type="button"

@@ -1,4 +1,5 @@
 import { BadgeCheckIcon, CircleAlertIcon, MailIcon, PhoneIcon, ShieldIcon, UserIcon } from "lucide-react"
+import { useState } from "react"
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { DataTableSkeleton } from "@/components/data-table-card"
@@ -37,12 +38,27 @@ export function UserIdentity({ user }: { user: ManagedUser }) {
   )
 }
 
-export function ContactStack({ email, phone }: { email?: string | null; phone?: string | null }) {
+export function ContactStack({ email, phone, disableExpand }: { email?: string | null; phone?: string | null; disableExpand?: boolean }) {
+  const [emailExpanded, setEmailExpanded] = useState(false)
+  
   return (
     <div className="flex min-w-0 flex-col gap-1 text-sm">
       <span className="flex min-w-0 items-center gap-2">
         <MailIcon className="size-3.5 shrink-0 text-muted-foreground" />
-        <span className="truncate">{email || "Sin correo"}</span>
+        <span 
+          onClick={(e) => {
+            if (disableExpand) return
+            e.stopPropagation()
+            setEmailExpanded(!emailExpanded)
+          }}
+          className={cn(
+            !disableExpand && "transition-colors cursor-pointer hover:text-foreground/80",
+            emailExpanded && !disableExpand ? "break-all" : "truncate"
+          )} 
+          title={disableExpand ? undefined : (!emailExpanded ? "Toca para expandir" : "Toca para ocultar")}
+        >
+          {email || "Sin correo"}
+        </span>
       </span>
       <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
         <PhoneIcon className="size-3.5 shrink-0" />
