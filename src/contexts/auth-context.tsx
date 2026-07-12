@@ -97,11 +97,14 @@ function getInitialAuthState(): AuthState {
   const fromLocal = readStorage(localStorage)
   const fromSession = fromLocal ? null : readStorage(sessionStorage)
   const data = fromLocal ?? fromSession
+  
+  const session = data?.session ?? null
+  const isExpired = session?.expires_at ? session.expires_at <= Date.now() : false
 
   return {
-    session: data?.session ?? null,
+    session,
     user: data?.user ?? null,
-    isHydrating: false,
+    isHydrating: isExpired,
   }
 }
 
