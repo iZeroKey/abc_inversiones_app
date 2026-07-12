@@ -197,11 +197,11 @@ export function ChangePasswordDialog({ isOpen, onClose }: ChangePasswordDialogPr
         </div>
 
           <DrawerFooter variant="bare">
-            <Button type="button" variant="secondary" onClick={handleClose} disabled={saving} className="w-full sm:w-auto">
+            <Button type="button" variant="secondary" onClick={handleClose} disabled={saving} className="w-full sm:flex-1">
               <XIcon data-icon="inline-start" />
               Cancelar
             </Button>
-            <Button type="submit" disabled={saving || !currentPassword || !newPassword || !confirmPassword} className="w-full sm:w-auto">
+            <Button type="submit" disabled={saving || !currentPassword || !newPassword || !confirmPassword} className="w-full sm:flex-1">
               {saving ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
               Guardar Contraseña
             </Button>

@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button"
 import {
   Drawer,
+  DrawerClose,
   DrawerDescription,
+  DrawerFooter,
   DrawerHeader,
   DrawerPopup,
   DrawerTitle,
@@ -206,7 +208,7 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
   }
 
   return (
-    <Drawer open={isOpen} onOpenChange={(open) => {
+    <Drawer nested={true} open={isOpen} onOpenChange={(open) => {
       if (!open) onClose()
     }} position={isMobile ? "bottom" : "right"}>
       <DrawerPopup
@@ -317,20 +319,19 @@ export function ImageCropperModal({ image, isOpen, onClose, onCropComplete }: Im
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 border-t pt-4">
-                  <Button className="w-full" onClick={handleCrop}>
-                    <CheckIcon data-icon="inline-start" />
-                    Guardar foto
-                  </Button>
-                  <Button variant="ghost" className="w-full text-muted-foreground animate-none" onClick={onClose}>
-                    <XIcon data-icon="inline-start" />
-                    Cancelar
-                  </Button>
-                </div>
               </div>
             </div>
           </div>
         </ScrollArea>
+        <DrawerFooter variant="bare">
+          <DrawerClose render={<Button variant="secondary" className="w-full sm:flex-1" />}>
+            Cancelar
+          </DrawerClose>
+          <Button className="w-full sm:flex-1" onClick={handleCrop}>
+            <CheckIcon data-icon="inline-start" />
+            Guardar foto
+          </Button>
+        </DrawerFooter>
       </DrawerPopup>
     </Drawer>
   )
