@@ -14,7 +14,6 @@ import {
 import { useCallback, useEffect, useState, type ElementType } from "react"
 
 import { DataTablePaginationBar } from "@/components/data-table-card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -48,97 +47,135 @@ const typeDetails: Record<
     title?: string
     icon: ElementType
     className: string
+    borderClass: string
+    dotClass: string
   }
 > = {
   SYSTEM: {
     title: "Aviso del sistema",
     icon: BellIcon,
-    className: "bg-muted text-muted-foreground",
+    className: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+    borderClass: "border-l-slate-400 dark:border-l-slate-600",
+    dotClass: "bg-slate-500",
   },
   LOAN_SUBMITTED: {
     title: "Solicitud de préstamo enviada",
     icon: LandmarkIcon,
-    className: "bg-info/10 text-info-foreground",
+    className: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400",
+    borderClass: "border-l-blue-500",
+    dotClass: "bg-blue-500",
   },
   LOAN_INVESTOR_APPROVED: {
     title: "Préstamo en revisión final",
     icon: LandmarkIcon,
-    className: "bg-info/10 text-info-foreground",
+    className: "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400",
+    borderClass: "border-l-indigo-500",
+    dotClass: "bg-indigo-500",
   },
   LOAN_ACTIVE: {
     title: "Préstamo aprobado",
     icon: CheckCircleIcon,
-    className: "bg-success/10 text-success-foreground",
+    className: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400",
+    borderClass: "border-l-emerald-500",
+    dotClass: "bg-emerald-500",
   },
   LOAN_ACTIVE_INVESTOR: {
     title: "Préstamo activado",
     icon: CheckCircleIcon,
-    className: "bg-success/10 text-success-foreground",
+    className: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400",
+    borderClass: "border-l-emerald-500",
+    dotClass: "bg-emerald-500",
   },
   LOAN_REJECTED: {
     title: "Préstamo rechazado",
     icon: AlertCircleIcon,
-    className: "bg-destructive/10 text-destructive",
+    className: "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400",
+    borderClass: "border-l-red-500",
+    dotClass: "bg-red-500",
   },
   LOAN_APPROVED: {
     title: "Préstamo aprobado",
     icon: CheckCircleIcon,
-    className: "bg-success/10 text-success-foreground",
+    className: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400",
+    borderClass: "border-l-emerald-500",
+    dotClass: "bg-emerald-500",
   },
   VOUCHER_PENDING_REVIEW: {
     title: "Voucher pendiente de revisión",
     icon: CreditCardIcon,
-    className: "bg-warning/10 text-warning-foreground",
+    className: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400",
+    borderClass: "border-l-amber-500",
+    dotClass: "bg-amber-500",
   },
   VOUCHER_APPROVED: {
     title: "Pago confirmado",
     icon: CheckCircleIcon,
-    className: "bg-success/10 text-success-foreground",
+    className: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400",
+    borderClass: "border-l-emerald-500",
+    dotClass: "bg-emerald-500",
   },
   VOUCHER_REJECTED: {
     title: "Voucher rechazado",
     icon: AlertCircleIcon,
-    className: "bg-destructive/10 text-destructive",
+    className: "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400",
+    borderClass: "border-l-red-500",
+    dotClass: "bg-red-500",
   },
   VOUCHER_ADMIN_APPROVED: {
     title: "Pago confirmado por administración",
     icon: CheckCircleIcon,
-    className: "bg-success/10 text-success-foreground",
+    className: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400",
+    borderClass: "border-l-emerald-500",
+    dotClass: "bg-emerald-500",
   },
   VOUCHER_ADMIN_REJECTED: {
     title: "Pago rechazado por administración",
     icon: AlertCircleIcon,
-    className: "bg-destructive/10 text-destructive",
+    className: "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400",
+    borderClass: "border-l-red-500",
+    dotClass: "bg-red-500",
   },
   INSTALLMENT_REMINDER: {
     title: "Recordatorio de cuota",
     icon: ClockIcon,
-    className: "bg-warning/10 text-warning-foreground",
+    className: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400",
+    borderClass: "border-l-amber-500",
+    dotClass: "bg-amber-500",
   },
   INSTALLMENT_OVERDUE: {
     title: "Cuota vencida",
     icon: AlertCircleIcon,
-    className: "bg-destructive/10 text-destructive",
+    className: "bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-400",
+    borderClass: "border-l-rose-500",
+    dotClass: "bg-rose-500",
   },
   ACCESS_APPROVED: {
     title: "Acceso aprobado",
     icon: ShieldCheckIcon,
-    className: "bg-success/10 text-success-foreground",
+    className: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400",
+    borderClass: "border-l-emerald-500",
+    dotClass: "bg-emerald-500",
   },
   PAYMENT_RECEIVED: {
     title: "Pago recibido",
     icon: CreditCardIcon,
-    className: "bg-info/10 text-info-foreground",
+    className: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400",
+    borderClass: "border-l-blue-500",
+    dotClass: "bg-blue-500",
   },
   PAYMENT_DUE: {
     title: "Pago por vencer",
     icon: ClockIcon,
-    className: "bg-warning/10 text-warning-foreground",
+    className: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400",
+    borderClass: "border-l-amber-500",
+    dotClass: "bg-amber-500",
   },
   ACCESS_REQUEST: {
     title: "Solicitud de acceso",
     icon: ShieldCheckIcon,
-    className: "bg-secondary/40 text-secondary-foreground",
+    className: "bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400",
+    borderClass: "border-l-purple-500",
+    dotClass: "bg-purple-500",
   },
 }
 
@@ -172,7 +209,9 @@ function getNotificationTypeDetails(type: string) {
   return (
     typeDetails[normalizedType] ?? {
       icon: BellIcon,
-      className: "bg-muted text-muted-foreground",
+      className: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+      borderClass: "border-l-slate-400 dark:border-l-slate-600",
+      dotClass: "bg-slate-500",
     }
   )
 }
@@ -226,7 +265,6 @@ export default function NotificationsPage() {
   )
 
   const loading = notificationsQuery.isLoading
-  const refreshing = notificationsQuery.isFetching && !notificationsQuery.isLoading
   const error = notificationsQuery.error
     ? getErrorMessage(notificationsQuery.error, "No se pudieron cargar las notificaciones.")
     : null
@@ -365,44 +403,30 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4 px-0 py-2 md:px-8 md:py-8">
-      <div className="flex items-start justify-between gap-3">
+    <div className="mx-auto flex max-w-3xl flex-col gap-4">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-normal">
+            <h1 className="text-2xl font-semibold tracking-normal md:text-3xl">
               Notificaciones
             </h1>
-            {unreadCount > 0 && (
-              <Badge variant="secondary">{unreadCount} sin leer</Badge>
-            )}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Avisos importantes de tu cuenta.
           </p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
           <Button
-            variant="secondary"
-            size="icon"
-            onClick={() => void refetchNotifications()}
-            disabled={loading || refreshing}
-            aria-label="Actualizar notificaciones"
-            title="Actualizar"
-          >
-            {refreshing ? <Spinner /> : <RefreshCwIcon />}
-          </Button>
-          <Button
-            size="icon"
             onClick={handleMarkAllAsRead}
             disabled={markingAll || loading || unreadCount === 0}
-            aria-label="Marcar todas como leídas"
-            title="Marcar todo como leído"
+            className="w-full sm:w-auto"
           >
-            {markingAll ? <Spinner /> : <CheckCheckIcon />}
+            {markingAll ? <Spinner data-icon="inline-start" /> : <CheckCheckIcon data-icon="inline-start" />}
+            Marcar todas leídas
           </Button>
         </div>
-      </div>
+      </header>
 
       <Tabs
         value={filter}
@@ -432,7 +456,10 @@ export default function NotificationsPage() {
       ) : notifications.length === 0 ? (
         <EmptyState filter={filter} />
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className={cn(
+          "flex flex-col gap-3 transition-opacity duration-200", 
+          notificationsQuery.isPlaceholderData && "opacity-50 pointer-events-none"
+        )}>
           {notifications.map((notification) => (
             <NotificationCard
               key={notification.id}
@@ -545,15 +572,17 @@ function NotificationCard({
   return (
     <Card
       className={cn(
-        "overflow-hidden border-border/70 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md motion-reduce:transform-none",
-        !notification.isRead && "border-primary/20 bg-accent/35 shadow-xs",
+        "relative overflow-hidden transition-all duration-300 ease-out hover:-translate-y-0.5 motion-reduce:transform-none border-y border-r border-l-4",
+        !notification.isRead
+          ? cn("bg-card shadow-md hover:shadow-lg border-y-border/30 border-r-border/30", details.borderClass)
+          : "border-border/40 bg-card shadow-none opacity-65 hover:opacity-100 hover:shadow-sm",
       )}
     >
       <CardContent className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 p-4 md:p-5">
         <div
           className={cn(
-            "flex size-11 shrink-0 items-center justify-center rounded-full [&_svg]:size-5",
-            details.className,
+            "flex size-11 shrink-0 items-center justify-center rounded-full [&_svg]:size-5 shadow-sm transition-colors",
+            !notification.isRead ? details.className : "bg-muted text-muted-foreground/70",
           )}
         >
           <Icon />
@@ -561,17 +590,27 @@ function NotificationCard({
         <div className="min-w-0">
           <div className="flex min-w-0 flex-col gap-1.5">
             <div className="flex min-w-0 items-center gap-2">
-              <h2 className="truncate text-[0.95rem] font-semibold leading-5">
+              <h2
+                className={cn(
+                  "truncate text-[0.95rem] leading-5 transition-colors",
+                  !notification.isRead ? "font-semibold text-foreground" : "font-medium text-muted-foreground",
+                )}
+              >
                 {title}
               </h2>
               {!notification.isRead && (
-                <span
-                  className="size-2 shrink-0 rounded-full bg-primary"
-                  aria-label="No leída"
-                />
+                <span className="relative flex h-2.5 w-2.5 shrink-0" aria-label="No leída">
+                  <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", details.dotClass)}></span>
+                  <span className={cn("relative inline-flex rounded-full h-2.5 w-2.5", details.dotClass)}></span>
+                </span>
               )}
             </div>
-            <p className="line-clamp-2 text-sm leading-5 text-muted-foreground">
+            <p
+              className={cn(
+                "line-clamp-2 text-sm leading-5 transition-colors",
+                !notification.isRead ? "text-foreground/80" : "text-muted-foreground/80",
+              )}
+            >
               {notification.body}
             </p>
             <time
