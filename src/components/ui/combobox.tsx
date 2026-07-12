@@ -16,12 +16,15 @@ export { ComboboxPrimitive };
 
 export const ComboboxContext: React.Context<{
   chipsRef: React.RefObject<Element | null> | null;
+  inputGroupRef: React.RefObject<Element | null> | null;
   multiple: boolean;
 }> = React.createContext<{
   chipsRef: React.RefObject<Element | null> | null;
+  inputGroupRef: React.RefObject<Element | null> | null;
   multiple: boolean;
 }>({
   chipsRef: null,
+  inputGroupRef: null,
   multiple: false,
 });
 
@@ -29,8 +32,9 @@ export function Combobox<Value, Multiple extends boolean | undefined = false>(
   props: ComboboxPrimitive.Root.Props<Value, Multiple>,
 ): React.ReactElement {
   const chipsRef = React.useRef<Element | null>(null);
+  const inputGroupRef = React.useRef<Element | null>(null);
   return (
-    <ComboboxContext.Provider value={{ chipsRef, multiple: !!props.multiple }}>
+    <ComboboxContext.Provider value={{ chipsRef, inputGroupRef, multiple: !!props.multiple }}>
       <ComboboxPrimitive.Root {...props} />
     </ComboboxContext.Provider>
   );
@@ -101,12 +105,15 @@ export function ComboboxInput({
   clearProps?: ComboboxPrimitive.Clear.Props;
 }): React.ReactElement {
   const sizeValue = (size ?? "default") as "sm" | "default" | "lg" | number;
+  const { inputGroupRef } = React.useContext(ComboboxContext);
 
   return (
-    <InputGroup
-      className={cn("w-full", className)}
-      data-slot="combobox-input-group"
-    >
+    <ComboboxPrimitive.InputGroup className={cn("w-full", className)}>
+      <InputGroup
+        className="w-full"
+        data-slot="combobox-input-group"
+        ref={inputGroupRef as React.Ref<HTMLDivElement>}
+      >
       {startAddon && (
         <InputGroupAddon align="inline-start">
           <span className="opacity-80 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0">
@@ -149,7 +156,8 @@ export function ComboboxInput({
         </InputGroupAddon>
       )}
       {children}
-    </InputGroup>
+      </InputGroup>
+    </ComboboxPrimitive.InputGroup>
   );
 }
 
@@ -171,8 +179,16 @@ export function ComboboxPopup({
   anchor?: ComboboxPrimitive.Positioner.Props["anchor"];
   portalProps?: ComboboxPrimitive.Portal.Props;
 }): React.ReactElement {
-  const { chipsRef } = React.useContext(ComboboxContext);
-  const anchor = anchorProp ?? chipsRef;
+  const { chipsRef, inputGroupRef } = React.useContext(ComboboxContext);
+  const defaultAnchor = React.useMemo(
+    () => ({
+      get current() {
+        return chipsRef?.current || inputGroupRef?.current || null;
+      },
+    }),
+    [chipsRef, inputGroupRef]
+  );
+  const anchor = anchorProp ?? defaultAnchor;
 
   return (
     <ComboboxPrimitive.Portal {...portalProps}>
@@ -185,20 +201,18 @@ export function ComboboxPopup({
         side={side}
         sideOffset={sideOffset}
       >
-        <span
+        <ComboboxPrimitive.Popup
           className={cn(
-            "relative flex max-h-full min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) rounded-lg border bg-popover not-dark:bg-clip-padding shadow-lg/5 transition-[scale,opacity] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+            "relative flex overflow-hidden max-h-full w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) rounded-lg border bg-popover not-dark:bg-clip-padding shadow-lg/5 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 duration-150 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
             className,
           )}
+          data-slot="combobox-popup"
+          {...props}
         >
-          <ComboboxPrimitive.Popup
-            className="flex max-h-[min(var(--available-height),23rem)] flex-1 flex-col text-foreground"
-            data-slot="combobox-popup"
-            {...props}
-          >
+          <div className="flex min-w-0 max-h-[min(var(--available-height),23rem)] flex-1 flex-col text-foreground">
             {children}
-          </ComboboxPrimitive.Popup>
-        </span>
+          </div>
+        </ComboboxPrimitive.Popup>
       </ComboboxPrimitive.Positioner>
     </ComboboxPrimitive.Portal>
   );
@@ -212,7 +226,7 @@ export function ComboboxList({
     <ScrollArea scrollbarGutter scrollFade>
       <ComboboxPrimitive.List
         className={cn(
-          "not-empty:scroll-py-1 not-empty:px-1 not-empty:py-1 in-data-has-overflow-y:pe-3",
+          "not-empty:scroll-py-1 not-empty:px-1 not-empty:py-1",
           className,
         )}
         data-slot="combobox-list"
@@ -230,13 +244,13 @@ export function ComboboxItem({
   return (
     <ComboboxPrimitive.Item
       className={cn(
-        "relative flex w-full cursor-default items-center gap-2 rounded-md py-1 pe-8 ps-1.5 text-sm outline-none select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-64 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "relative flex w-full min-w-0 cursor-default items-center gap-2 rounded-md py-1 pe-8 ps-1.5 text-sm outline-none select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-64 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       data-slot="combobox-item"
       {...props}
     >
-      {children}
+      <span className="flex-1 min-w-0">{children}</span>
       <ComboboxPrimitive.ItemIndicator className="absolute right-2 flex size-4 items-center justify-center">
         <CheckIcon className="pointer-events-none" />
       </ComboboxPrimitive.ItemIndicator>

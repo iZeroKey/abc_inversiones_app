@@ -4,7 +4,7 @@ import { Input, type InputProps } from "@/components/ui/input";
 import { Textarea, type TextareaProps } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
-import type * as React from "react";
+import * as React from "react";
 
 const inputGroupAddonVariants = cva(
   "flex h-auto cursor-text select-none items-center justify-center gap-2 leading-none self-stretch [&>kbd]:rounded-[calc(var(--radius)-5px)] [&_svg:not([class*='size-'])]:size-4 [&_svg]:-mx-0.5 not-has-[button]:**:[svg:not([class*='opacity-'])]:opacity-80",
@@ -27,10 +27,10 @@ const inputGroupAddonVariants = cva(
   },
 );
 
-export function InputGroup({
-  className,
-  ...props
-}: React.ComponentProps<"div">): React.ReactElement {
+export const InputGroup = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<"div">
+>(({ className, ...props }, ref) => {
   return (
     <div
       className={cn(
@@ -38,11 +38,13 @@ export function InputGroup({
         className,
       )}
       data-slot="input-group"
+      ref={ref}
       role="group"
       {...props}
     />
   );
-}
+});
+InputGroup.displayName = "InputGroup";
 
 export function InputGroupAddon({
   className,

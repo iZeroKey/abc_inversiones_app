@@ -264,7 +264,7 @@ export function DrawerFooter({
 }): React.ReactElement {
   const defaultProps = {
     className: cn(
-      "flex flex-col-reverse gap-2 px-4 sm:px-6 pb-(--safe-area-inset-bottom,0px) sm:flex-row sm:justify-end",
+      "flex flex-col-reverse gap-2 px-4 sm:px-6 pb-(--safe-area-inset-bottom,0px) sm:flex-row sm:flex-wrap sm:justify-end",
       !allowSelection && "cursor-default",
       variant === "default" &&
         "border-t bg-muted/72 pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+--spacing(4))]",

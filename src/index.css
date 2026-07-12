@@ -305,6 +305,7 @@
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
+    overflow-x: hidden;
   }
 }
 
@@ -332,39 +333,7 @@
     animation-name: route-exit-back;
   }
 
-  .realtime-row-enter {
-    position: relative;
-    animation: realtime-row-fade 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
 
-  .realtime-row-enter:not(tr)::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    border-radius: inherit;
-    z-index: 10;
-    animation: realtime-td-highlight 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  tr.realtime-row-enter td {
-    position: relative;
-    animation: realtime-row-expand 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  tr.realtime-row-enter td > * {
-    animation: realtime-content-fade 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  tr.realtime-row-enter td::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    border-radius: inherit;
-    z-index: 1;
-    animation: realtime-td-highlight 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
 
   @keyframes route-enter {
     from {
@@ -418,31 +387,7 @@
     }
   }
 
-  @keyframes realtime-row-fade {
-    0% {
-      opacity: 0;
-      transform: translate3d(0, -6px, 0);
-    }
-    20% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 1;
-      transform: translate3d(0, 0, 0);
-    }
-  }
 
-  @keyframes realtime-td-highlight {
-    0% {
-      background-color: color-mix(in oklch, var(--success) 16%, transparent);
-    }
-    60% {
-      background-color: color-mix(in oklch, var(--success) 8%, transparent);
-    }
-    100% {
-      background-color: transparent;
-    }
-  }
 
   .animate-badge-change {
     animation: badge-status-update 700ms cubic-bezier(0.25, 1.3, 0.4, 1) both;
@@ -490,38 +435,10 @@
     }
   }
 
-  @keyframes realtime-row-expand {
-    0% {
-      padding-top: 0;
-      padding-bottom: 0;
-      line-height: 0;
-    }
-    100% {
-      padding-top: 0.625rem; /* p-2.5 standard table cell padding */
-      padding-bottom: 0.625rem;
-      line-height: 1; /* leading-none standard line height */
-    }
-  }
-
-  @keyframes realtime-content-fade {
-    0% {
-      opacity: 0;
-      transform: scale(0.96);
-    }
-    30% {
-      opacity: 0;
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .route-transition,
     .route-transition--enter,
-    .route-transition--exit,
-    .realtime-row-enter {
+    .route-transition--exit {
       animation: none;
       filter: none;
       transform: none;
