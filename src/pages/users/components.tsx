@@ -227,20 +227,26 @@ export function UserSummaryCard({
 
       <div className="grid grid-cols-3 gap-4 p-4">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">Clientes</p>
-          <p className="mt-0.5 text-sm font-semibold">
+          <p className="truncate text-xs font-medium text-muted-foreground" title="Clientes">
+            Clientes
+          </p>
+          <p className="mt-0.5 truncate text-sm font-semibold">
             <AnimatedNumber value={clients} />
           </p>
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">Inversionistas</p>
-          <p className="mt-0.5 text-sm font-semibold">
+          <p className="truncate text-xs font-medium text-muted-foreground" title="Inversionistas">
+            Inversionistas
+          </p>
+          <p className="mt-0.5 truncate text-sm font-semibold">
             <AnimatedNumber value={investors} />
           </p>
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">Administradores</p>
-          <p className="mt-0.5 text-sm font-semibold">
+          <p className="truncate text-xs font-medium text-muted-foreground" title="Administradores">
+            Administradores
+          </p>
+          <p className="mt-0.5 truncate text-sm font-semibold">
             <AnimatedNumber value={admins} />
           </p>
         </div>
