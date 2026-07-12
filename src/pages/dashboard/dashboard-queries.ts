@@ -1,20 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/contexts/auth-context";
-import {
-  getLoanPaidAmount,
-  toNumber,
-} from "@/features/loans/loan-utils";
+import { getAuthQueryScope } from "@/features/loans/loan-queries";
+import { getLoanPaidAmount, toNumber } from "@/features/loans/loan-utils";
 import {
   getApiBaseUrl,
   readApiPath,
   readApiPayload,
   type FetchWithAuth,
 } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
 import type { Installment } from "@/types/loans";
 import { useEffect, useRef } from "react";
-import { queryKeys } from "@/lib/query-keys";
-import { getAuthQueryScope } from "@/features/loans/loan-queries";
 
 export type AdminDashboardData = {
   loans?: {
@@ -38,6 +35,19 @@ export type AdminDashboardData = {
     pendingAdmin?: number;
     pendingInvestor?: number;
   };
+  payments?: {
+    collectedThisMonth?: string;
+  };
+};
+
+export type ClientProjection = {
+  month: string;
+  expected: string | number;
+};
+
+export type InvestorPerformance = {
+  month: string;
+  return: string | number;
 };
 
 export type DashboardLoan = {
@@ -127,9 +137,10 @@ async function fetchClientDashboard(fetchWithAuth: FetchWithAuth) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ loanIds }),
-    }
+    },
   );
-  const batchPayload = await readApiPayload<Record<string, Installment[]>>(batchResponse);
+  const batchPayload =
+    await readApiPayload<Record<string, Installment[]>>(batchResponse);
   const batchInstallments = batchPayload.data || {};
 
   const installmentResponses = loans.map((loan) => ({
@@ -137,10 +148,12 @@ async function fetchClientDashboard(fetchWithAuth: FetchWithAuth) {
     loan,
   }));
 
-  const loansWithProgress = installmentResponses.map(({ installments, loan }) => ({
-    ...loan,
-    totalPaid: String(getLoanPaidAmount(loan, installments)),
-  }));
+  const loansWithProgress = installmentResponses.map(
+    ({ installments, loan }) => ({
+      ...loan,
+      totalPaid: String(getLoanPaidAmount(loan, installments)),
+    }),
+  );
   const paidFromInstallments = loansWithProgress.reduce(
     (total, loan) => total + toNumber(loan.totalPaid),
     0,
@@ -183,7 +196,7 @@ async function fetchInvestorDashboard(fetchWithAuth: FetchWithAuth) {
 
   const loanIds = (data.investments ?? []).map((inv) => inv.loanId);
   let paymentsByLoan: Payment[][] = [];
-  
+
   if (loanIds.length > 0) {
     const batchResponse = await fetchWithAuth(
       `${getApiBaseUrl()}/api/v1/payments/batch`,
@@ -191,9 +204,10 @@ async function fetchInvestorDashboard(fetchWithAuth: FetchWithAuth) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ loanIds }),
-      }
+      },
     );
-    const batchPayload = await readApiPayload<Record<string, Payment[]>>(batchResponse);
+    const batchPayload =
+      await readApiPayload<Record<string, Payment[]>>(batchResponse);
     const batchPayments = batchPayload.data || {};
     paymentsByLoan = loanIds.map((id) => batchPayments[id] || []);
   }
@@ -202,7 +216,10 @@ async function fetchInvestorDashboard(fetchWithAuth: FetchWithAuth) {
     collectedAmount: paymentsByLoan
       .flat()
       .filter((payment) => payment.status === "confirmed")
-      .reduce((total, payment) => total + Number.parseFloat(payment.amount || "0"), 0),
+      .reduce(
+        (total, payment) => total + Number.parseFloat(payment.amount || "0"),
+        0,
+      ),
     data,
   };
 }
@@ -218,7 +235,8 @@ export function useAdminDashboardQuery() {
   return useQuery({
     enabled: Boolean(session?.access_token),
     meta: { persist: true },
-    queryFn: () => fetchAdminDashboard((...args) => fetchWithAuthRef.current(...args)),
+    queryFn: () =>
+      fetchAdminDashboard((...args) => fetchWithAuthRef.current(...args)),
     queryKey: queryKeys.dashboard.admin(scope),
   });
 }
@@ -234,7 +252,8 @@ export function useClientDashboardQuery() {
   return useQuery<ClientDashboardData>({
     enabled: Boolean(session?.access_token),
     meta: { persist: true },
-    queryFn: () => fetchClientDashboard((...args) => fetchWithAuthRef.current(...args)),
+    queryFn: () =>
+      fetchClientDashboard((...args) => fetchWithAuthRef.current(...args)),
     queryKey: queryKeys.dashboard.client(scope),
   });
 }
@@ -252,5 +271,53 @@ export function useInvestorDashboardQuery() {
     meta: { persist: true },
     queryFn: () => fetchInvestorDashboard(fetchWithAuth),
     queryKey: queryKeys.dashboard.investor(scope),
+  });
+}
+
+async function fetchClientProjection(fetchWithAuth: FetchWithAuth) {
+  const payload = await readApiPath<{ projection: ClientProjection[] }>(
+    fetchWithAuth,
+    "/api/v1/reports/client-projection",
+  );
+  return payload.data?.projection ?? [];
+}
+
+export function useClientProjectionQuery() {
+  const { fetchWithAuth, session, user } = useAuth();
+  const fetchWithAuthRef = useRef(fetchWithAuth);
+  useEffect(() => {
+    fetchWithAuthRef.current = fetchWithAuth;
+  }, [fetchWithAuth]);
+  const scope = getAuthQueryScope(user);
+
+  return useQuery({
+    enabled: Boolean(session?.access_token),
+    queryFn: () =>
+      fetchClientProjection((...args) => fetchWithAuthRef.current(...args)),
+    queryKey: [...queryKeys.dashboard.client(scope), "projection"],
+  });
+}
+
+async function fetchInvestorPerformance(fetchWithAuth: FetchWithAuth) {
+  const payload = await readApiPath<{ performance: InvestorPerformance[] }>(
+    fetchWithAuth,
+    "/api/v1/reports/investor-performance",
+  );
+  return payload.data?.performance ?? [];
+}
+
+export function useInvestorPerformanceQuery() {
+  const { fetchWithAuth, session, user } = useAuth();
+  const fetchWithAuthRef = useRef(fetchWithAuth);
+  useEffect(() => {
+    fetchWithAuthRef.current = fetchWithAuth;
+  }, [fetchWithAuth]);
+  const scope = getAuthQueryScope(user);
+
+  return useQuery({
+    enabled: Boolean(session?.access_token),
+    queryFn: () =>
+      fetchInvestorPerformance((...args) => fetchWithAuthRef.current(...args)),
+    queryKey: [...queryKeys.dashboard.investor(scope), "performance"],
   });
 }
