@@ -40,6 +40,7 @@ export function SimpleLoansWorkspace({
   searchQuery,
   loadingList,
   isFetchingList,
+  isPlaceholderData,
   listError,
   emptyMessage,
   perspective,
@@ -57,6 +58,7 @@ export function SimpleLoansWorkspace({
   searchQuery: string
   loadingList: boolean
   isFetchingList?: boolean
+  isPlaceholderData?: boolean
   listError: string | null
   emptyMessage: string
   perspective: "admin" | "client" | "investor"
@@ -151,6 +153,7 @@ export function SimpleLoansWorkspace({
         page={page}
         loading={loadingList}
         isFetching={isFetchingList}
+        isPlaceholderData={isPlaceholderData}
         error={listError}
         emptyMessage={emptyMessage}
         perspective={perspective}

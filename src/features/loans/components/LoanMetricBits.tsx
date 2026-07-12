@@ -1,7 +1,7 @@
 import {
-    CalendarClockIcon,
-    ChevronRightIcon,
-    UploadIcon,
+  CalendarClockIcon,
+  ChevronRightIcon,
+  UploadIcon,
 } from "lucide-react"
 import type { ElementType, ReactNode } from "react"
 
@@ -11,8 +11,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { frequencyLabels, interestPeriodLabels } from "@/features/loans/loan-constants"
 import { formatDate } from "@/features/loans/loan-utils"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import iconAbc from "@/assets/icon-abc.png"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function AmountBlock({
   label,
@@ -48,17 +48,17 @@ export function InfoRow({
   const content = (
     <>
       {avatar ? (
-        <Avatar className="size-10 rounded-xl shrink-0">
+        <Avatar className="size-9 rounded-xl shrink-0">
           {finalAvatarUrl ? <AvatarImage src={finalAvatarUrl} alt="" className="object-cover" /> : null}
           <AvatarFallback className="rounded-xl bg-primary/10 text-primary font-medium">{avatar.initials}</AvatarFallback>
         </Avatar>
       ) : Icon ? (
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Icon className="size-5" />
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Icon className="size-4" />
         </div>
       ) : null}
       <div className="min-w-0 text-left">
-        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">{label}</p>
         <p className="truncate text-sm font-semibold">{value}</p>
       </div>
     </>
@@ -166,7 +166,7 @@ export function NextPaymentHero({
 
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Próximo pago</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">Próximo pago</p>
       {dueDate ? (
         <>
           <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-foreground">
@@ -241,7 +241,7 @@ export function LoanConditions({
 }) {
   return (
     <div>
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condiciones del préstamo</p>
+      <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">Condiciones del préstamo</p>
       <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
         <div className="flex justify-between items-center">
           <span className="text-muted-foreground">Capital</span>

@@ -16,14 +16,14 @@ import {
 } from "@/components/ui/drawer"
 
 import { toastManager } from "@/components/ui/toast"
-import { UserDetailSheet, type UserDetailProfile } from "@/components/UserDetailSheet"
+import { UserDetailDrawer, type UserDetailProfile } from "@/components/UserDetailDrawer"
 import { useAuth } from "@/contexts/auth-context"
 
 import { CreateLoanDialog } from "@/features/loans/components/CreateLoanDialog"
 import { LoanDetailPanel, type RelatedData } from "@/features/loans/components/LoanDetailPanel"
-import { SimpleLoansWorkspace } from "@/features/loans/components/SimpleLoansWorkspace"
 import { LoanSummaryCard } from "@/features/loans/components/LoanSummaryCard"
 import { ReviewLoanDialog } from "@/features/loans/components/ReviewLoanDialog"
+import { SimpleLoansWorkspace } from "@/features/loans/components/SimpleLoansWorkspace"
 import { PAGE_SIZE } from "@/features/loans/loan-constants"
 import { createDefaultLoanForm, type LoanFormState } from "@/features/loans/loan-form"
 import {
@@ -468,6 +468,7 @@ export default function LoansPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.loans.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
       ])
+      highlightLoanIds([visibleSelectedLoan.id])
       await loadDetail(visibleSelectedLoan.id, visibleSelectedLoan)
     } catch (error) {
       toastManager.add({
@@ -489,15 +490,16 @@ export default function LoansPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.loans.detail(queryScope, id) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.list(queryScope, id) }),
     ])
+    highlightLoanIds([id])
     if (id) {
       await loadDetail(id, visibleSelectedLoan, { silent: true })
     }
-  }, [detailLoanId, loadDetail, queryClient, queryScope, visibleSelectedLoan])
+  }, [detailLoanId, loadDetail, queryClient, queryScope, visibleSelectedLoan, highlightLoanIds])
 
   return (
     <div>
       <div className="mx-auto flex max-w-7xl flex-col gap-5">
-      <header className="flex items-start justify-between gap-3 border-b border-border pb-5">
+      <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-normal md:text-3xl">
@@ -508,12 +510,11 @@ export default function LoansPage() {
             {roleCopy.description}
           </p>
         </div>
-
-        <div className="flex shrink-0 items-center justify-end gap-2">
+        <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
           {canCreateLoan(user) && (
-            <Button className="max-sm:px-2" onClick={() => setCreateOpen(true)}>
+            <Button className="w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
               <PlusIcon data-icon="inline-start" />
-              <span className="max-sm:hidden">Nuevo préstamo</span>
+              Nuevo préstamo
             </Button>
           )}
         </div>
@@ -534,6 +535,7 @@ export default function LoansPage() {
         searchQuery={searchQuery}
         loadingList={loadingList}
         isFetchingList={loansQuery.isFetching}
+        isPlaceholderData={loansQuery.isPlaceholderData}
         listError={listError}
         emptyMessage={roleCopy.empty}
         perspective={role}
@@ -579,25 +581,21 @@ export default function LoansPage() {
             />
           </DrawerPanel>
           <DrawerFooter variant="bare">
-            <div className="flex w-full items-center justify-between">
-              <div className="flex items-center gap-2">
-                {canReviewLoan(visibleSelectedLoan, user) && (
-                  <>
-                    <Button variant="default" size="sm" onClick={() => setReviewDialog("approve")}>
-                      <CheckIcon data-icon="inline-start" />
-                      Aprobar
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => setReviewDialog("reject")}>
-                      <XIcon data-icon="inline-start" />
-                      Rechazar
-                    </Button>
-                  </>
-                )}
-              </div>
-              <DrawerClose render={<Button variant="secondary" />}>
-                Cerrar
-              </DrawerClose>
-            </div>
+            <DrawerClose render={<Button variant="secondary" className="w-full sm:flex-1" />}>
+              Cerrar
+            </DrawerClose>
+            {canReviewLoan(visibleSelectedLoan, user) && (
+              <>
+                <Button variant="destructive" size="sm" onClick={() => setReviewDialog("reject")} className="w-full sm:flex-1">
+                  <XIcon data-icon="inline-start" />
+                  Rechazar
+                </Button>
+                <Button variant="default" size="sm" onClick={() => setReviewDialog("approve")} className="w-full sm:flex-1">
+                  <CheckIcon data-icon="inline-start" />
+                  Aprobar
+                </Button>
+              </>
+            )}
           </DrawerFooter>
         </DrawerPopup>
 
@@ -626,7 +624,7 @@ export default function LoansPage() {
         onSubmit={handleCreateLoan}
       />
 
-      <UserDetailSheet
+      <UserDetailDrawer
         user={selectedUserForSheet}
         onOpenChange={(open) => {
           if (!open) setSelectedUserForSheet(null)

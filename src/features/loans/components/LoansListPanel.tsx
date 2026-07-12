@@ -17,11 +17,13 @@ const cardVariants: Variants = {
 }
 
 import { AnimatedNumber } from "@/components/AnimatedNumber"
+import { AnimatedText } from "@/components/AnimatedText"
 import { DataTableCard, DataTablePaginationBar, DataTableStaticHeader } from "@/components/data-table-card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/progress"
 import { Spinner } from "@/components/ui/spinner"
+import { useIsRecentStructuralChange } from "@/contexts/realtime-context"
 import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import {
   EmptyLoanList,
@@ -31,7 +33,6 @@ import {
 import { frequencyLabels } from "@/features/loans/loan-constants"
 import {
   formatDate,
-  formatPreciseCurrencyWithSymbol,
   getLoanCardFooterIcon,
   getLoanCardFooterText,
   getLoanCardSecondaryLabel,
@@ -44,7 +45,7 @@ import {
   loanInvestorName,
   loanPublicCode,
   normalizeStatus,
-  toNumber,
+  toNumber
 } from "@/features/loans/loan-utils"
 import { cn } from "@/lib/utils"
 import type { Loan, PaginationMeta, RelatedUser } from "@/types/loans"
@@ -112,6 +113,7 @@ export function LoansListPanel({
   page,
   loading,
   isFetching,
+  isPlaceholderData,
   error,
   emptyMessage,
   onRetry,
@@ -127,6 +129,7 @@ export function LoansListPanel({
   page: number
   loading: boolean
   isFetching?: boolean
+  isPlaceholderData?: boolean
   error: string | null
   emptyMessage: string
   onRetry: () => void
@@ -134,6 +137,8 @@ export function LoansListPanel({
   onPageChange: (page: number) => void
   perspective?: "admin" | "client" | "investor"
 }) {
+  const isRecentLoansChange = useIsRecentStructuralChange("loans")
+  const isStructuralFetching = isFetching && isRecentLoansChange
   const totalPages = Math.max(pagination.totalPages ?? 1, 1)
 
   const loanColumns = useMemo<ColumnDef<Loan>[]>(() => {
@@ -159,7 +164,7 @@ export function LoansListPanel({
         accessorFn: (loan) => toNumber(loan.principal),
         header: () => <DataTableStaticHeader title="Principal" align="right" />,
         cell: ({ row }) => (
-          <span className="tabular-nums font-medium">{formatPreciseCurrencyWithSymbol(row.original.principal)}</span>
+          <AnimatedNumber className="tabular-nums font-medium" value={toNumber(row.original.principal)} isCurrency />
         ),
         meta: { headerClassName: "text-right", cellClassName: "text-right" },
       },
@@ -168,7 +173,7 @@ export function LoansListPanel({
         accessorFn: (loan) => toNumber(loan.totalDebt),
         header: () => <DataTableStaticHeader title="Deuda total" align="right" />,
         cell: ({ row }) => (
-          <span className="tabular-nums">{formatPreciseCurrencyWithSymbol(row.original.totalDebt)}</span>
+          <AnimatedNumber className="tabular-nums" value={toNumber(row.original.totalDebt)} isCurrency />
         ),
         meta: { headerClassName: "text-right", cellClassName: "text-right" },
       },
@@ -177,7 +182,7 @@ export function LoansListPanel({
         accessorFn: (loan) => toNumber(loan.totalPaid),
         header: () => <DataTableStaticHeader title="Pagado" align="right" />,
         cell: ({ row }) => (
-          <span className="tabular-nums">{formatPreciseCurrencyWithSymbol(row.original.totalPaid)}</span>
+          <AnimatedNumber className="tabular-nums" value={toNumber(row.original.totalPaid)} isCurrency />
         ),
         meta: { headerClassName: "text-right", cellClassName: "text-right" },
       },
@@ -186,7 +191,7 @@ export function LoansListPanel({
         accessorFn: (loan) => getRemainingDebt(loan),
         header: () => <DataTableStaticHeader title="Saldo" align="right" />,
         cell: ({ row }) => (
-          <span className="tabular-nums font-medium">{formatPreciseCurrencyWithSymbol(getRemainingDebt(row.original))}</span>
+          <AnimatedNumber className="tabular-nums font-medium" value={getRemainingDebt(row.original)} isCurrency />
         ),
         meta: { headerClassName: "text-right", cellClassName: "text-right" },
       },
@@ -209,14 +214,14 @@ export function LoansListPanel({
         header: () => <DataTableStaticHeader title="Próximo pago" />,
         cell: ({ row }) => {
           const next = row.original.nextInstallment
-          return next?.dueDate ? formatDate(next.dueDate) : <EmptyCell />
+          return <AnimatedText>{next?.dueDate ? formatDate(next.dueDate) : <EmptyCell />}</AnimatedText>
         },
       },
       {
         id: "status",
         accessorFn: (loan) => normalizeStatus(loan),
         header: () => <DataTableStaticHeader title="Estado" />,
-        cell: ({ row }) => <LoanStatusBadge status={normalizeStatus(row.original)} />,
+        cell: ({ row }) => <AnimatedText value={normalizeStatus(row.original)}><LoanStatusBadge status={normalizeStatus(row.original)} /></AnimatedText>,
       },
     ]
 
@@ -254,7 +259,7 @@ export function LoansListPanel({
         accessorFn: (loan) => toNumber(loan.principal),
         header: () => <DataTableStaticHeader title="Inversión" align="right" />,
         cell: ({ row }) => (
-          <span className="tabular-nums font-medium">{formatPreciseCurrencyWithSymbol(row.original.principal)}</span>
+          <AnimatedNumber className="tabular-nums font-medium" value={toNumber(row.original.principal)} isCurrency />
         ),
         meta: { headerClassName: "text-right", cellClassName: "text-right" },
       },
@@ -263,7 +268,7 @@ export function LoansListPanel({
         accessorFn: (loan) => toNumber(loan.totalDebt),
         header: () => <DataTableStaticHeader title="Retorno esperado" align="right" />,
         cell: ({ row }) => (
-          <span className="tabular-nums">{formatPreciseCurrencyWithSymbol(row.original.totalDebt)}</span>
+          <AnimatedNumber className="tabular-nums" value={toNumber(row.original.totalDebt)} isCurrency />
         ),
         meta: { headerClassName: "text-right", cellClassName: "text-right" },
       },
@@ -272,7 +277,7 @@ export function LoansListPanel({
         accessorFn: (loan) => toNumber(loan.totalPaid),
         header: () => <DataTableStaticHeader title="Recibido" align="right" />,
         cell: ({ row }) => (
-          <span className="tabular-nums">{formatPreciseCurrencyWithSymbol(row.original.totalPaid)}</span>
+          <AnimatedNumber className="tabular-nums" value={toNumber(row.original.totalPaid)} isCurrency />
         ),
         meta: { headerClassName: "text-right", cellClassName: "text-right" },
       },
@@ -281,7 +286,7 @@ export function LoansListPanel({
         accessorFn: (loan) => getRemainingDebt(loan),
         header: () => <DataTableStaticHeader title="Pendiente" align="right" />,
         cell: ({ row }) => (
-          <span className="tabular-nums font-medium">{formatPreciseCurrencyWithSymbol(getRemainingDebt(row.original))}</span>
+          <AnimatedNumber className="tabular-nums font-medium" value={getRemainingDebt(row.original)} isCurrency />
         ),
         meta: { headerClassName: "text-right", cellClassName: "text-right" },
       },
@@ -304,14 +309,14 @@ export function LoansListPanel({
         header: () => <DataTableStaticHeader title="Próximo pago" />,
         cell: ({ row }) => {
           const next = row.original.nextInstallment
-          return next?.dueDate ? formatDate(next.dueDate) : <EmptyCell />
+          return <AnimatedText>{next?.dueDate ? formatDate(next.dueDate) : <EmptyCell />}</AnimatedText>
         },
       },
       {
         id: "status",
         accessorFn: (loan) => normalizeStatus(loan),
         header: () => <DataTableStaticHeader title="Estado" />,
-        cell: ({ row }) => <LoanStatusBadge status={normalizeStatus(row.original)} />,
+        cell: ({ row }) => <AnimatedText value={normalizeStatus(row.original)}><LoanStatusBadge status={normalizeStatus(row.original)} /></AnimatedText>,
       },
     ]
 
@@ -361,7 +366,7 @@ export function LoansListPanel({
         accessorFn: (loan) => toNumber(loan.principal),
         header: () => <DataTableStaticHeader title="Principal" align="right" />,
         cell: ({ row }) => (
-          <span className="tabular-nums font-medium">{formatPreciseCurrencyWithSymbol(row.original.principal)}</span>
+          <AnimatedNumber className="tabular-nums font-medium" value={toNumber(row.original.principal)} isCurrency />
         ),
         meta: { headerClassName: "text-right", cellClassName: "text-right" },
       },
@@ -370,7 +375,7 @@ export function LoansListPanel({
         accessorFn: (loan) => toNumber(loan.totalDebt),
         header: () => <DataTableStaticHeader title="Deuda total" align="right" />,
         cell: ({ row }) => (
-          <span className="tabular-nums">{formatPreciseCurrencyWithSymbol(row.original.totalDebt)}</span>
+          <AnimatedNumber className="tabular-nums" value={toNumber(row.original.totalDebt)} isCurrency />
         ),
         meta: { headerClassName: "text-right", cellClassName: "text-right" },
       },
@@ -379,7 +384,7 @@ export function LoansListPanel({
         accessorFn: (loan) => toNumber(loan.totalPaid),
         header: () => <DataTableStaticHeader title="Pagado" align="right" />,
         cell: ({ row }) => (
-          <span className="tabular-nums">{formatPreciseCurrencyWithSymbol(row.original.totalPaid)}</span>
+          <AnimatedNumber className="tabular-nums" value={toNumber(row.original.totalPaid)} isCurrency />
         ),
         meta: { headerClassName: "text-right", cellClassName: "text-right" },
       },
@@ -388,7 +393,7 @@ export function LoansListPanel({
         accessorFn: (loan) => getRemainingDebt(loan),
         header: () => <DataTableStaticHeader title="Saldo" align="right" />,
         cell: ({ row }) => (
-          <span className="tabular-nums font-medium">{formatPreciseCurrencyWithSymbol(getRemainingDebt(row.original))}</span>
+          <AnimatedNumber className="tabular-nums font-medium" value={getRemainingDebt(row.original)} isCurrency />
         ),
         meta: { headerClassName: "text-right", cellClassName: "text-right" },
       },
@@ -446,7 +451,7 @@ export function LoansListPanel({
           message={emptyMessage}
         />
       ) : (
-        <div className={cn("transition-opacity duration-200", isFetching && "opacity-50 pointer-events-none")}>
+        <div className={cn("transition-opacity duration-200", (isPlaceholderData || isStructuralFetching) && "opacity-50 pointer-events-none")}>
           {viewMode === "cards" ? (
             <motion.div
               className="grid gap-3 md:grid-cols-2"
@@ -470,6 +475,7 @@ export function LoansListPanel({
               columns={loanColumns}
               data={loans}
               getRowId={(loan) => loan.id}
+              getRowClassName={(loan) => cn(highlightedLoanIds?.has(loan.id) && "realtime-row-enter")}
               onRowClick={onSelectLoan}
               tableClassName={cn(
                 "min-w-[900px]",

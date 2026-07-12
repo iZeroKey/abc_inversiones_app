@@ -138,7 +138,7 @@ export function CreateLoanDialog({
           <DrawerTitle>Nuevo préstamo</DrawerTitle>
           <p className="text-sm text-muted-foreground">Completa los datos para registrar un nuevo préstamo</p>
         </DrawerHeader>
-        <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
+        <form id="create-loan-form" className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
           <div className="min-h-0 flex-1">
             <DrawerPanel className="flex flex-col gap-4">
               <motion.div
@@ -282,15 +282,13 @@ export function CreateLoanDialog({
             </DrawerPanel>
           </div>
           <DrawerFooter variant="bare" className="shrink-0">
-            <div className="flex w-full items-center justify-between">
-              <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={creating || !isFormValid}>
-                {creating ? <Spinner /> : <PlusIcon data-icon="inline-start" />}
-                Crear préstamo
-              </Button>
-            </div>
+            <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)} className="w-full sm:flex-1">
+              Cancelar
+            </Button>
+            <Button type="submit" form="create-loan-form" disabled={creating || !isFormValid} className="w-full sm:flex-1">
+              {creating ? <Spinner data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
+              Crear préstamo
+            </Button>
           </DrawerFooter>
         </form>
       </DrawerPopup>
@@ -300,7 +298,7 @@ export function CreateLoanDialog({
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70 mb-3">
       {children}
     </p>
   )
@@ -313,7 +311,7 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 mb-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cronograma de cuotas</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">Cronograma de cuotas</p>
       <CollapsibleTrigger render={<Button type="button" variant="ghost" size="sm" />}>
         {open ? "Ocultar" : "Mostrar"}
         <ChevronDownIcon data-icon="inline-end" className={cn("transition-transform", open && "rotate-180")} />
@@ -557,7 +555,7 @@ function UserSearchSelect({
               <UserRoundIcon className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground">Estado</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">Estado</p>
               <p className="truncate text-sm text-muted-foreground">{emptyDetail}</p>
             </div>
           </div>
@@ -571,7 +569,7 @@ function UserOption({ user }: { user: RelatedUser }) {
   return (
     <span className="flex w-full min-w-0 items-center gap-2">
       <UserAvatar user={user} />
-      <span className="min-w-0">
+      <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{personName(user)}</span>
         <span className="block truncate text-xs text-muted-foreground">{publicUserCode(user)}</span>
       </span>
@@ -594,7 +592,7 @@ function SelectedUserCard({
         <div className="flex min-w-0 items-center gap-3">
           <UserAvatar user={user} size="lg" />
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-muted-foreground">{user.role ? (roleLabels[user.role] ?? user.role) : "Usuario"}</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">{user.role ? (roleLabels[user.role] ?? user.role) : "Usuario"}</p>
             <p className="truncate text-sm font-semibold">{personName(user)}</p>
           </div>
           <Tooltip>
@@ -623,8 +621,8 @@ function SelectedUserCard({
             <UserDetailItem label="Teléfono" value={user.phone ?? "Sin teléfono"} />
             <UserDetailItem label="DNI" value={user.dni ?? "Sin DNI"} />
             <UserDetailItem label="Banco" value={user.bank ?? "Sin banco"} />
-            <UserDetailItem className="sm:col-span-2" label="Cuentas" value={(user.bankAccounts ?? []).join(", ") || "Sin cuentas"} />
-            <UserDetailItem className="sm:col-span-2" label="Código" value={publicUserCode(user)} />
+            <UserDetailItem className="sm:col-span-2" label="Cuentas" value={(user.bankAccounts ?? []).join(", ") || "Sin cuentas"} mono />
+            <UserDetailItem className="sm:col-span-2" label="Código" value={publicUserCode(user)} mono />
           </div>
         </CollapsiblePanel>
       </div>
@@ -636,15 +634,28 @@ function UserDetailItem({
   className,
   label,
   value,
+  mono,
 }: {
   className?: string
   label: string
   value: string
+  mono?: boolean
 }) {
+  const [expanded, setExpanded] = useState(false)
   return (
     <div className={cn("min-w-0 rounded-md bg-background px-3 py-2", className)}>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="truncate font-medium">{value}</p>
+      <p 
+        onClick={() => setExpanded(!expanded)}
+        className={cn(
+          "font-medium cursor-pointer transition-colors hover:text-foreground/80", 
+          expanded ? "break-all" : "truncate",
+          mono && "font-mono"
+        )}
+        title={!expanded ? "Toca para expandir" : "Toca para ocultar"}
+      >
+        {value}
+      </p>
     </div>
   )
 }

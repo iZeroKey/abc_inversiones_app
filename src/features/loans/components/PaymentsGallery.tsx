@@ -12,13 +12,12 @@ import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Button } from "@/components/ui/button"
 import {
   Drawer,
-  DrawerClose,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerPanel,
   DrawerPopup,
-  DrawerTitle,
+  DrawerTitle
 } from "@/components/ui/drawer"
 import { Separator } from "@/components/ui/separator"
 import { useRealtime } from "@/contexts/realtime-context"
@@ -92,19 +91,19 @@ function PaymentDetailDrawer({
 
   if (isPayment) {
     if (canManage && item.status !== "reversed") {
-      footerActions.push({ label: "Editar", onClick: () => onEdit(mockPayment) })
       footerActions.push({ label: "Eliminar", destructive: true, onClick: () => onDelete(mockPayment) })
+      footerActions.push({ label: "Editar", onClick: () => onEdit(mockPayment) })
     }
   } else {
     if (canProcessVoucher(mockVoucher)) {
-      processActions.push({ label: "Aprobar", onClick: () => onApproveVoucher(mockVoucher) })
       processActions.push({ label: "Rechazar", destructive: true, onClick: () => onRejectVoucher(mockVoucher) })
-    }
-    if (canEditVoucher(mockVoucher)) {
-      footerActions.push({ label: "Editar", onClick: () => onEditVoucher(mockVoucher) })
+      processActions.push({ label: "Aprobar", onClick: () => onApproveVoucher(mockVoucher) })
     }
     if (canDeleteVoucher(mockVoucher)) {
       footerActions.push({ label: "Eliminar", destructive: true, onClick: () => onDeleteVoucher(mockVoucher) })
+    }
+    if (canEditVoucher(mockVoucher)) {
+      footerActions.push({ label: "Editar", onClick: () => onEditVoucher(mockVoucher) })
     }
   }
 
@@ -223,25 +222,21 @@ function PaymentDetailDrawer({
         </DrawerPanel>
 
         <DrawerFooter variant="bare">
-          <div className="flex w-full items-center justify-between">
-            <div className="flex items-center gap-1">
-              {footerActions.map((a) => (
-                <Button
-                  key={a.label}
-                  variant={a.destructive ? "destructive" : "ghost"}
-                  size="sm"
-                  onClick={a.onClick}
-                >
-                  {a.label === "Editar" ? <EditIcon /> : null}
-                  {a.label === "Eliminar" ? <Trash2Icon /> : null}
-                  {a.label}
-                </Button>
-              ))}
-            </div>
-            <DrawerClose render={<Button variant="secondary" />}>
-              Cerrar
-            </DrawerClose>
-          </div>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} className="w-full sm:flex-1">
+            Cerrar
+          </Button>
+          {footerActions.map((a) => (
+            <Button
+              key={a.label}
+              variant={a.destructive ? "destructive" : "secondary"}
+              onClick={a.onClick}
+              className="w-full sm:flex-1"
+            >
+              {a.label === "Editar" ? <EditIcon data-icon="inline-start" /> : null}
+              {a.label === "Eliminar" ? <Trash2Icon data-icon="inline-start" /> : null}
+              {a.label}
+            </Button>
+          ))}
         </DrawerFooter>
       </DrawerPopup>
       {dialogElements}
@@ -370,7 +365,7 @@ export function PaymentsGallery({
   return (
     <PhotoProvider>
       <motion.div
-        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
         variants={{ animate: { transition: { staggerChildren: 0.05 } } }}
         initial="initial"
         animate="animate"

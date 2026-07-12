@@ -266,10 +266,10 @@ export function PaymentDialog({
             variant="bare"
             className="shrink-0"
           >
-            <DrawerClose render={<Button variant="secondary" />}>
+            <DrawerClose render={<Button variant="secondary" className="w-full sm:flex-1" />}>
               Cancelar
             </DrawerClose>
-            <Button type="submit" disabled={!canSubmit}>
+            <Button type="submit" disabled={!canSubmit} className="w-full sm:flex-1">
               {submitting ? <Spinner /> : <ReceiptTextIcon data-icon="inline-start" />}
               {editing ? "Guardar pago" : "Registrar pago"}
             </Button>
@@ -446,10 +446,10 @@ export function VoucherDialog({
             </div>
           </DrawerPanel>
           <DrawerFooter variant="bare">
-            <DrawerClose render={<Button variant="secondary" />}>
+            <DrawerClose render={<Button variant="secondary" className="w-full sm:flex-1" />}>
               Cancelar
             </DrawerClose>
-            <Button type="submit" disabled={!canSubmit}>
+            <Button type="submit" disabled={!canSubmit} className="w-full sm:flex-1">
               {submitting ? <Spinner /> : <UploadIcon data-icon="inline-start" />}
               {editing ? "Guardar voucher" : "Enviar voucher"}
             </Button>
@@ -511,10 +511,10 @@ export function ProcessVoucherDialog({
             </DrawerPanel>
           </div>
           <DrawerFooter variant="bare" className="shrink-0">
-            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} className="w-full sm:flex-1">
               Cancelar
             </Button>
-            <Button type="submit" variant={mode === "reject" ? "destructive" : "default"} disabled={submitting}>
+            <Button type="submit" variant={mode === "reject" ? "destructive" : "default"} disabled={submitting} className="w-full sm:flex-1">
               {submitting ? <Spinner /> : mode === "approve" ? <CheckIcon data-icon="inline-start" /> : <XIcon data-icon="inline-start" />}
               {mode === "approve" ? "Aprobar" : "Rechazar"}
             </Button>
@@ -554,10 +554,10 @@ export function DeleteWorkflowDialog({
         </DrawerHeader>
         <div className="min-h-0 flex-1" />
         <DrawerFooter variant="bare" className="shrink-0">
-          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} className="w-full sm:flex-1">
             Cancelar
           </Button>
-          <Button type="button" variant="destructive" disabled={submitting} onClick={onConfirm}>
+          <Button type="button" variant="destructive" disabled={submitting} onClick={onConfirm} className="w-full sm:flex-1">
             {submitting ? <Spinner /> : <Trash2Icon data-icon="inline-start" />}
             Eliminar
           </Button>

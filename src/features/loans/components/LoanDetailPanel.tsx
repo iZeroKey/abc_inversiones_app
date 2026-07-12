@@ -4,7 +4,6 @@ import {
   ArrowRightIcon,
   CreditCardIcon,
   UserIcon,
-  UserRoundIcon,
 } from "lucide-react"
 import { useState, type ReactNode } from "react"
 
@@ -16,21 +15,21 @@ const fadeIn = {
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { UserDetailSheet, type UserDetailProfile } from "@/components/UserDetailSheet"
+import { UserDetailDrawer, type UserDetailProfile } from "@/components/UserDetailDrawer"
 import { useAuth } from "@/contexts/auth-context"
+import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import {
   InfoRow,
   LoanSummaryBar,
   NextPaymentHero,
 } from "@/features/loans/components/LoanMetricBits"
-import { interestPeriodLabels } from "@/features/loans/loan-constants"
 import { DetailSkeleton, EmptyDetail } from "@/features/loans/components/LoanPageStates"
-import { LoanStatusBadge } from "@/features/loans/components/LoanBadges"
 import { PaymentsGallery } from "@/features/loans/components/PaymentsGallery"
 import { ScheduleDrawer } from "@/features/loans/components/ScheduleDrawer"
 import { ScheduleTimeline } from "@/features/loans/components/ScheduleTimeline"
 import { SectionBlock } from "@/features/loans/components/SectionBlock"
 import { DelayedOpenGate, usePaymentMutations } from "@/features/loans/hooks/usePaymentMutations"
+import { interestPeriodLabels } from "@/features/loans/loan-constants"
 import {
   canDeleteVoucher,
   canEditVoucher,
@@ -46,8 +45,9 @@ import {
   loanInvestorName,
   normalizeStatus,
 } from "@/features/loans/loan-utils"
+import { fetchUserById } from "@/lib/loans-api"
 import { cn } from "@/lib/utils"
-import type { Installment, Loan, PaginationMeta, Payment, PaymentVoucher, LoanTransaction } from "@/types/loans"
+import type { Installment, Loan, LoanTransaction, PaginationMeta, Payment, PaymentVoucher } from "@/types/loans"
 
 export type RelatedData = {
   installments: Installment[]
@@ -287,7 +287,7 @@ export function LoanDetailPanel({
                 onClick={clientUser ? () => setClientSheetUser(clientUser) : undefined}
               />
               <InfoRow
-                icon={UserRoundIcon}
+                icon={UserIcon}
                 avatar={{ src: investorUser?.avatarUrl, initials: getInitials(isCompanyFunded ? "ABC Inversiones" : loanInvestorName(loan)), name: isCompanyFunded ? "ABC Inversiones" : loanInvestorName(loan) }}
                 label="Inversionista"
                 value={isCompanyFunded ? "ABC Inversiones" : loanInvestorName(loan)}
@@ -353,18 +353,20 @@ export function LoanDetailPanel({
 
       <DelayedOpenGate open={clientSheetUser !== null} onOpenChange={(open) => { if (!open) setClientSheetUser(null) }}>
         {(gateOpen, gateOnOpenChange) => (
-          <UserDetailSheet
+          <UserDetailDrawer
             user={gateOpen ? clientSheetUser : null}
             onOpenChange={(open) => { if (!open) gateOnOpenChange(false) }}
+            fetchUserById={(id) => fetchUserById(fetchWithAuth, id)}
           />
         )}
       </DelayedOpenGate>
 
       <DelayedOpenGate open={investorSheetUser !== null} onOpenChange={(open) => { if (!open) setInvestorSheetUser(null) }}>
         {(gateOpen, gateOnOpenChange) => (
-          <UserDetailSheet
+          <UserDetailDrawer
             user={gateOpen ? investorSheetUser : null}
             onOpenChange={(open) => { if (!open) gateOnOpenChange(false) }}
+            fetchUserById={(id) => fetchUserById(fetchWithAuth, id)}
           />
         )}
       </DelayedOpenGate>

@@ -109,11 +109,11 @@ export function ReviewLoanDialog({
             )}
           </DrawerPanel>
         </div>
-        <DrawerFooter className="shrink-0">
-          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+        <DrawerFooter className="shrink-0" variant="bare">
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} className="w-full sm:flex-1">
             Cancelar
           </Button>
-          <Button type="button" variant={approving ? "default" : "destructive"} onClick={onConfirm} disabled={submitting}>
+          <Button type="button" variant={approving ? "default" : "destructive"} onClick={onConfirm} disabled={submitting} className="w-full sm:flex-1">
             {submitting ? <Spinner /> : approving ? <CheckCircleIcon data-icon="inline-start" /> : <XCircleIcon data-icon="inline-start" />}
             {approving ? "Aprobar" : "Rechazar"}
           </Button>
