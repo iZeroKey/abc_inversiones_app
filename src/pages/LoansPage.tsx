@@ -567,16 +567,11 @@ export default function LoansPage() {
               relatedData={visibleRelatedData}
               loading={detailLoadingVisible || (loadingList && !visibleSelectedLoan)}
               error={detailError}
-              canReview={canReviewLoan(visibleSelectedLoan, user)}
-              basePath={basePath}
               perspective={role}
-              onApprove={() => setReviewDialog("approve")}
-              onReject={() => setReviewDialog("reject")}
               onRetry={() => detailLoanId && void loadDetail(detailLoanId, visibleSelectedLoan)}
               onDataChanged={refreshSelectedLoanData}
               sticky={false}
               drawerWidth={760}
-              onBack={() => setDrawerLoanId(null)}
               transactions={transactionsData}
               transactionsMeta={transactionsMeta}
               loadingTransactions={loadingTransactions}
