@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from "framer-motion"
 import {
   BadgeCheckIcon,
   BanknoteIcon,
@@ -17,7 +18,7 @@ import {
   UserIcon,
   XIcon,
 } from "lucide-react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -104,6 +105,12 @@ export function UserDialog({
   const canAddBankAccount = form.bankAccounts.every((account) => account.trim().length > 0)
   const canSubmit = !saving && !missingAuthEmail
 
+  const [bankAccountIds, setBankAccountIds] = useState<string[]>(() => form.bankAccounts.map(() => crypto.randomUUID()))
+
+  if (bankAccountIds.length !== form.bankAccounts.length) {
+    setBankAccountIds(form.bankAccounts.map(() => crypto.randomUUID()))
+  }
+
   useEffect(() => {
     const focusIndex = pendingBankAccountFocusIndex.current
     if (focusIndex === null) return
@@ -123,12 +130,17 @@ export function UserDialog({
   const addBankAccount = () => {
     if (!canAddBankAccount) return
     pendingBankAccountFocusIndex.current = form.bankAccounts.length
+    setBankAccountIds((current) => [...current, crypto.randomUUID()])
     onFormChange((current) => ({
       ...current,
       bankAccounts: [...current.bankAccounts, ""],
     }))
   }
   const removeBankAccount = (index: number) => {
+    setBankAccountIds((current) => {
+      const next = current.filter((_, i) => i !== index)
+      return next.length ? next : [crypto.randomUUID()]
+    })
     onFormChange((current) => {
       const nextAccounts = current.bankAccounts.filter((_, accountIndex) => accountIndex !== index)
       return {
@@ -356,49 +368,71 @@ export function UserDialog({
 
                 <Field>
                   <FieldLabel>Cuentas bancarias</FieldLabel>
-                  <div className="flex w-full flex-col gap-2">
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {form.bankAccounts.map((account, index) => (
-                        <InputGroup key={index}>
-                          <InputGroupAddon align="inline-start">
-                            <BanknoteIcon />
-                          </InputGroupAddon>
-                          <InputGroupInput
-                            aria-label={`Cuenta bancaria ${index + 1}`}
-                            value={account}
-                            placeholder="CCI o número de cuenta"
-                            className="font-mono tabular-nums"
-                            ref={(node) => {
-                              bankAccountRefs.current[index] = node
-                            }}
-                            onChange={(event) => handleBankAccountChange(index, event.target.value)}
-                          />
-                          <InputGroupAddon align="inline-end">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Eliminar cuenta bancaria ${index + 1}`}
-                              disabled={form.bankAccounts.length === 1 && !account}
-                              onClick={() => removeBankAccount(index)}
-                            >
-                              <XIcon />
-                            </Button>
-                          </InputGroupAddon>
-                        </InputGroup>
-                      ))}
+                  <div className="flex w-full flex-col">
+                    <div className="grid gap-x-2 sm:grid-cols-2">
+                      <AnimatePresence initial={false}>
+                        {form.bankAccounts.map((account, index) => (
+                          <motion.div
+                            key={bankAccountIds[index] || index}
+                            initial={{ opacity: 0, height: 0, scale: 0.95, overflow: "hidden" }}
+                            animate={{ opacity: 1, height: "auto", scale: 1, overflow: "visible" }}
+                            exit={{ opacity: 0, height: 0, scale: 0.95, overflow: "hidden" }}
+                            transition={{ type: "spring", bounce: 0, duration: 0.35 }}
+                            className="w-full"
+                          >
+                            <div className="pb-2">
+                              <InputGroup>
+                              <InputGroupAddon align="inline-start">
+                                <BanknoteIcon />
+                              </InputGroupAddon>
+                              <InputGroupInput
+                                aria-label={`Cuenta bancaria ${index + 1}`}
+                                value={account}
+                                placeholder="CCI o número de cuenta"
+                                className="font-mono tabular-nums"
+                                ref={(node) => {
+                                  bankAccountRefs.current[index] = node
+                                }}
+                                onChange={(event) => handleBankAccountChange(index, event.target.value)}
+                              />
+                              <InputGroupAddon align="inline-end">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label={`Eliminar cuenta bancaria ${index + 1}`}
+                                  disabled={form.bankAccounts.length === 1 && !account}
+                                  onClick={() => removeBankAccount(index)}
+                                >
+                                  <XIcon />
+                                </Button>
+                              </InputGroupAddon>
+                            </InputGroup>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
                     </div>
-                    {canAddBankAccount && (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="h-8.5 w-full justify-center border-dashed text-muted-foreground animate-in fade-in-0 slide-in-from-top-1 sm:h-7.5"
-                        onClick={addBankAccount}
-                      >
-                        <PlusIcon data-icon="inline-start" />
-                        Agregar cuenta bancaria
-                      </Button>
-                    )}
+                    <AnimatePresence initial={false}>
+                      {canAddBankAccount && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0, scale: 0.95, overflow: "hidden" }}
+                          animate={{ opacity: 1, height: "auto", scale: 1, overflow: "visible" }}
+                          exit={{ opacity: 0, height: 0, scale: 0.95, overflow: "hidden" }}
+                          transition={{ type: "spring", bounce: 0, duration: 0.35 }}
+                        >
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="h-10.5 w-full justify-center border-dashed text-muted-foreground md:h-9.5"
+                            onClick={addBankAccount}
+                          >
+                            <PlusIcon data-icon="inline-start" />
+                            Agregar cuenta bancaria
+                          </Button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </Field>
               </div>
