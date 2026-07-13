@@ -154,7 +154,7 @@ export function PaymentDialog({
             El sistema aplicará el monto al cronograma y recalculará el préstamo.
           </DrawerDescription>
         </DrawerHeader>
-        <form className="contents" onSubmit={handleSubmit}>
+        <form className="contents" onSubmit={handleSubmit} noValidate>
             <DrawerPanel className="flex flex-col gap-4">
               {!editing && (
                 <EvidenceSection
@@ -397,7 +397,7 @@ export function VoucherDialog({
             Confirma los datos del comprobante antes de enviarlo a revisión.
           </DrawerDescription>
         </DrawerHeader>
-        <form className="contents" onSubmit={handleSubmit}>
+        <form className="contents" onSubmit={handleSubmit} noValidate>
           <DrawerPanel className="flex flex-col gap-4">
             {!editing && (
               <EvidenceSection
@@ -551,7 +551,7 @@ export function ProcessVoucherDialog({
             {voucher?.operationId ? `Operación ${voucher.operationId}` : "La decisión quedará registrada en auditoría."}
           </DrawerDescription>
         </DrawerHeader>
-        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit} noValidate>
           <div className="min-h-0 flex-1">
             <DrawerPanel>
               <Field>

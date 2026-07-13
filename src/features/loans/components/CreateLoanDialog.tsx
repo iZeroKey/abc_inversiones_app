@@ -138,7 +138,7 @@ export function CreateLoanDialog({
           <DrawerTitle>Nuevo préstamo</DrawerTitle>
           <p className="text-sm text-muted-foreground">Completa los datos para registrar un nuevo préstamo</p>
         </DrawerHeader>
-        <form id="create-loan-form" className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
+        <form id="create-loan-form" className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit} noValidate>
           <div className="min-h-0 flex-1">
             <DrawerPanel className="flex flex-col gap-4">
               <motion.div

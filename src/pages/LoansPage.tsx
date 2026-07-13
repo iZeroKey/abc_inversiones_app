@@ -380,15 +380,15 @@ export default function LoansPage() {
     }
 
     const payload: LoanCreatePayload = {
-      clientId: loanForm.clientId.trim(),
-      investorId: loanForm.investorId.trim() || undefined,
+      clientId: loanForm.clientId?.trim() || "",
+      investorId: loanForm.investorId?.trim() || undefined,
       principal: loanForm.principal,
       interestRate: loanForm.interestRate,
       installmentsCount: Number.parseInt(loanForm.installmentsCount, 10),
       frequency: loanForm.frequency,
       startDate: startDate.toISOString(),
-      observation: loanForm.observation.trim() || undefined,
-      name: loanForm.name.trim() || undefined,
+      observation: loanForm.observation?.trim() || undefined,
+      name: loanForm.name?.trim() || undefined,
     }
 
     const principal = Number.parseFloat(payload.principal)
