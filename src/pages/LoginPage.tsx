@@ -34,6 +34,7 @@ import type { FormEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { useLocation, useNavigate } from "react-router-dom"
+import { motion } from "framer-motion"
 import { z } from "zod"
 
 interface LoginResponse {
@@ -332,15 +333,20 @@ export default function LoginPage() {
   const { onChange: onPasswordChange, ...passwordRest } = register("password")
 
   return (
-    <ScrollArea fill className="h-svh w-full bg-linear-to-b from-[#09152E] via-[#192541] to-[#1F2A44]">
+    <ScrollArea fill className="h-dvh w-full bg-linear-to-b from-[#09152E] via-[#192541] to-[#1F2A44]">
       <div className="flex min-h-full w-full flex-col items-center justify-center p-4 md:p-8">
-        <div className="mb-10 w-full max-w-xs md:max-w-sm">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="mb-10 w-full max-w-xs md:max-w-sm"
+        >
           <img
             src={iconNameAbc}
             alt="ABC Inversiones"
             className="mx-auto h-20 w-auto md:h-24"
           />
-        </div>
+        </motion.div>
 
         <Card className="w-full max-w-xs overflow-hidden md:max-w-md flex flex-col">
           <CardContent className="p-0 flex flex-col min-h-0">
@@ -631,7 +637,7 @@ export default function LoginPage() {
       </Card>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          &copy; 2026 ABC Inversiones. Todos los derechos reservados.
+          &copy; {new Date().getFullYear()} ABC Inversiones. Todos los derechos reservados.
         </p>
       </div>
     </ScrollArea>

@@ -13,6 +13,7 @@ import {
 import { TooltipProvider } from "./components/ui/tooltip"
 import { AuthProvider } from "./contexts/auth-context"
 import { RealtimeProvider } from "./contexts/realtime-context"
+import { InitialReveal } from "./components/InitialReveal"
 import { AppQueryProvider } from "./lib/query-client"
 
 const AuditPage = lazy(() => import("./pages/AuditPage"))
@@ -136,11 +137,13 @@ function App() {
                   <HashRouter>
                   <AppDocumentTitle />
                   <Suspense fallback={<AppFallback />}>
-                    <Routes>
-                      <Route path="/" element={<Navigate to="/home" replace />} />
-                      <Route path="/login" element={<LoginPage />} />
-                      <Route path="/*" element={<ProtectedAppRoutes />} />
-                    </Routes>
+                    <InitialReveal>
+                      <Routes>
+                        <Route path="/" element={<Navigate to="/home" replace />} />
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/*" element={<ProtectedAppRoutes />} />
+                      </Routes>
+                    </InitialReveal>
                   </Suspense>
                 </HashRouter>
               </RealtimeProvider>
