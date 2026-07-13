@@ -23,29 +23,62 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export function LoanListSkeleton({
   variant = "cards",
+  perspective = "admin",
 }: {
   variant?: "cards" | "table"
+  perspective?: "admin" | "client" | "investor"
 }) {
   if (variant === "table") {
+    const adminColumns = [
+      { className: "w-[4.5rem]", headerWidth: "w-10", cellWidth: "w-14" },
+      { headerWidth: "w-28", cellWidth: "w-32" },
+      { headerWidth: "w-28", cellWidth: "w-32" },
+      { headerWidth: "w-28", cellWidth: "w-32" },
+      { className: "text-right", headerWidth: "ml-auto w-24", cellWidth: "ml-auto w-28" },
+      { className: "text-right", headerWidth: "ml-auto w-24", cellWidth: "ml-auto w-28" },
+      { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
+      { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
+      { className: "text-right", headerWidth: "ml-auto w-12", cellWidth: "ml-auto w-14" },
+      { headerWidth: "w-20", cellWidth: "w-24" },
+      { className: "text-right", headerWidth: "ml-auto w-14", cellWidth: "ml-auto w-16" },
+      { headerWidth: "w-28", cellWidth: "w-28" },
+      { headerWidth: "w-24", cellWidth: "w-24" },
+    ]
+
+    const clientColumns = [
+      { className: "w-[4.5rem]", headerWidth: "w-10", cellWidth: "w-14" },
+      { headerWidth: "w-28", cellWidth: "w-32" },
+      { className: "text-right", headerWidth: "ml-auto w-24", cellWidth: "ml-auto w-28" },
+      { className: "text-right", headerWidth: "ml-auto w-24", cellWidth: "ml-auto w-28" },
+      { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
+      { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
+      { headerWidth: "w-20", cellWidth: "w-24" },
+      { className: "text-right", headerWidth: "ml-auto w-14", cellWidth: "ml-auto w-16" },
+      { headerWidth: "w-28", cellWidth: "w-28" },
+      { headerWidth: "w-24", cellWidth: "w-24" },
+    ]
+
+    const investorColumns = [
+      { className: "w-[4.5rem]", headerWidth: "w-10", cellWidth: "w-14" },
+      { headerWidth: "w-28", cellWidth: "w-32" },
+      { headerWidth: "w-28", cellWidth: "w-32" },
+      { className: "text-right", headerWidth: "ml-auto w-24", cellWidth: "ml-auto w-28" },
+      { className: "text-right", headerWidth: "ml-auto w-24", cellWidth: "ml-auto w-28" },
+      { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
+      { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
+      { headerWidth: "w-20", cellWidth: "w-24" },
+      { className: "text-right", headerWidth: "ml-auto w-14", cellWidth: "ml-auto w-16" },
+      { headerWidth: "w-28", cellWidth: "w-28" },
+      { headerWidth: "w-24", cellWidth: "w-24" },
+    ]
+    
+    const cols = perspective === "client" ? clientColumns : perspective === "investor" ? investorColumns : adminColumns
+
     return (
       <DataTableSkeleton
         rows={7}
-        tableClassName="min-w-[1180px]"
-        columns={[
-          { className: "w-[4.5rem]", headerWidth: "w-10", cellWidth: "w-14" },
-          { headerWidth: "w-28", cellWidth: "w-32" },
-          { headerWidth: "w-28", cellWidth: "w-32" },
-          { headerWidth: "w-28", cellWidth: "w-32" },
-          { className: "text-right", headerWidth: "ml-auto w-24", cellWidth: "ml-auto w-28" },
-          { className: "text-right", headerWidth: "ml-auto w-24", cellWidth: "ml-auto w-28" },
-          { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
-          { className: "text-right", headerWidth: "ml-auto w-20", cellWidth: "ml-auto w-24" },
-          { className: "text-right", headerWidth: "ml-auto w-12", cellWidth: "ml-auto w-14" },
-          { headerWidth: "w-20", cellWidth: "w-24" },
-          { className: "text-right", headerWidth: "ml-auto w-14", cellWidth: "ml-auto w-16" },
-          { headerWidth: "w-28", cellWidth: "w-28" },
-          { headerWidth: "w-24", cellWidth: "w-24" },
-        ]}
+        tableClassName={perspective === "admin" ? "min-w-[1200px]" : perspective === "investor" ? "min-w-[1000px]" : "min-w-[900px]"}
+        columns={cols}
       />
     )
   }
@@ -58,32 +91,37 @@ export function LoanListSkeleton({
           className="flex h-full w-full flex-col rounded-2xl bg-card shadow-xs/5 border-l-4 border-muted-foreground/20"
         >
           <div className="flex items-center justify-between gap-2 px-4 pt-4">
-            <Skeleton className="h-4 w-20" />
+            <div className="flex items-center gap-1.5">
+               <Skeleton className="h-3 w-4" />
+               <Skeleton className="h-4 w-16" />
+            </div>
             <Skeleton className="h-5 w-16 rounded-full" />
           </div>
           <div className="mt-2 px-4">
-            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-7 w-48" />
           </div>
           <div className="mt-3 grid grid-cols-2 gap-x-4 px-4">
-            <div>
+            <div className="min-w-0">
               <Skeleton className="h-3 w-16" />
               <Skeleton className="mt-1 h-5 w-24" />
             </div>
-            <div>
+            <div className="min-w-0">
               <Skeleton className="h-3 w-16" />
               <Skeleton className="mt-1 h-5 w-24" />
             </div>
           </div>
           <div className="mt-3 px-4">
-            <Skeleton className="h-1.5 w-full rounded-full" />
+            <Skeleton className="h-2 w-full rounded-full" />
           </div>
           <div className="flex-1" />
-          <div className="mt-3 flex items-center justify-between gap-2 px-4 pb-4">
-            <div className="flex items-center gap-2">
-              <Skeleton className="size-3.5 shrink-0" />
+          <div className="mt-3 grid grid-cols-[1fr_auto] gap-x-4 px-4 pb-4">
+            <div className="flex items-center gap-2 min-w-0">
+              <Skeleton className="size-3.5 shrink-0 rounded-full" />
               <Skeleton className="h-3 w-24" />
             </div>
-            <Skeleton className="h-3 w-16" />
+            <div className="flex items-center justify-end">
+               <Skeleton className="h-3 w-16" />
+            </div>
           </div>
         </div>
       ))}

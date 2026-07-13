@@ -195,57 +195,96 @@ export default function InvestorDashboard() {
 function InvestorDashboardSkeleton() {
   return (
     <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         <Skeleton className="h-10 w-64 max-w-full" />
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-4 w-44" />
-          <Skeleton className="h-5 w-28 rounded-full" />
-        </div>
+        <Skeleton className="h-5 w-44 mt-1" />
       </div>
+
       <div className="space-y-4">
         <Skeleton className="h-7 w-56" />
         <Card className="border-none bg-primary/10 shadow-sm rounded-3xl overflow-hidden">
-          <CardContent className="p-4 max-[480px]:p-4 sm:p-8">
-            <div className="grid items-center gap-8 md:grid-cols-2">
-              <div className="space-y-3">
+          <CardContent className="p-6 md:p-8">
+            <div className="flex flex-col md:flex-row gap-8 md:items-center justify-between">
+              <div className="space-y-2 flex-1">
                 <Skeleton className="h-3 w-36" />
-                <Skeleton className="h-12 w-72 max-w-full" />
-                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-12 md:h-14 w-72 max-w-full" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Skeleton className="h-20 rounded-2xl" />
-                <Skeleton className="h-20 rounded-2xl" />
+              
+              <div className="flex items-center gap-4 flex-1 w-full justify-start md:justify-end border-t border-border/40 md:border-none pt-6 md:pt-0">
+                <div className="flex flex-col gap-3">
+                  <div className="space-y-1.5">
+                     <Skeleton className="h-3 w-16" />
+                     <Skeleton className="h-5 w-24" />
+                  </div>
+                  <div className="space-y-1.5">
+                     <Skeleton className="h-3 w-20" />
+                     <Skeleton className="h-5 w-24" />
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
       <div className="space-y-4">
-        <Skeleton className="h-7 w-24" />
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <MetricCardSkeleton key={index} />
-          ))}
+        <Skeleton className="h-7 w-48" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+           <div className="md:col-span-2">
+             <Card className="border-border overflow-hidden h-full">
+               <CardContent className="p-6 md:p-8 flex flex-col justify-between h-full">
+                 <div className="flex flex-col sm:flex-row justify-between gap-6 mb-8">
+                   <div className="space-y-2">
+                     <div className="flex items-center gap-2 mb-2">
+                       <Skeleton className="size-8 rounded-lg" />
+                       <Skeleton className="h-3 w-32" />
+                     </div>
+                     <Skeleton className="h-10 w-48" />
+                     <Skeleton className="h-3 w-36" />
+                   </div>
+                   <div className="sm:text-right space-y-2">
+                     <div className="flex items-center sm:justify-end gap-2 mb-2">
+                       <Skeleton className="h-3 w-24" />
+                       <Skeleton className="size-8 rounded-lg hidden sm:flex" />
+                     </div>
+                     <Skeleton className="h-8 w-32 sm:ml-auto" />
+                   </div>
+                 </div>
+                 <div className="space-y-2 mt-auto">
+                   <div className="flex justify-between">
+                     <Skeleton className="h-3 w-32" />
+                     <Skeleton className="h-3 w-10" />
+                   </div>
+                   <Skeleton className="h-3 w-full rounded-full" />
+                 </div>
+               </CardContent>
+             </Card>
+           </div>
+           
+           <Card className="border-border overflow-hidden h-full flex flex-col justify-between">
+             <CardContent className="p-6 md:p-8 flex flex-col h-full">
+               <div>
+                 <div className="flex items-center justify-between mb-4">
+                   <Skeleton className="h-3 w-28" />
+                   <Skeleton className="size-5 rounded" />
+                 </div>
+                 <Skeleton className="h-14 w-16" />
+               </div>
+               
+               <div className="space-y-3 mt-auto pt-6 border-t border-border/40">
+                 <div className="flex justify-between">
+                   <Skeleton className="h-4 w-12" />
+                   <Skeleton className="h-4 w-4" />
+                 </div>
+                 <div className="flex justify-between">
+                   <Skeleton className="h-4 w-16" />
+                   <Skeleton className="h-4 w-4" />
+                 </div>
+               </div>
+             </CardContent>
+           </Card>
         </div>
       </div>
     </div>
   )
 }
-
-function MetricCardSkeleton() {
-  return (
-    <Card className="border-border overflow-hidden">
-      <CardContent className="p-5">
-        <div className="flex flex-col gap-3">
-          <Skeleton className="size-10 rounded-xl" />
-          <div className="space-y-2">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-6 w-28" />
-            <Skeleton className="h-3 w-20" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-

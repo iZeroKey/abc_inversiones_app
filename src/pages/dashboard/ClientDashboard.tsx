@@ -34,45 +34,60 @@ export default function ClientDashboard() {
       <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
         <div className="flex flex-col gap-1">
           <Skeleton className="h-10 w-64 max-w-full" />
-          <Skeleton className="h-4 w-72 max-w-full" />
+          <Skeleton className="h-5 w-72 max-w-full" />
         </div>
-        <div className="grid grid-cols-3 gap-3 md:gap-5">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <MetricCardSkeleton key={i} />
-          ))}
-        </div>
+        
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Skeleton className="h-7 w-52" />
-            <Skeleton className="h-5 w-20 rounded-full" />
           </div>
           <Card className="border-none bg-primary/10 shadow-sm rounded-3xl overflow-hidden">
-            <CardContent className="p-8 space-y-8">
-              <div className="flex justify-between">
-                <div className="space-y-3">
+            <CardContent className="p-6 md:p-8 space-y-8">
+              <div className="flex justify-between items-start">
+                <div className="w-full space-y-3">
                   <Skeleton className="h-3 w-28" />
-                  <Skeleton className="h-12 w-64 max-w-full" />
+                  <Skeleton className="h-12 md:h-14 w-64 max-w-full" />
                 </div>
-                <Skeleton className="size-10 rounded-full" />
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Skeleton className="h-3 w-32" />
-                  <Skeleton className="h-3 w-10" />
-                </div>
-                <Skeleton className="h-2.5 w-full rounded-full" />
-                <Skeleton className="h-3 w-32" />
+              <div className="flex flex-col sm:flex-row items-center gap-6 pt-4">
+                 <div className="flex flex-col justify-center text-center space-y-2">
+                    <Skeleton className="size-8 md:size-10 mx-auto" />
+                    <Skeleton className="h-3 w-16" />
+                 </div>
+                 <div className="space-y-2 w-full flex flex-col items-center sm:items-start">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-8 w-32" />
+                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4 border-t border-border/40 pt-6">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="space-y-2">
-                    <Skeleton className="h-6 w-12" />
+                    <Skeleton className="h-7 w-12" />
                     <Skeleton className="h-3 w-14" />
                   </div>
                 ))}
               </div>
+              <div className="pt-4 border-t border-border/40 mt-6 flex items-center justify-center">
+                  <Skeleton className="h-4 w-40" />
+              </div>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
+          <div className="col-span-2">
+            <Card className="border-border overflow-hidden">
+              <CardContent className="p-5 md:p-6 flex items-center gap-4">
+                <Skeleton className="size-14 rounded-2xl shrink-0" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-3 md:h-4 w-20" />
+                  <Skeleton className="h-10 w-48 max-w-[50vw]" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
         </div>
       </div>
     )
@@ -225,11 +240,11 @@ function MetricCard({ icon, value, label }: { icon: React.ReactNode, value: Reac
 function MetricCardSkeleton() {
   return (
     <Card className="border-border overflow-hidden">
-      <CardContent className="p-4 md:p-5 flex flex-col items-center justify-center text-center space-y-3">
-        <Skeleton className="size-12 rounded-2xl md:size-14" />
-        <div className="space-y-2">
-          <Skeleton className="mx-auto h-7 w-16" />
-          <Skeleton className="mx-auto h-3 w-20" />
+      <CardContent className="p-4 sm:p-5 flex flex-col items-center justify-center text-center space-y-3">
+        <Skeleton className="size-12 md:size-14 rounded-2xl shrink-0" />
+        <div className="space-y-2 w-full flex flex-col items-center">
+          <Skeleton className="h-7 md:h-8 w-16" />
+          <Skeleton className="h-3 md:h-3.5 w-20" />
         </div>
       </CardContent>
     </Card>

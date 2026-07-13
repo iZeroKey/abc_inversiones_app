@@ -419,50 +419,75 @@ function ProfileSkeleton() {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 animate-in fade-in">
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-44" />
-          <Skeleton className="h-4 w-72 max-w-full" />
+        <div className="space-y-1">
+          <Skeleton className="h-9 w-44" />
+          <Skeleton className="h-5 w-72 max-w-full" />
         </div>
-        <Skeleton className="h-10 w-full sm:w-40" />
+        <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
+          <Skeleton className="h-9 w-full sm:w-32 rounded-md" />
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
         <div className="flex flex-col gap-6">
           <Card className="border-border/60">
             <CardContent className="flex flex-col items-center gap-4 p-6">
-              <Skeleton className="size-28 rounded-full" />
-              <div className="space-y-2 text-center">
-                <Skeleton className="h-6 w-40" />
-                <Skeleton className="h-4 w-52" />
-              </div>
-              <div className="flex gap-2">
-                <Skeleton className="h-6 w-20 rounded-full" />
-                <Skeleton className="h-6 w-24 rounded-full" />
+              <div className="flex flex-col items-center gap-3 text-center">
+                <Skeleton className="size-28 rounded-full border-4 border-background" />
+                <div className="space-y-1 text-center w-full flex flex-col items-center">
+                  <Skeleton className="h-7 w-40" />
+                  <Skeleton className="h-5 w-52" />
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-border/60">
             <CardContent className="flex flex-col gap-4 p-5">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-4 w-24" />
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-4 shrink-0" />
+                <div className="space-y-1 min-w-0 flex-1">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-5 w-32" />
+                </div>
+              </div>
+              <div className="flex items-center gap-3 border-t border-border/40 pt-3">
+                <Skeleton className="size-4 shrink-0" />
+                <div className="space-y-1 min-w-0 flex-1">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-4 w-28" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardContent className="flex flex-col gap-3 p-5">
+              <div className="flex flex-col gap-1">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-4 w-48 max-w-full" />
+              </div>
+              <Skeleton className="h-9 w-full rounded-md mt-1" />
             </CardContent>
           </Card>
         </div>
 
-        <Card className="border-border/60">
-          <CardHeader className="border-b border-border/50 pb-4">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-72 max-w-full" />
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6 p-6">
-            <ProfileSectionSkeleton />
-            <ProfileSectionSkeleton />
-            <ProfileSectionSkeleton />
-            <ProfileSectionSkeleton />
-          </CardContent>
-        </Card>
+        <div className="min-w-0">
+          <Card className="border-border/60">
+            <CardHeader className="border-b border-border/50 pb-4">
+              <Skeleton className="h-7 w-48" />
+              <Skeleton className="h-4 w-72 mt-1 max-w-full" />
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6 p-6">
+              <ProfileSectionSkeleton />
+              <ProfileSectionSkeleton />
+              <ProfileSectionSkeleton />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
@@ -471,10 +496,12 @@ function ProfileSkeleton() {
 function ProfileSectionSkeleton() {
   return (
     <div className="rounded-xl bg-muted/30 p-5">
-      <Skeleton className="mb-4 h-4 w-36" />
+      <Skeleton className="mb-4 h-5 w-36" />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Skeleton className="h-10 w-full rounded-lg" />
+        <Skeleton className="h-[52px] w-full rounded-lg" />
+        <Skeleton className="h-[52px] w-full rounded-lg" />
+        <Skeleton className="h-[52px] w-full rounded-lg" />
+        <Skeleton className="h-[52px] w-full rounded-lg" />
       </div>
     </div>
   )

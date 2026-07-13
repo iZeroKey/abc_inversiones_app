@@ -146,15 +146,17 @@ export function UsersSkeleton() {
   return (
     <DataTableSkeleton
       rows={8}
-      tableClassName="min-w-[1180px] table-fixed"
+      tableClassName="min-w-[1080px] table-fixed"
       columns={[
         { className: "w-[260px]", headerWidth: "w-20", cellWidth: "w-44" },
         { className: "w-[250px]", headerWidth: "w-24", cellWidth: "w-52" },
-        { className: "w-[250px]", headerWidth: "w-32", cellWidth: "w-44" },
-        { className: "w-[150px]", headerWidth: "w-12", cellWidth: "w-24" },
+        { className: "w-[120px]", headerWidth: "w-12", cellWidth: "w-20" },
+        { className: "w-[150px]", headerWidth: "w-16", cellWidth: "w-24" },
+        { className: "w-[220px]", headerWidth: "w-20", cellWidth: "w-32" },
+        { className: "w-[150px]", headerWidth: "w-24", cellWidth: "w-28" },
+        { className: "w-[150px]", headerWidth: "w-10", cellWidth: "w-24" },
         { className: "w-[160px]", headerWidth: "w-16", cellWidth: "w-28" },
         { className: "w-[120px]", headerWidth: "w-20", cellWidth: "w-24" },
-        { className: "w-[220px] text-right", headerWidth: "ml-auto w-16", cellWidth: "ml-auto w-36" },
       ]}
     />
   )
@@ -261,28 +263,28 @@ function UserSummarySkeleton() {
       <div className="grid grid-cols-2 gap-4 p-4">
         <div>
           <Skeleton className="h-3 w-20" />
-          <Skeleton className="mt-1.5 h-7 w-24" />
+          <Skeleton className="mt-1.5 h-8 w-24" />
         </div>
         <div>
           <Skeleton className="h-3 w-20" />
-          <Skeleton className="mt-1.5 h-7 w-24" />
+          <Skeleton className="mt-1.5 h-8 w-24" />
         </div>
       </div>
       <div className="px-4">
-        <div className="h-px bg-border" />
+        <Separator className="w-full" />
       </div>
       <div className="grid grid-cols-3 gap-4 p-4">
         <div>
           <Skeleton className="h-3 w-16" />
-          <Skeleton className="mt-1.5 h-4 w-12" />
+          <Skeleton className="mt-1.5 h-5 w-12" />
         </div>
         <div>
           <Skeleton className="h-3 w-16" />
-          <Skeleton className="mt-1.5 h-4 w-12" />
+          <Skeleton className="mt-1.5 h-5 w-12" />
         </div>
         <div>
           <Skeleton className="h-3 w-16" />
-          <Skeleton className="mt-1.5 h-4 w-12" />
+          <Skeleton className="mt-1.5 h-5 w-12" />
         </div>
       </div>
     </div>

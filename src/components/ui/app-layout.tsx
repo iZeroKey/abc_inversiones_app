@@ -420,9 +420,12 @@ function AppHeader({
           replace={shouldReplaceSectionNavigation(location.pathname, "/notifications", isMobile)}
           state={getSectionNavigationState(location.pathname, "/notifications", isMobile)}
           onClick={handleNotificationsClick}
-          className="relative text-white/80 hover:text-white transition-colors cursor-pointer block"
+          className={cn(
+            "relative transition-colors cursor-pointer block",
+            location.pathname === "/notifications" ? "text-white" : "text-white/80 hover:text-white"
+          )}
         >
-          <BellIcon className="size-5" />
+          <BellIcon className="size-5" fill={location.pathname === "/notifications" ? "currentColor" : "none"} />
           {hasUnreadNotifications && (
             <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-white">
               {notificationBadge}

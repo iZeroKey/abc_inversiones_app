@@ -29,6 +29,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useAuth } from "@/contexts/auth-context"
+import { SectionBlock } from "@/features/loans/components/SectionBlock"
 import { buildApiUrl, getErrorMessage, readApiPayload } from "@/lib/api-client"
 import { dispatchNotificationsUpdated } from "@/lib/realtime"
 import { cn } from "@/lib/utils"
@@ -471,7 +472,7 @@ export default function NotificationsPage() {
         </div>
       )}
 
-      {!loading && !error && (
+      {!loading && !error && notifications.length > 0 && (
         <DataTablePaginationBar
           pagination={{
             page,
@@ -490,18 +491,20 @@ function LoadingList() {
   return (
     <div className="flex flex-col gap-3">
       {Array.from({ length: 5 }).map((_, index) => (
-        <Card key={index} className="border-border/70">
+        <Card key={index} className="border-border/70 border-y border-r border-l-4 border-l-slate-400">
           <CardContent className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 p-4 md:p-5">
             <Skeleton className="size-11 shrink-0 rounded-full" />
-            <div className="min-w-0 flex flex-col gap-2">
-              <Skeleton className="h-4 w-2/5 min-w-32" />
-              <div className="flex flex-col gap-1.5">
-                <Skeleton className="h-4 w-4/5" />
-                <Skeleton className="h-4 w-3/5" />
+            <div className="min-w-0">
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Skeleton className="h-5 w-2/5 min-w-32" />
+                <div className="flex flex-col gap-1.5">
+                  <Skeleton className="h-5 w-4/5" />
+                  <Skeleton className="h-5 w-3/5" />
+                </div>
+                <Skeleton className="mt-1 h-4 w-28" />
               </div>
-              <Skeleton className="mt-1 h-3 w-28" />
             </div>
-            <Skeleton className="size-8 shrink-0 rounded-md" />
+            <Skeleton className="size-9 shrink-0 rounded-full" />
           </CardContent>
         </Card>
       ))}
@@ -510,23 +513,35 @@ function LoadingList() {
 }
 
 function EmptyState({ filter }: { filter: NotificationFilter }) {
-  const copy =
-    filter === "unread"
-      ? "No tienes pendientes por leer."
-      : filter === "read"
-        ? "Todavía no hay notificaciones leídas en esta vista."
-        : "Cuando ocurra algo importante, aparecerá aquí."
+  const isUnread = filter === "unread"
+  const isRead = filter === "read"
+  
+  const title = isUnread ? "¡Estás al día!" : "Bandeja vacía"
+  const copy = isUnread
+    ? "No tienes notificaciones pendientes por leer."
+    : isRead
+      ? "Aún no tienes notificaciones leídas en tu historial."
+      : " Cuando ocurra algo importante en tu cuenta, aparecerá aquí."
+      
+  const Icon = isUnread ? CheckCheckIcon : BellIcon
 
   return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <BellIcon />
-        </EmptyMedia>
-        <EmptyTitle>Bandeja vacía</EmptyTitle>
-        <EmptyDescription>{copy}</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+    <SectionBlock className="flex flex-col items-center justify-center min-h-75 text-center gap-2 py-10 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
+      <div className={cn(
+        "flex items-center justify-center size-16 rounded-full mb-3",
+        isUnread 
+          ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400" 
+          : "bg-background text-muted-foreground shadow-sm"
+      )}>
+        <Icon className="size-8" />
+      </div>
+      <div className="space-y-1.5">
+        <h3 className="text-xl font-semibold tracking-tight text-foreground">{title}</h3>
+        <p className="max-w-70 mx-auto text-sm text-muted-foreground text-balance">
+          {copy}
+        </p>
+      </div>
+    </SectionBlock>
   )
 }
 

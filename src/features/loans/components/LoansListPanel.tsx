@@ -442,7 +442,7 @@ export function LoansListPanel({
   return (
     <div className="flex min-w-0 flex-col gap-4">
       {loading ? (
-        <LoanListSkeleton variant={viewMode} />
+        <LoanListSkeleton variant={viewMode} perspective={perspective} />
       ) : error ? (
         <ErrorState message={error} onRetry={onRetry} />
       ) : loans.length === 0 ? (
@@ -553,9 +553,11 @@ export function LoanCardRow({
         <LoanStatusBadge status={status} size="default" className={cn(isPaid && "opacity-60")} />
       </div>
 
-      <p className="mt-2 truncate px-4 text-xl font-semibold text-foreground">
-        {loan.name ?? `Préstamo #${loanPublicCode(loan)}`}
-      </p>
+      <div className="mt-2 px-4 w-full">
+        <p className="text-xl font-semibold text-foreground line-clamp-1 break-words">
+          {loan.name ?? `Préstamo #${loanPublicCode(loan)}`}
+        </p>
+      </div>
 
       <div className="mt-3 grid grid-cols-2 gap-x-4 px-4">
         <div className="min-w-0">
