@@ -9,13 +9,14 @@ import {
   getRemainingDebt,
   toNumber,
 } from "@/features/loans/loan-utils"
+import { useIsMobile } from "@/hooks/use-media-query"
 import {
   useClientDashboardQuery,
   type DashboardLoan as Loan,
 } from "@/pages/dashboard/dashboard-queries"
 
 import { motion } from "framer-motion"
-import { ArrowRightIcon, ChevronRightIcon, CreditCardIcon, ReceiptTextIcon, WalletIcon } from "lucide-react"
+import { ArrowRightIcon, CreditCardIcon, ReceiptTextIcon, WalletIcon } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 
 
@@ -192,7 +193,6 @@ export default function ClientDashboard() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-xl tracking-tight">Otros Préstamos</h3>
-            <h3 className="text-xl font-bold tracking-tight">Otros Préstamos</h3>
             {activeLoans.length > 0 && (
               <Badge variant="secondary">{activeLoans.length} Activos</Badge>
             )}
@@ -268,53 +268,62 @@ function MainLoanCard({ loan }: { loan: Loan }) {
     ? frequencyMap[normalizedFrequency] || loan.frequency || "N/A"
     : "N/A"
   const publicCode = loan.publicCode
+  const isMobile = useIsMobile()
 
   return (
-    <Link to="/loans" state={{ selectedLoanId: publicCode || loan.id }} aria-label={`Ver préstamo ${publicCode ?? ""}`} className="block group focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-3xl">
-      <Card className="bg-primary text-primary-foreground shadow-md border-none rounded-3xl overflow-hidden hover:shadow-lg transition-all relative">
-        <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
-        <CardContent className="p-6 md:p-8 space-y-8 relative z-10">
-          <div className="flex justify-between items-start">
-            <div className="w-full">
-              <p className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Saldo Restante</p>
-              <div className="text-4xl md:text-5xl font-black tracking-tight wrap-break-word">
-                <AnimatedNumber value={remainingDebt} isCurrency />
-              </div>
+    <Link 
+      to="/loans" 
+      state={{ selectedLoanId: publicCode || loan.id }} 
+      aria-label={`Ver préstamo ${publicCode ?? ""}`} 
+      className="block group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-3xl"
+    >
+      <Card className="relative overflow-hidden bg-primary text-primary-foreground border-none rounded-3xl shadow-md hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1">
+        <CardContent className="p-5 sm:p-6 md:p-8 relative z-10 flex flex-col min-h-70">
+          {/* Top Section */}
+          <div className="mb-6 md:mb-8">
+            <p className="text-[11px] font-semibold text-primary-foreground/70 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+              Saldo Restante
+            </p>
+            <div className="text-4xl md:text-5xl font-black tracking-tighter">
+              <AnimatedNumber value={remainingDebt} isCurrency isCompact={isMobile && remainingDebt >= 100000} />
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-6 pt-4">
-            <div className="flex flex-col justify-center text-center">
-              <span className="text-2xl font-bold leading-none"><AnimatedNumber value={progressPercent} decimals={0} suffix="%" /></span>
-              <span className="text-[10px] font-bold uppercase opacity-70">Progreso</span>
-            </div>
-            <div className="space-y-2 w-full text-center sm:text-left">
-              <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest">Total Pagado</p>
-              <p className="text-2xl font-black tracking-tight">
-                <AnimatedNumber value={totalPaid} isCurrency />
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
-            <div>
-              <div className="text-xl font-bold"><AnimatedNumber value={cuotas} /></div>
-              <div className="text-[10px] font-bold uppercase opacity-60">Cuotas</div>
-            </div>
-            <div>
-              <div className="text-xl font-bold">
-                <AnimatedNumber value={parseFloat(String(loan.interestRate || 0))} decimals={1} suffix="%" />
+          <div className="mt-auto space-y-8">
+            {/* Progress Section */}
+            <div className="space-y-2.5">
+              <div className="flex justify-between items-end px-0.5">
+                <span className="text-[11px] font-bold text-primary-foreground/70 uppercase tracking-widest">Progreso del pago</span>
+                <span className="text-sm font-black"><AnimatedNumber value={progressPercent} decimals={0} suffix="%" /></span>
               </div>
-              <div className="text-[10px] font-bold uppercase opacity-60">Tasa</div>
+              <div className="h-2.5 w-full bg-black/10 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-white rounded-full relative transition-all duration-1000 ease-out" 
+                  style={{ width: `${progressPercent}%` }}
+                >
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-xl font-bold">{frecuencia}</div>
-              <div className="text-[10px] font-bold uppercase opacity-60">Freq.</div>
+
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+               <div className="bg-white/10 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-center">
+                 <p className="text-[10px] text-primary-foreground/70 font-bold uppercase tracking-widest mb-1">Pagado</p>
+                 <div className="text-sm sm:text-base font-black truncate"><AnimatedNumber value={totalPaid} isCurrency isCompact={isMobile && totalPaid >= 10000} /></div>
+               </div>
+               <div className="bg-white/10 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-center">
+                 <p className="text-[10px] text-primary-foreground/70 font-bold uppercase tracking-widest mb-1">Cuotas</p>
+                 <div className="text-sm sm:text-base font-black truncate"><AnimatedNumber value={cuotas} /></div>
+               </div>
+               <div className="bg-white/10 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-center">
+                 <p className="text-[10px] text-primary-foreground/70 font-bold uppercase tracking-widest mb-1">Tasa</p>
+                 <div className="text-sm sm:text-base font-black truncate"><AnimatedNumber value={parseFloat(String(loan.interestRate || 0))} decimals={1} suffix="%" /></div>
+               </div>
+               <div className="bg-white/10 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-center relative overflow-hidden">
+                 <p className="text-[10px] text-primary-foreground/70 font-bold uppercase tracking-widest mb-1">Freq.</p>
+                 <div className="text-sm sm:text-base font-black truncate">{frecuencia}</div>
+               </div>
             </div>
-          </div>
-          
-          <div className="pt-4 border-t border-white/10 mt-6 flex items-center justify-center gap-2 group-hover:gap-3 transition-all text-[10px] sm:text-xs font-bold opacity-90 uppercase tracking-widest">
-            Ver detalles del préstamo <ChevronRightIcon className="size-4" />
           </div>
         </CardContent>
       </Card>
