@@ -80,7 +80,7 @@ function PaymentDetailDrawer({
   const reference = item.reference ?? item.operationId ?? null
   const observation = item.observation ?? null
 
-  type ActionItem = { label: string; destructive?: boolean; onClick: () => void }
+  type ActionItem = { label: string; destructive?: boolean; onClick: () => void; priority: number }
 
   const processActions: ActionItem[] = []
   const footerActions: ActionItem[] = []
@@ -91,21 +91,23 @@ function PaymentDetailDrawer({
 
   if (isPayment) {
     if (canManage && item.status !== "reversed") {
-      footerActions.push({ label: "Eliminar", destructive: true, onClick: () => onDelete(mockPayment) })
-      footerActions.push({ label: "Editar", onClick: () => onEdit(mockPayment) })
+      footerActions.push({ label: "Editar", onClick: () => onEdit(mockPayment), priority: 20 })
+      footerActions.push({ label: "Eliminar", destructive: true, onClick: () => onDelete(mockPayment), priority: 40 })
     }
   } else {
     if (canProcessVoucher(mockVoucher)) {
-      processActions.push({ label: "Rechazar", destructive: true, onClick: () => onRejectVoucher(mockVoucher) })
-      processActions.push({ label: "Aprobar", onClick: () => onApproveVoucher(mockVoucher) })
+      processActions.push({ label: "Aprobar", onClick: () => onApproveVoucher(mockVoucher), priority: 10 })
+      processActions.push({ label: "Rechazar", destructive: true, onClick: () => onRejectVoucher(mockVoucher), priority: 30 })
     }
     if (canDeleteVoucher(mockVoucher)) {
-      footerActions.push({ label: "Eliminar", destructive: true, onClick: () => onDeleteVoucher(mockVoucher) })
+      footerActions.push({ label: "Eliminar", destructive: true, onClick: () => onDeleteVoucher(mockVoucher), priority: 40 })
     }
     if (canEditVoucher(mockVoucher)) {
-      footerActions.push({ label: "Editar", onClick: () => onEditVoucher(mockVoucher) })
+      footerActions.push({ label: "Editar", onClick: () => onEditVoucher(mockVoucher), priority: 20 })
     }
   }
+
+  const prioritizedActions = [...processActions, ...footerActions].sort((a, b) => a.priority - b.priority)
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} position={isMobile ? "bottom" : "right"} nested>
@@ -198,45 +200,34 @@ function PaymentDetailDrawer({
                 )}
               </div>
             </div>
-
-            {/* Inline actions for processable vouchers */}
-            {processActions.length > 0 && (
-              <>
-                <Separator />
-                <div className="flex items-center gap-2">
-                  {processActions.map((a) => (
-                    <Button
-                      key={a.label}
-                      size="sm"
-                      variant={a.destructive ? "destructive" : "default"}
-                      onClick={a.onClick}
-                    >
-                      {a.label === "Aprobar" ? <CheckIcon /> : <XIcon />}
-                      {a.label}
-                    </Button>
-                  ))}
-                </div>
-              </>
-            )}
           </div>
         </DrawerPanel>
 
         <DrawerFooter variant="bare">
-          <Button variant="secondary" onClick={() => onOpenChange(false)} className="w-full sm:flex-1">
-            Cerrar
-          </Button>
-          {footerActions.map((a) => (
+          <div className="grid grid-cols-2 gap-2 w-full">
+            {prioritizedActions.map((a) => (
+              <Button
+                key={a.label}
+                size="sm"
+                variant={a.destructive ? "destructive" : a.label === "Aprobar" ? "default" : "secondary"}
+                onClick={a.onClick}
+                className="w-full"
+              >
+                {a.label === "Aprobar" ? <CheckIcon /> : null}
+                {a.label === "Rechazar" ? <XIcon /> : null}
+                {a.label === "Editar" ? <EditIcon data-icon="inline-start" /> : null}
+                {a.label === "Eliminar" ? <Trash2Icon data-icon="inline-start" /> : null}
+                {a.label}
+              </Button>
+            ))}
             <Button
-              key={a.label}
-              variant={a.destructive ? "destructive" : "secondary"}
-              onClick={a.onClick}
-              className="w-full sm:flex-1"
+              variant="secondary"
+              onClick={() => onOpenChange(false)}
+              className={`w-full ${prioritizedActions.length === 0 || !prioritizedActions.some((a) => a.label === "Aprobar") ? "col-span-2" : ""}`}
             >
-              {a.label === "Editar" ? <EditIcon data-icon="inline-start" /> : null}
-              {a.label === "Eliminar" ? <Trash2Icon data-icon="inline-start" /> : null}
-              {a.label}
+              Cerrar
             </Button>
-          ))}
+          </div>
         </DrawerFooter>
       </DrawerPopup>
       {dialogElements}

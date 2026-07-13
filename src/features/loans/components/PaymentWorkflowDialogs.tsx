@@ -128,11 +128,17 @@ export function PaymentDialog({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!valid) {
+      setAmountInteracted(true)
+      return
+    }
     if (!canSubmit) return
     void Promise.resolve(
       onSubmit(form, () => undefined),
     )
   }
+
+  const [amountInteracted, setAmountInteracted] = useState(false)
 
   const cancelScan = () => {
     scanAbortRef.current?.abort()
@@ -165,12 +171,14 @@ export function PaymentDialog({
                       setUploadState,
                       analyze: onAnalyze,
                       signal: abortController.signal,
-                      apply: (analyzed) =>
+                      apply: (analyzed) => {
+                        setAmountInteracted(true)
                         setForm((current) => ({
                           ...current,
                           ...removeEmptyValues(analyzed),
                           evidence: file,
-                        })),
+                        }))
+                      },
                       onFinish: () => {
                         if (scanAbortRef.current === abortController) scanAbortRef.current = null
                       },
@@ -189,17 +197,34 @@ export function PaymentDialog({
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="payment-amount">Monto</FieldLabel>
-                    {fieldsLoading ? (
-                      <LoadingInputShell />
-                    ) : (
-                      <MoneyNumberField
-                        id="payment-amount"
-                        min="0.01"
-                        step="0.01"
-                        value={form.amount}
-                        onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
-                      />
-                    )}
+                    <div className="w-full">
+                      {fieldsLoading ? (
+                        <LoadingInputShell />
+                      ) : (
+                        <MoneyNumberField
+                          id="payment-amount"
+                          min="0.01"
+                          step="10"
+                          value={form.amount}
+                          onValueChange={(amount) => {
+                            setAmountInteracted(true)
+                            setForm((current) => ({ ...current, amount }))
+                          }}
+                        />
+                      )}
+                      <AnimatePresence>
+                        {amountInteracted && Number(form.amount) <= 0 && !fieldsLoading && (
+                          <motion.p
+                            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                            animate={{ opacity: 1, height: "auto", marginTop: "0.5rem" }}
+                            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                            className="text-xs text-destructive overflow-hidden"
+                          >
+                            El monto debe ser mayor a 0
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="payment-reference">Referencia</FieldLabel>
@@ -320,13 +345,20 @@ export function VoucherDialog({
 
   const imageBusy = uploadState.phase === "uploading" || uploadState.phase === "processing"
   const scanBusy = imageBusy && uploadState.mode === "scan"
+  const fieldsLoading = scanBusy
   const valid = Number(form.amount) > 0 && form.operationId.trim().length > 0
   const canSubmit = valid && !submitting && !scanBusy
 
   useEffect(() => () => scanAbortRef.current?.abort(), [])
 
+  const [amountInteracted, setAmountInteracted] = useState(false)
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!valid) {
+      setAmountInteracted(true)
+      return
+    }
     if (!canSubmit) return
     if (form.evidence) setUploadState({ mode: "submit", phase: "uploading", progress: 0 })
     void Promise.resolve(
@@ -382,12 +414,14 @@ export function VoucherDialog({
                     setUploadState,
                     analyze: onAnalyze,
                     signal: abortController.signal,
-                    apply: (analyzed) =>
+                    apply: (analyzed) => {
+                      setAmountInteracted(true)
                       setForm((current) => ({
                         ...current,
                         ...removeEmptyValues(analyzed),
                         evidence: file,
-                      })),
+                      }))
+                    },
                     onFinish: () => {
                       if (scanAbortRef.current === abortController) scanAbortRef.current = null
                     },
@@ -407,13 +441,34 @@ export function VoucherDialog({
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="voucher-amount">Monto</FieldLabel>
-                  <MoneyNumberField
-                    id="voucher-amount"
-                    min="0.01"
-                    step="0.01"
-                    value={form.amount}
-                    onValueChange={(amount) => setForm((current) => ({ ...current, amount }))}
-                  />
+                  <div className="w-full">
+                    {fieldsLoading ? (
+                      <LoadingInputShell />
+                    ) : (
+                      <MoneyNumberField
+                        id="voucher-amount"
+                        min="0.01"
+                        step="10"
+                        value={form.amount}
+                        onValueChange={(amount) => {
+                          setAmountInteracted(true)
+                          setForm((current) => ({ ...current, amount }))
+                        }}
+                      />
+                    )}
+                    <AnimatePresence>
+                      {amountInteracted && Number(form.amount) <= 0 && !fieldsLoading && (
+                        <motion.p
+                          initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                          animate={{ opacity: 1, height: "auto", marginTop: "0.5rem" }}
+                          exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                          className="text-xs text-destructive overflow-hidden"
+                        >
+                          El monto debe ser mayor a 0
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="voucher-operation">Operación</FieldLabel>
@@ -478,7 +533,7 @@ export function ProcessVoucherDialog({
   const [observation, setObservation] = useState("")
   const isMobile = useIsMobile()
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     onSubmit({ action: mode, observation })
   }
@@ -583,9 +638,11 @@ export function EvidenceButton({ url }: { url?: string | null }) {
 }
 
 function getPaymentDefaults(payment?: Payment | null): PaymentFormState {
+  const p = payment as Payment & { date?: string; createdAt?: string };
+  const paymentDate = payment ? (payment.paymentDate || p.date || p.createdAt) : null;
   return {
     amount: payment?.amount ? String(payment.amount) : "",
-    paymentDate: payment ? toInputDate(payment.paymentDate) : formatInputDate(new Date()),
+    paymentDate: paymentDate ? toInputDate(paymentDate) : formatInputDate(new Date()),
     method: (payment?.method as PaymentMethod) || "cash",
     reference: payment?.reference ?? "",
     observation: payment?.observation ?? "",
@@ -597,7 +654,7 @@ function getVoucherDefaults(voucher?: PaymentVoucher | null): VoucherFormState {
   return {
     amount: voucher?.amount ? String(voucher.amount) : "",
     operationId: voucher?.operationId ?? "",
-    operationDate: toInputDate(voucher?.operationDate),
+    operationDate: voucher ? toInputDate(voucher.operationDate) : formatInputDate(new Date()),
     observation: voucher?.observation ?? "",
     evidence: null,
   }
@@ -623,6 +680,7 @@ function MoneyNumberField({
       id={id}
       min={value.trim() ? (min ? Number(min) : undefined) : undefined}
       step={step ? Number(step) : undefined}
+      format={{ minimumFractionDigits: 0, maximumFractionDigits: 2 }}
       value={numericValue}
       onValueChange={(nextValue) => onValueChange(formatNumberFieldValue(nextValue))}
     >
@@ -636,11 +694,7 @@ function MoneyNumberField({
 }
 
 function LoadingInputShell() {
-  return (
-    <div className="flex h-10 w-full items-center rounded-lg border bg-background px-3 shadow-xs/5 sm:h-9">
-      <Skeleton className="h-4 w-2/3" />
-    </div>
-  )
+  return <Skeleton className="h-10 w-full rounded-lg sm:h-9" />
 }
 
 function DatePicker({

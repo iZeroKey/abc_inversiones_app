@@ -24,6 +24,7 @@ import {
   type PaymentMutationPayload,
   type VoucherSubmitPayload,
 } from "@/lib/loans-api"
+import { formatDate } from "@/features/loans/loan-utils"
 import type { Loan, Payment, PaymentMethod, PaymentVoucher } from "@/types/loans"
 
 type UsePaymentMutationsProps = {
@@ -498,8 +499,10 @@ export function usePaymentMutations({ loan, fetchWithAuth, session, onDataChange
               title={deleteTarget?.type === "payment" ? "Eliminar pago" : "Eliminar voucher"}
               description={
                 deleteTarget?.type === "payment"
-                  ? "El pago se eliminará lógicamente y el préstamo se recalculará."
-                  : "El voucher se eliminará lógicamente. Si ya generó un pago, el sistema lo revertirá."
+                  ? `¿Estás seguro de eliminar el pago de S/ ${deleteTarget.item.amount} del ${formatDate((deleteTarget.item as Payment).paymentDate || deleteTarget.item.createdAt)}? El pago se eliminará lógicamente y el préstamo se recalculará.`
+                  : deleteTarget
+                    ? `¿Estás seguro de eliminar el voucher de S/ ${deleteTarget.item.amount} del ${formatDate((deleteTarget.item as PaymentVoucher).operationDate || deleteTarget.item.createdAt)}? El voucher se eliminará lógicamente. Si ya generó un pago, el sistema lo revertirá.`
+                    : ""
               }
               submitting={submitting}
               onOpenChange={gateOnOpenChange}
