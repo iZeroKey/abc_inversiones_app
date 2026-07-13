@@ -310,7 +310,6 @@ export function UserDetailDrawer({
             {linkable && (
               <Button
                 variant="secondary"
-                size="sm"
                 onClick={onLinkAuth}
                 className="w-full sm:flex-1"
               >
@@ -321,7 +320,6 @@ export function UserDetailDrawer({
             {editable && (
               <Button
                 variant="secondary"
-                size="sm"
                 onClick={onEdit}
                 className="w-full sm:flex-1"
               >

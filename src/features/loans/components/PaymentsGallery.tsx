@@ -208,7 +208,6 @@ function PaymentDetailDrawer({
             {prioritizedActions.map((a) => (
               <Button
                 key={a.label}
-                size="sm"
                 variant={a.destructive ? "destructive" : a.label === "Aprobar" ? "default" : "secondary"}
                 onClick={a.onClick}
                 className="w-full"

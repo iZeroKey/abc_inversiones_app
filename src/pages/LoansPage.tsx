@@ -596,11 +596,11 @@ export default function LoansPage() {
             </DrawerClose>
             {canReviewLoan(visibleSelectedLoan, user) && (
               <>
-                <Button variant="destructive" size="sm" onClick={() => setReviewDialog("reject")} className="w-full sm:flex-1">
+                <Button variant="destructive" onClick={() => setReviewDialog("reject")} className="w-full sm:flex-1">
                   <XIcon data-icon="inline-start" />
                   Rechazar
                 </Button>
-                <Button variant="default" size="sm" onClick={() => setReviewDialog("approve")} className="w-full sm:flex-1">
+                <Button variant="default" onClick={() => setReviewDialog("approve")} className="w-full sm:flex-1">
                   <CheckIcon data-icon="inline-start" />
                   Aprobar
                 </Button>
