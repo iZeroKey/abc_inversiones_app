@@ -175,6 +175,34 @@ export function useLoanVouchersQuery(
   );
 }
 
+export function useAllVouchersQuery(
+  params: VoucherListParams = {},
+  options?: { enabled?: boolean },
+) {
+  const { fetchWithAuth, session, user } = useAuth();
+  const { status: wsStatus } = useRealtime();
+  const scope = getAuthQueryScope(user);
+
+  return useInfiniteQuery<{ vouchers: PaymentVoucher[]; meta: PaginationMeta }>({
+    enabled: Boolean(session?.access_token && (options?.enabled ?? true)),
+    initialPageParam: 1,
+    queryFn: ({ pageParam, signal }) =>
+      fetchLoanVouchers(
+        fetchWithAuth,
+        { ...params, page: pageParam as number },
+        { signal },
+      ),
+    queryKey: queryKeys.vouchers.list(scope, "all", params),
+    getNextPageParam: (lastPage) => {
+      const current = lastPage.meta.page ?? 1;
+      const total = lastPage.meta.totalPages ?? 1;
+      return current < total ? current + 1 : undefined;
+    },
+    refetchInterval:
+      wsStatus === "disconnected" || wsStatus === "error" ? 30_000 : false,
+  });
+}
+
 export function useLoanTransactionsQuery(
   loanId: string | null,
   params: Omit<TransactionListParams, "page"> = {},

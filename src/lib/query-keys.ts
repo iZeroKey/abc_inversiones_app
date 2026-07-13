@@ -39,6 +39,7 @@ export type VoucherListParams = {
   from?: string;
   to?: string;
   q?: string;
+  order?: "asc" | "desc";
 };
 
 export type AuditParams = {

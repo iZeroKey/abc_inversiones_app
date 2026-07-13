@@ -306,6 +306,7 @@ export async function fetchLoanVouchers(
     from?: string;
     to?: string;
     q?: string;
+    order?: "asc" | "desc";
   },
   init?: RequestInit,
 ): Promise<{ vouchers: PaymentVoucher[]; meta: PaginationMeta }> {

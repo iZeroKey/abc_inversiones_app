@@ -8,13 +8,15 @@ import { useAuth } from "@/contexts/auth-context"
 import { useAdminDashboardQuery } from "@/pages/dashboard/dashboard-queries"
 import { motion } from "framer-motion"
 import { PieChartIcon, ReceiptIcon, TrendingUpIcon, WalletIcon } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { useState } from "react"
 import { Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
+
+import { AdminVouchersDrawer } from "./components/AdminVouchersDrawer"
 
 export default function AdminDashboard() {
   const { user } = useAuth()
   const { data, isLoading, isError, error, refetch } = useAdminDashboardQuery()
-  const navigate = useNavigate()
+  const [vouchersDrawerOpen, setVouchersDrawerOpen] = useState(false)
 
   if (isLoading) {
     return <AdminDashboardSkeleton />
@@ -88,7 +90,7 @@ export default function AdminDashboard() {
             size="lg"
             variant="default"
             className="w-full md:w-auto shadow-md min-h-11"
-            onClick={() => navigate("/loans", { state: { appBackTarget: "/home" } })}
+            onClick={() => setVouchersDrawerOpen(true)}
           >
             <ReceiptIcon data-icon="inline-start" />
             Revisar Vouchers ({vouchersCount})
@@ -281,6 +283,7 @@ export default function AdminDashboard() {
           </motion.div>
         </div>
       </div>
+      <AdminVouchersDrawer open={vouchersDrawerOpen} onOpenChange={setVouchersDrawerOpen} />
     </div>
   )
 }
@@ -288,24 +291,24 @@ export default function AdminDashboard() {
 function AdminDashboardSkeleton() {
   return (
     <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
-      <div className="flex flex-col gap-6 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
-        <div className="flex items-center gap-5">
-          <Skeleton className="size-16 rounded-full md:size-20" />
-          <div className="space-y-3">
-            <Skeleton className="h-9 w-56 max-w-[60vw]" />
-            <div className="flex gap-2">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border">
+        <div className="flex flex-row md:items-center gap-4 md:gap-5">
+          <Skeleton className="size-16 md:size-20 rounded-full" />
+          <div className="flex-1 flex flex-col items-start space-y-2">
+            <Skeleton className="h-10 w-56 max-w-[60vw]" />
+            <div className="flex flex-wrap gap-2 mt-2">
               <Skeleton className="h-5 w-28 rounded-full" />
               <Skeleton className="h-5 w-16 rounded-full" />
             </div>
           </div>
         </div>
-        <Skeleton className="h-11 w-full rounded-md md:w-48" />
+        <Skeleton className="h-11 w-full md:w-48 rounded-md" />
       </div>
 
       <div className="space-y-4">
         <Skeleton className="h-7 w-64" />
         <Card className="border-none bg-primary/10 shadow-sm rounded-3xl overflow-hidden">
-          <CardContent className="p-8 space-y-8">
+          <CardContent className="p-6 md:p-8 space-y-8 relative z-10">
             <div className="space-y-3">
               <Skeleton className="h-3 w-40" />
               <Skeleton className="h-12 w-72 max-w-full" />
@@ -317,10 +320,13 @@ function AdminDashboardSkeleton() {
               </div>
               <Skeleton className="h-3 w-full rounded-full" />
             </div>
-            <div className="grid grid-cols-3 gap-4 border-t border-border/40 pt-6">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <Skeleton key={index} className="h-20 rounded-2xl" />
-              ))}
+            <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 pt-6 border-t border-border/40 items-center">
+              <Skeleton className="size-32 rounded-full shrink-0" />
+              <div className="flex flex-col sm:grid sm:grid-cols-3 gap-3 sm:gap-4 w-full">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <Skeleton key={index} className="h-22 sm:h-26 rounded-2xl" />
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -328,24 +334,38 @@ function AdminDashboardSkeleton() {
 
       <div className="space-y-4">
         <Skeleton className="h-7 w-44" />
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <MetricCardSkeleton key={index} />
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <MetricCardSkeleton key={index} className={index === 2 ? "sm:col-span-2" : ""} />
+            ))}
+          </div>
+          <Card className="border-border overflow-hidden h-full flex flex-col justify-center">
+            <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="size-50 rounded-full my-2" />
+              <div className="space-y-2 w-full mt-auto">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5 mx-auto" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
   )
 }
 
-function MetricCardSkeleton() {
+function MetricCardSkeleton({ className = "" }: { className?: string }) {
   return (
-    <Card className="border-border overflow-hidden">
-      <CardContent className="p-5 flex flex-col space-y-4">
-        <Skeleton className="size-10 rounded-xl" />
-        <div className="space-y-2">
-          <Skeleton className="h-3 w-20" />
-          <Skeleton className="h-7 w-24" />
+    <Card className={`border-border overflow-hidden ${className}`}>
+      <CardContent className="p-4 sm:p-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-10 rounded-xl shrink-0" />
+          <div className="space-y-2">
+            <Skeleton className="h-2.5 w-24" />
+            <Skeleton className="h-6 sm:h-8 w-20" />
+          </div>
         </div>
       </CardContent>
     </Card>
