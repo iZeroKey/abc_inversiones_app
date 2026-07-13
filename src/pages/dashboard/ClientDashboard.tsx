@@ -42,34 +42,33 @@ export default function ClientDashboard() {
           <div className="flex items-center justify-between">
             <Skeleton className="h-7 w-52" />
           </div>
-          <Card className="border-none bg-primary/10 shadow-sm rounded-3xl overflow-hidden">
-            <CardContent className="p-6 md:p-8 space-y-8">
-              <div className="flex justify-between items-start">
-                <div className="w-full space-y-3">
-                  <Skeleton className="h-3 w-28" />
-                  <Skeleton className="h-12 md:h-14 w-64 max-w-full" />
-                </div>
+          <Card className="border-none bg-primary/5 shadow-sm rounded-3xl overflow-hidden">
+            <CardContent className="p-5 sm:p-6 md:p-8 flex flex-col min-h-[280px]">
+              {/* Top Section */}
+              <div className="mb-6 md:mb-8">
+                <Skeleton className="h-3 w-28 mb-2" />
+                <Skeleton className="h-10 md:h-12 w-64 max-w-full" />
               </div>
-              <div className="flex flex-col sm:flex-row items-center gap-6 pt-4">
-                 <div className="flex flex-col justify-center text-center space-y-2">
-                    <Skeleton className="size-8 md:size-10 mx-auto" />
-                    <Skeleton className="h-3 w-16" />
-                 </div>
-                 <div className="space-y-2 w-full flex flex-col items-center sm:items-start">
+
+              <div className="mt-auto space-y-8">
+                {/* Progress Section */}
+                <div className="space-y-2.5">
+                  <div className="flex justify-between items-end px-0.5">
                     <Skeleton className="h-3 w-24" />
-                    <Skeleton className="h-8 w-32" />
-                 </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4 border-t border-border/40 pt-6">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="space-y-2">
-                    <Skeleton className="h-7 w-12" />
-                    <Skeleton className="h-3 w-14" />
+                    <Skeleton className="h-4 w-10" />
                   </div>
-                ))}
-              </div>
-              <div className="pt-4 border-t border-border/40 mt-6 flex items-center justify-center">
-                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-2.5 w-full rounded-full" />
+                </div>
+
+                {/* Metrics Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="bg-primary/5 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-center space-y-1.5">
+                      <Skeleton className="h-2.5 w-14" />
+                      <Skeleton className="h-5 w-24 max-w-full" />
+                    </div>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
