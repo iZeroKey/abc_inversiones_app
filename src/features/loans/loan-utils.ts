@@ -295,7 +295,7 @@ export function getLoanCardTitle(loan: Loan) {
   if (group === "pending" || group === "rejected") {
     return "Monto solicitado";
   }
-  return "Monto total";
+  return "Principal";
 }
 
 export function getLoanCardSecondaryLabel(loan: Loan) {
