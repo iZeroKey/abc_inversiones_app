@@ -39,7 +39,7 @@ import {
   NumberFieldInput,
 } from "@/components/ui/number-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
+
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, selectTriggerVariants } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -201,7 +201,8 @@ export function CreateLoanDialog({
                       <LoanNumberField
                         id="loan-principal"
                         min={1}
-                        step={1}
+                        step={100}
+                        formatOptions={{ minimumFractionDigits: 0, maximumFractionDigits: 2 }}
                         value={form.principal}
                         onValueChange={(value) => update("principal", value)}
                         decrementLabel="Reducir principal"
@@ -213,7 +214,8 @@ export function CreateLoanDialog({
                       <LoanNumberField
                         id="loan-rate"
                         min={0.01}
-                        step={0.01}
+                        step={1}
+                        formatOptions={{ minimumFractionDigits: 0, maximumFractionDigits: 2 }}
                         value={form.interestRate}
                         onValueChange={(value) => update("interestRate", value)}
                         decrementLabel="Reducir tasa"
@@ -337,60 +339,25 @@ function SchedulePreview({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <ScheduleSummary preview={preview} />
-      <div className="h-80">
-        <ScrollArea scrollFade className="h-full">
-          <div className="flex flex-col gap-1">
-            {preview.rows.map((row) => (
-              <div key={row.installmentNumber} className="flex items-center gap-3 rounded-lg bg-background px-3 py-2">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold tabular-nums text-muted-foreground">
-                  {row.installmentNumber}
-                </span>
-                <span className="min-w-0 flex-1 text-sm text-muted-foreground">
-                  {formatScheduleDate(row.dueDate)}
-                </span>
-                <span className="shrink-0 text-sm font-semibold tabular-nums">
-                  {formatPreciseCurrencyWithSymbol(row.amount)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
+    <div className="flex flex-col gap-1 mt-2">
+      {preview.rows.map((row) => (
+        <div key={row.installmentNumber} className="flex items-center gap-3 rounded-lg bg-background px-3 py-2">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold tabular-nums text-muted-foreground">
+            {row.installmentNumber}
+          </span>
+          <span className="min-w-0 flex-1 text-sm text-muted-foreground">
+            {formatScheduleDate(row.dueDate)}
+          </span>
+          <span className="shrink-0 text-sm font-semibold tabular-nums">
+            {formatPreciseCurrencyWithSymbol(row.amount)}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
 
-function ScheduleSummary({
-  preview,
-}: {
-  preview: ReturnType<typeof createSchedulePreview>
-}) {
-  return (
-    <div className="rounded-lg border bg-muted/24 p-3">
-      <p className="mb-2 text-sm font-medium">Resumen</p>
-      <div className="grid gap-2 text-sm sm:grid-cols-2">
-        <div className="flex items-center justify-between rounded-md bg-background px-3 py-2">
-          <span className="text-muted-foreground">Total a pagar</span>
-          <span className="font-semibold tabular-nums">{formatPreciseCurrencyWithSymbol(preview.totalDebt)}</span>
-        </div>
-        <div className="flex items-center justify-between rounded-md bg-background px-3 py-2">
-          <span className="text-muted-foreground">Cuota {installmentPeriodLabels[preview.frequency]?.singular ?? "cuota"}</span>
-          <span className="font-semibold tabular-nums">{formatPreciseCurrencyWithSymbol(preview.amountPerInstallment)}</span>
-        </div>
-        <div className="flex items-center justify-between rounded-md bg-background px-3 py-2">
-          <span className="text-muted-foreground">Capital</span>
-          <span className="font-semibold tabular-nums">{formatPreciseCurrencyWithSymbol(preview.principal)}</span>
-        </div>
-        <div className="flex items-center justify-between rounded-md bg-background px-3 py-2">
-          <span className="text-muted-foreground">Intereses</span>
-          <span className="font-semibold tabular-nums">{formatPreciseCurrencyWithSymbol(preview.totalInterest)}</span>
-        </div>
-      </div>
-    </div>
-  )
-}
+
 
 function LoanNumberField({
   id,
@@ -401,6 +368,7 @@ function LoanNumberField({
   decrementLabel,
   incrementLabel,
   onValueChange,
+  formatOptions,
 }: {
   id: string
   value: string
@@ -410,6 +378,7 @@ function LoanNumberField({
   decrementLabel: string
   incrementLabel: string
   onValueChange: (value: string) => void
+  formatOptions?: Intl.NumberFormatOptions
 }) {
   return (
     <NumberField
@@ -417,6 +386,7 @@ function LoanNumberField({
       min={min}
       max={max}
       step={step}
+      format={formatOptions}
       value={parseNumberFieldValue(value)}
       onValueChange={(nextValue) => onValueChange(formatNumberFieldValue(nextValue))}
     >
